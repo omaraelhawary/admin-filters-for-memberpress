@@ -29,6 +29,11 @@ if (! defined('MEPRMF_VERSION')) {
     define('MEPRMF_VERSION', '1.5.0');
 }
 
+/** @var int Maximum number of additional filter rows shown/stored on the settings page. */
+if (! defined('MEPRMF_MAX_ROWS')) {
+    define('MEPRMF_MAX_ROWS', 25);
+}
+
 /**
  * URL to a file under this plugin directory.
  *
@@ -316,7 +321,7 @@ function meprmf_render_settings_page()
         $saved = [];
     }
 
-    $max_rows = 25;
+    $max_rows    = MEPRMF_MAX_ROWS;
     $saved_count = count($saved);
     // Fewer spare rows when many filters are already configured (less scrolling).
     if ($saved_count >= 10) {
@@ -526,8 +531,10 @@ function meprmf_get_additional_filter_fields()
         $label    = (string) $row['label'];
         $ftype    = isset($row['filter_type']) ? sanitize_key((string) $row['filter_type']) : 'text';
 
-        $param = 'mpf_ext_' . sanitize_key(str_replace('-', '_', $meta_key));
-        if (strlen($param) < 9) {
+        $prefix = 'mpf_ext_';
+        $param  = $prefix . sanitize_key(str_replace('-', '_', $meta_key));
+        if (strlen($param) <= strlen($prefix)) {
+            // Suffix was stripped to nothing by sanitize_key(); unusable param.
             continue;
         }
 
@@ -578,8 +585,11 @@ function meprmf_map_mepr_custom_field_to_filter($cf)
         return null;
     }
 
-    $param = 'mpf_' . sanitize_key(str_replace('-', '_', $cf->field_key));
-    if (strlen($param) < 6) {
+    $prefix = 'mpf_';
+    $param  = $prefix . sanitize_key(str_replace('-', '_', $cf->field_key));
+    // Require at least 2 suffix chars so custom-field params don't collide
+    // with built-in single-word address params like `mpf_zip`.
+    if (strlen($param) < strlen($prefix) + 2) {
         return null;
     }
 
