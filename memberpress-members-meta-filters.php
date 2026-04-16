@@ -1,11 +1,13 @@
 <?php
 /**
  * Plugin Name: MemberPress Members Meta Filters
- * Description: Adds Country, City, MemberPress custom fields, and optional extra user-meta filters to the MemberPress Members admin list. Uses MemberPress hooks only.
- * Version: 1.4.0
+ * Description: Adds address (country, state, city, zip, address lines), MemberPress custom fields, and optional extra user-meta filters to the MemberPress Members admin list. Uses MemberPress hooks only.
+ * Version: 1.5.0
  * Requires at least: 5.6
  * Requires PHP: 7.4
  * Author: Omar ElHawray
+ * Author URI: https://www.omarelhawray.com
+ * GitHub URI: https://github.com/omarelhawray/memberpress-members-meta-filters
  * Requires Plugins: memberpress
  * License: GPLv2 or later
  * Text Domain: memberpress-members-meta-filters
@@ -24,7 +26,7 @@ if (! defined('MEPRMF_OPTION_ADDITIONAL')) {
 
 /** @var string Plugin version for asset cache-busting. */
 if (! defined('MEPRMF_VERSION')) {
-    define('MEPRMF_VERSION', '1.4.0');
+    define('MEPRMF_VERSION', '1.5.0');
 }
 
 /**
@@ -672,6 +674,113 @@ function meprmf_map_mepr_custom_field_to_filter($cf)
 }
 
 /**
+ * Built-in filters for the six MemberPress address fields.
+ *
+ * @param object $opts MeprOptions instance.
+ * @return array<int, array<string, mixed>>
+ */
+function meprmf_get_address_filter_fields($opts)
+{
+    /**
+     * Toggle the built-in address filters.
+     * Default: show them when address capture is enabled, hide otherwise.
+     *
+     * @param bool   $enabled
+     * @param object $opts
+     */
+    $enabled = (bool) apply_filters(
+        'meprmf_include_address_filters',
+        ! empty($opts->show_address_fields),
+        $opts
+    );
+
+    if (! $enabled) {
+        return [];
+    }
+
+    $country_label = __('Country', 'memberpress-members-meta-filters');
+    $state_label   = __('State / Province', 'memberpress-members-meta-filters');
+    $city_label    = __('City', 'memberpress-members-meta-filters');
+    $zip_label     = __('Zip / Postal code', 'memberpress-members-meta-filters');
+    $addr1_label   = __('Address line 1', 'memberpress-members-meta-filters');
+    $addr2_label   = __('Address line 2', 'memberpress-members-meta-filters');
+
+    // Prefer MemberPress' own labels if they've been (re)translated.
+    if (! empty($opts->address_fields) && is_array($opts->address_fields)) {
+        foreach ($opts->address_fields as $af) {
+            if (empty($af->field_key) || empty($af->field_name)) {
+                continue;
+            }
+            switch ($af->field_key) {
+                case 'mepr-address-one':
+                    $addr1_label = (string) $af->field_name;
+                    break;
+                case 'mepr-address-two':
+                    $addr2_label = (string) $af->field_name;
+                    break;
+                case 'mepr-address-city':
+                    $city_label = (string) $af->field_name;
+                    break;
+                case 'mepr-address-country':
+                    $country_label = (string) $af->field_name;
+                    break;
+                case 'mepr-address-state':
+                    $state_label = (string) $af->field_name;
+                    break;
+                case 'mepr-address-zip':
+                    $zip_label = (string) $af->field_name;
+                    break;
+            }
+        }
+    }
+
+    return [
+        [
+            'param'    => 'mpf_country',
+            'meta_key' => 'mepr-address-country',
+            'label'    => $country_label,
+            'type'     => 'country',
+            'match'    => 'exact',
+        ],
+        [
+            'param'    => 'mpf_state',
+            'meta_key' => 'mepr-address-state',
+            'label'    => $state_label,
+            'type'     => 'text',
+            'match'    => 'like',
+        ],
+        [
+            'param'    => 'mpf_city',
+            'meta_key' => 'mepr-address-city',
+            'label'    => $city_label,
+            'type'     => 'text',
+            'match'    => 'like',
+        ],
+        [
+            'param'    => 'mpf_zip',
+            'meta_key' => 'mepr-address-zip',
+            'label'    => $zip_label,
+            'type'     => 'text',
+            'match'    => 'like',
+        ],
+        [
+            'param'    => 'mpf_address_one',
+            'meta_key' => 'mepr-address-one',
+            'label'    => $addr1_label,
+            'type'     => 'text',
+            'match'    => 'like',
+        ],
+        [
+            'param'    => 'mpf_address_two',
+            'meta_key' => 'mepr-address-two',
+            'label'    => $addr2_label,
+            'type'     => 'text',
+            'match'    => 'like',
+        ],
+    ];
+}
+
+/**
  * Field definitions: filterable. Each item:
  * - param: (string) HTML id + $_GET key; use only [a-z0-9_].
  * - meta_key: (string) usermeta key.
@@ -689,24 +798,9 @@ function meprmf_get_filter_fields()
         return $cached;
     }
 
-    $fields = [
-        [
-            'param'    => 'mpf_country',
-            'meta_key' => 'mepr-address-country',
-            'label'    => __('Country', 'memberpress-members-meta-filters'),
-            'type'     => 'country',
-            'match'    => 'exact',
-        ],
-        [
-            'param'    => 'mpf_city',
-            'meta_key' => 'mepr-address-city',
-            'label'    => __('City', 'memberpress-members-meta-filters'),
-            'type'     => 'text',
-            'match'    => 'like',
-        ],
-    ];
-
     $opts = MeprOptions::fetch();
+
+    $fields = meprmf_get_address_filter_fields($opts);
 
     if (! empty($opts->custom_fields) && is_array($opts->custom_fields)) {
         foreach ($opts->custom_fields as $cf) {
