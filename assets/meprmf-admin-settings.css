@@ -1,0 +1,171 @@
+/**
+ * Member list filters — settings screen.
+ */
+
+.meprmf-settings-wrap {
+	max-width: 1100px;
+}
+
+.meprmf-settings-wrap > .description {
+	font-size: 14px;
+	line-height: 1.5;
+	margin: 0.75em 0 1.25em;
+	max-width: 52rem;
+}
+
+.meprmf-settings-layout {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 20px;
+	align-items: start;
+}
+
+@media screen and (min-width: 960px) {
+	.meprmf-settings-layout {
+		grid-template-columns: minmax(0, 1fr) 280px;
+	}
+}
+
+/* Cards */
+.meprmf-filter-card {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+	margin: 0 0 12px;
+	padding: 0;
+	overflow: hidden;
+}
+
+.meprmf-filter-card__head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 10px 14px;
+	background: #f6f7f7;
+	border-bottom: 1px solid #dcdcde;
+}
+
+.meprmf-filter-card__title {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 600;
+	color: #1d2327;
+}
+
+.meprmf-filter-card__badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 1.75rem;
+	height: 1.75rem;
+	padding: 0 6px;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1;
+	color: #50575e;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 999px;
+}
+
+.meprmf-filter-card__body {
+	padding: 14px 16px 16px;
+}
+
+.meprmf-filter-card__grid {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 14px 20px;
+}
+
+@media screen and (min-width: 782px) {
+	.meprmf-filter-card__grid {
+		grid-template-columns: 1fr 1fr;
+	}
+}
+
+.meprmf-field {
+	margin: 0;
+}
+
+.meprmf-field--full {
+	grid-column: 1 / -1;
+}
+
+.meprmf-field label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 6px;
+	color: #1d2327;
+}
+
+.meprmf-field .description {
+	margin-top: 6px;
+	font-weight: 400;
+	color: #646970;
+}
+
+.meprmf-field input.regular-text,
+.meprmf-field select,
+.meprmf-field textarea {
+	width: 100%;
+	max-width: 100%;
+	box-sizing: border-box;
+}
+
+.meprmf-field textarea {
+	min-height: 72px;
+	resize: vertical;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+	font-size: 12px;
+	line-height: 1.45;
+}
+
+.meprmf-options-field.is-muted textarea {
+	background: #f6f7f7;
+	color: #646970;
+	cursor: not-allowed;
+}
+
+.meprmf-settings-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 12px;
+	margin-top: 8px;
+	padding-top: 16px;
+	border-top: 1px solid #dcdcde;
+}
+
+/* Sidebar */
+.meprmf-sidebar .postbox .inside {
+	margin: 0;
+	padding: 12px;
+	font-size: 13px;
+	line-height: 1.55;
+}
+
+.meprmf-sidebar .postbox .inside p:first-child {
+	margin-top: 0;
+}
+
+.meprmf-sidebar .postbox .inside p:last-child {
+	margin-bottom: 0;
+}
+
+.meprmf-sidebar .postbox .inside ul {
+	margin: 0.5em 0 0 1.1em;
+	padding: 0;
+	list-style: disc;
+}
+
+.meprmf-sidebar .postbox .inside li {
+	margin: 0.35em 0;
+}
+
+.meprmf-sidebar .button-link {
+	padding: 0;
+	height: auto;
+}

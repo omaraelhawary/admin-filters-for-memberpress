@@ -1,0 +1,118 @@
+/**
+ * Members admin list — extra meta filter controls.
+ */
+
+/* Inline mode (few filters): sit next to search */
+.mepr-filter-by.meprmf-meta-filters:not(.meprmf-meta-filters--compact) {
+	display: inline-flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 12px;
+	vertical-align: middle;
+	margin-inline-start: 4px;
+}
+
+.mepr-filter-by.meprmf-meta-filters:not(.meprmf-meta-filters--compact) .mepr_filter_field {
+	max-width: min(16rem, 100%);
+	min-height: 30px;
+}
+
+.mepr-filter-by.meprmf-meta-filters:not(.meprmf-meta-filters--compact) select.mepr_filter_field {
+	line-height: 1.4;
+}
+
+.mepr-filter-by.meprmf-meta-filters:not(.meprmf-meta-filters--compact) input.mepr_filter_field.regular-text {
+	width: min(14rem, 100%);
+	min-width: 7rem;
+}
+
+/* Many filters: full-width panel + grid so ~10 fields stay usable */
+.mepr-filter-by.meprmf-meta-filters--compact {
+	display: block;
+	width: 100%;
+	flex-basis: 100%;
+	margin-top: 10px;
+	margin-inline-start: 0;
+	box-sizing: border-box;
+}
+
+.meprmf-meta-filters__details {
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	background: #fff;
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+	padding: 0;
+}
+
+.meprmf-meta-filters__summary {
+	cursor: pointer;
+	padding: 10px 12px;
+	font-weight: 600;
+	font-size: 13px;
+	color: #1d2327;
+	list-style: none;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	user-select: none;
+}
+
+.meprmf-meta-filters__summary::-webkit-details-marker {
+	display: none;
+}
+
+.meprmf-meta-filters__summary::before {
+	content: "";
+	display: inline-block;
+	width: 0;
+	height: 0;
+	border-left: 5px solid transparent;
+	border-right: 5px solid transparent;
+	border-top: 6px solid #50575e;
+	transition: transform 0.15s ease;
+	flex-shrink: 0;
+}
+
+.meprmf-meta-filters__details[open] .meprmf-meta-filters__summary::before {
+	transform: rotate(180deg);
+}
+
+.meprmf-meta-filters__count {
+	font-weight: 400;
+	color: #646970;
+}
+
+.meprmf-meta-filters__grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
+	gap: 10px 14px;
+	padding: 0 12px 12px;
+	box-sizing: border-box;
+}
+
+.meprmf-meta-filters__cell {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
+}
+
+.meprmf-meta-filters__cell-label {
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+	color: #50575e;
+	line-height: 1.25;
+}
+
+.mepr-filter-by.meprmf-meta-filters--compact .mepr_filter_field {
+	max-width: none;
+	width: 100%;
+	min-height: 30px;
+	box-sizing: border-box;
+}
+
+.mepr-filter-by.meprmf-meta-filters--compact select.mepr_filter_field {
+	line-height: 1.4;
+}
