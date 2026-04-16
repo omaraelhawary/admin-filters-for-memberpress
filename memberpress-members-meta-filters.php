@@ -65,21 +65,6 @@ add_action(
     20
 );
 
-register_uninstall_hook(__FILE__, 'meprmf_uninstall');
-
-/**
- * Clean up options when the plugin is deleted from wp-admin.
- *
- * @return void
- */
-function meprmf_uninstall()
-{
-    if (! defined('WP_UNINSTALL_PLUGIN')) {
-        return;
-    }
-    delete_option(MEPRMF_OPTION_ADDITIONAL);
-}
-
 /**
  * Only the Members screen uses alias `u` for wp_users in MeprUser::list_table().
  * Other MemberPress list tables reuse mepr_list_table_args and different aliases — do not run there.
