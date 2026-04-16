@@ -29,6 +29,11 @@ if (! defined('MEPRMF_VERSION')) {
     define('MEPRMF_VERSION', '1.5.0');
 }
 
+/** @var int Maximum number of additional filter rows shown/stored on the settings page. */
+if (! defined('MEPRMF_MAX_ROWS')) {
+    define('MEPRMF_MAX_ROWS', 25);
+}
+
 /**
  * URL to a file under this plugin directory.
  *
@@ -64,21 +69,6 @@ add_action(
     },
     20
 );
-
-register_uninstall_hook(__FILE__, 'meprmf_uninstall');
-
-/**
- * Clean up options when the plugin is deleted from wp-admin.
- *
- * @return void
- */
-function meprmf_uninstall()
-{
-    if (! defined('WP_UNINSTALL_PLUGIN')) {
-        return;
-    }
-    delete_option(MEPRMF_OPTION_ADDITIONAL);
-}
 
 /**
  * Only the Members screen uses alias `u` for wp_users in MeprUser::list_table().
@@ -331,7 +321,7 @@ function meprmf_render_settings_page()
         $saved = [];
     }
 
-    $max_rows = 25;
+    $max_rows    = MEPRMF_MAX_ROWS;
     $saved_count = count($saved);
     // Fewer spare rows when many filters are already configured (less scrolling).
     if ($saved_count >= 10) {
@@ -541,8 +531,10 @@ function meprmf_get_additional_filter_fields()
         $label    = (string) $row['label'];
         $ftype    = isset($row['filter_type']) ? sanitize_key((string) $row['filter_type']) : 'text';
 
-        $param = 'mpf_ext_' . sanitize_key(str_replace('-', '_', $meta_key));
-        if (strlen($param) < 9) {
+        $prefix = 'mpf_ext_';
+        $param  = $prefix . sanitize_key(str_replace('-', '_', $meta_key));
+        if (strlen($param) <= strlen($prefix)) {
+            // Suffix was stripped to nothing by sanitize_key(); unusable param.
             continue;
         }
 
@@ -593,8 +585,11 @@ function meprmf_map_mepr_custom_field_to_filter($cf)
         return null;
     }
 
-    $param = 'mpf_' . sanitize_key(str_replace('-', '_', $cf->field_key));
-    if (strlen($param) < 6) {
+    $prefix = 'mpf_';
+    $param  = $prefix . sanitize_key(str_replace('-', '_', $cf->field_key));
+    // Require at least 2 suffix chars so custom-field params don't collide
+    // with built-in single-word address params like `mpf_zip`.
+    if (strlen($param) < strlen($prefix) + 2) {
         return null;
     }
 
@@ -825,6 +820,44 @@ function meprmf_get_filter_fields()
 }
 
 /**
+ * Validate, sanitize, and dedupe filter field definitions.
+ *
+ * Shared by the rendering and query-building paths so they agree on which
+ * fields are usable. Fields missing required keys, with an empty sanitized
+ * param, with a duplicate param, or with type `select` but no options are
+ * dropped. The returned fields have their `param` value already normalized.
+ *
+ * @param array<int, array<string, mixed>> $fields Raw field definitions.
+ * @return array<int, array<string, mixed>>
+ */
+function meprmf_normalize_filter_fields(array $fields)
+{
+    $valid = [];
+    $seen  = [];
+
+    foreach ($fields as $field) {
+        if (empty($field['param']) || empty($field['meta_key']) || empty($field['label']) || empty($field['type'])) {
+            continue;
+        }
+
+        $param = meprmf_sanitize_param($field['param']);
+        if ('' === $param || isset($seen[ $param ])) {
+            continue;
+        }
+
+        if ('select' === $field['type'] && ( empty($field['options']) || ! is_array($field['options']) )) {
+            continue;
+        }
+
+        $seen[ $param ] = true;
+        $field['param'] = $param;
+        $valid[]        = $field;
+    }
+
+    return $valid;
+}
+
+/**
  * Resolve SQL match mode for a field.
  *
  * @param array<string, mixed> $field Field definition.
@@ -971,31 +1004,7 @@ function meprmf_render_meta_filters($search_term, $perpage)
         return;
     }
 
-    $fields = meprmf_get_filter_fields();
-    if (empty($fields)) {
-        return;
-    }
-
-    $valid = [];
-    $seen  = [];
-    foreach ($fields as $field) {
-        if (empty($field['param']) || empty($field['meta_key']) || empty($field['label']) || empty($field['type'])) {
-            continue;
-        }
-        $param = meprmf_sanitize_param($field['param']);
-        if ('' === $param) {
-            continue;
-        }
-        if (isset($seen[ $param ])) {
-            continue;
-        }
-        if ('select' === $field['type'] && ( empty($field['options']) || ! is_array($field['options']) )) {
-            continue;
-        }
-        $seen[ $param ] = true;
-        $valid[]        = $field;
-    }
-
+    $valid = meprmf_normalize_filter_fields(meprmf_get_filter_fields());
     if (empty($valid)) {
         return;
     }
@@ -1041,30 +1050,20 @@ function meprmf_filter_members_list_args($args)
         return $args;
     }
 
-    $fields = meprmf_get_filter_fields();
-    if (empty($fields)) {
+    $valid = meprmf_normalize_filter_fields(meprmf_get_filter_fields());
+    if (empty($valid)) {
         return $args;
     }
 
     global $wpdb;
 
-    $seen = [];
-    foreach ($fields as $field) {
-        if (empty($field['param']) || empty($field['meta_key']) || empty($field['type'])) {
-            continue;
-        }
-
-        $param = meprmf_sanitize_param($field['param']);
-        if ('' === $param || isset($seen[ $param ])) {
-            continue;
-        }
+    foreach ($valid as $field) {
+        $param = (string) $field['param'];
 
         $raw = meprmf_get_request_value($param);
         if ('' === $raw) {
             continue;
         }
-
-        $seen[ $param ] = true;
 
         $meta   = (string) $field['meta_key'];
         $alias  = 'mpf_um_' . $param;
