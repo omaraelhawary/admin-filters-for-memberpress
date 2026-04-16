@@ -1,16 +1,18 @@
 # MemberPress Members Meta Filters
 
-Adds Country, City, MemberPress custom fields, and optional extra user-meta filters to the MemberPress Members admin list. Uses MemberPress hooks only — no core files are modified.
+Adds address (country, state, city, zip, address lines), MemberPress custom fields, and optional extra user-meta filters to the MemberPress Members admin list. Uses MemberPress hooks only — no core files are modified.
 
 - **Contributors:** Omar ElHawary
 - **Requires Plugins:** [MemberPress](https://memberpress.com/)
-- **Version:** 1.3.0
+- **Requires at least:** 5.6
+- **Requires PHP:** 7.4
+- **Version:** 1.5.0
 - **License:** GPLv2 or later
 - **Text Domain:** `memberpress-members-meta-filters`
 
 ## Features
 
-- Filter the Members list by **Country** (`mepr-address-country`) and **City** (`mepr-address-city`).
+- Filter the Members list by the six built-in MemberPress address fields: **Country**, **State / Province**, **City**, **Zip / Postal code**, and **Address lines 1 & 2**. Address filters appear only when MemberPress address capture is enabled (toggleable via the `meprmf_include_address_filters` hook).
 - Automatically expose every **MemberPress custom field** (MemberPress → Settings → Fields) as a filter:
   - `dropdown`, `radios` → single-choice (exact match)
   - `multiselect`, `checkboxes` → single-choice (substring match against the stored serialized value)
@@ -91,6 +93,21 @@ Other available hooks:
 - The `admin_menu` and `admin_init` hooks register the settings page and option (`meprmf_additional_filters`) only for users with MemberPress admin capability.
 
 ## Changelog
+
+### 1.5.0
+
+- Added built-in filters for **State / Province**, **Zip / Postal code**, **Address line 1**, and **Address line 2** (previously only Country and City were supported).
+- Built-in address filters now inherit MemberPress' translated field labels when available.
+- Address filters are gated behind MemberPress' `show_address_fields` option and a new `meprmf_include_address_filters` hook so sites not capturing addresses don't see empty controls.
+- Extracted the address filter set into `meprmf_get_address_filter_fields()` for clarity.
+
+### 1.4.0
+
+- Added a `MemberPress → Member list filters` settings page for configuring unlimited custom user-meta filters (text contains / single choice / checkbox).
+- Settings sanitizer now reports duplicate meta keys, `select` filters missing options, and duplicate option values via admin notices.
+- Added translation loading (`load_plugin_textdomain`).
+- Registered an uninstall cleanup that deletes the plugin option when the plugin is removed.
+- Declared `Requires at least: 5.6` and `Requires PHP: 7.4` in the plugin header.
 
 ### 1.3.0
 
