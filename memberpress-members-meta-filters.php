@@ -2,7 +2,9 @@
 /**
  * Plugin Name: MemberPress Members Meta Filters
  * Description: Adds Country, City, MemberPress custom fields, and optional extra user-meta filters to the MemberPress Members admin list. Uses MemberPress hooks only.
- * Version: 1.3.0
+ * Version: 1.4.0
+ * Requires at least: 5.6
+ * Requires PHP: 7.4
  * Author: Omar ElHawray
  * Requires Plugins: memberpress
  * License: GPLv2 or later
@@ -16,10 +18,14 @@ if (! defined('ABSPATH')) {
 }
 
 /** @var string Option name for manually configured filters. */
-const MEPRMF_OPTION_ADDITIONAL = 'meprmf_additional_filters';
+if (! defined('MEPRMF_OPTION_ADDITIONAL')) {
+    define('MEPRMF_OPTION_ADDITIONAL', 'meprmf_additional_filters');
+}
 
 /** @var string Plugin version for asset cache-busting. */
-const MEPRMF_VERSION = '1.3.0';
+if (! defined('MEPRMF_VERSION')) {
+    define('MEPRMF_VERSION', '1.4.0');
+}
 
 /**
  * URL to a file under this plugin directory.
@@ -38,6 +44,12 @@ function meprmf_plugin_url($relative)
 add_action(
     'plugins_loaded',
     static function () {
+        load_plugin_textdomain(
+            'memberpress-members-meta-filters',
+            false,
+            dirname(plugin_basename(__FILE__)) . '/languages'
+        );
+
         if (! class_exists('MeprUtils') || ! class_exists('MeprOptions')) {
             return;
         }
@@ -50,6 +62,21 @@ add_action(
     },
     20
 );
+
+register_uninstall_hook(__FILE__, 'meprmf_uninstall');
+
+/**
+ * Clean up options when the plugin is deleted from wp-admin.
+ *
+ * @return void
+ */
+function meprmf_uninstall()
+{
+    if (! defined('WP_UNINSTALL_PLUGIN')) {
+        return;
+    }
+    delete_option(MEPRMF_OPTION_ADDITIONAL);
+}
 
 /**
  * Only the Members screen uses alias `u` for wp_users in MeprUser::list_table().
@@ -164,7 +191,12 @@ function meprmf_sanitize_additional_filters_option($value)
         return [];
     }
 
-    $out = [];
+    $out               = [];
+    $seen_meta_keys    = [];
+    $collisions        = [];
+    $missing_choices   = [];
+    $duplicate_choices = [];
+
     foreach ($value as $row) {
         if (! is_array($row)) {
             continue;
@@ -178,11 +210,18 @@ function meprmf_sanitize_additional_filters_option($value)
             continue;
         }
 
+        if (isset($seen_meta_keys[ $meta_key ])) {
+            $collisions[] = $meta_key;
+            continue;
+        }
+        $seen_meta_keys[ $meta_key ] = true;
+
         if (! in_array($ftype, [ 'text', 'select', 'checkbox' ], true)) {
             $ftype = 'text';
         }
 
-        $options = [];
+        $options     = [];
+        $saw_dup_key = false;
         if ('select' === $ftype && '' !== $opts_raw) {
             foreach (preg_split("/\r\n|\n|\r/", $opts_raw) as $line) {
                 $line = trim($line);
@@ -198,9 +237,20 @@ function meprmf_sanitize_additional_filters_option($value)
                     $vl = $vk;
                 }
                 if ('' !== $vk) {
+                    if (array_key_exists($vk, $options)) {
+                        $saw_dup_key = true;
+                    }
                     $options[ $vk ] = $vl;
                 }
             }
+        }
+
+        if ('select' === $ftype && empty($options)) {
+            $missing_choices[] = $label;
+        }
+
+        if ($saw_dup_key) {
+            $duplicate_choices[] = $label;
         }
 
         $out[] = [
@@ -210,6 +260,45 @@ function meprmf_sanitize_additional_filters_option($value)
             'options'      => $options,
             'options_text' => $opts_raw,
         ];
+    }
+
+    if (! empty($collisions)) {
+        add_settings_error(
+            'meprmf_messages',
+            'meprmf_duplicate_meta_keys',
+            sprintf(
+                /* translators: %s: comma-separated list of duplicated meta keys */
+                esc_html__('Duplicate meta key(s) ignored: %s. Each filter must target a unique user meta key.', 'memberpress-members-meta-filters'),
+                esc_html(implode(', ', array_unique($collisions)))
+            ),
+            'warning'
+        );
+    }
+
+    if (! empty($missing_choices)) {
+        add_settings_error(
+            'meprmf_messages',
+            'meprmf_missing_choices',
+            sprintf(
+                /* translators: %s: comma-separated list of filter labels */
+                esc_html__('“Single choice” filter(s) without options will not appear until you add choices: %s.', 'memberpress-members-meta-filters'),
+                esc_html(implode(', ', array_unique($missing_choices)))
+            ),
+            'warning'
+        );
+    }
+
+    if (! empty($duplicate_choices)) {
+        add_settings_error(
+            'meprmf_messages',
+            'meprmf_duplicate_choices',
+            sprintf(
+                /* translators: %s: comma-separated list of filter labels */
+                esc_html__('Duplicate option value(s) were merged in: %s.', 'memberpress-members-meta-filters'),
+                esc_html(implode(', ', array_unique($duplicate_choices)))
+            ),
+            'info'
+        );
     }
 
     return $out;
@@ -595,6 +684,11 @@ function meprmf_map_mepr_custom_field_to_filter($cf)
  */
 function meprmf_get_filter_fields()
 {
+    static $cached = null;
+    if (null !== $cached) {
+        return $cached;
+    }
+
     $fields = [
         [
             'param'    => 'mpf_country',
@@ -630,7 +724,10 @@ function meprmf_get_filter_fields()
      *
      * @param array $fields Field definitions.
      */
-    return apply_filters('mepr_members_meta_filters_fields', $fields);
+    $fields = apply_filters('mepr_members_meta_filters_fields', $fields);
+
+    $cached = $fields;
+    return $cached;
 }
 
 /**
@@ -657,6 +754,42 @@ function meprmf_get_field_match_mode(array $field)
 }
 
 /**
+ * Sanitize a HTML id / $_GET key to [a-z0-9_]. Null-safe.
+ *
+ * @param mixed $param Raw param.
+ * @return string
+ */
+function meprmf_sanitize_param($param)
+{
+    if (! is_string($param) || '' === $param) {
+        return '';
+    }
+    $out = preg_replace('/[^a-z0-9_]/', '', $param);
+    return is_string($out) ? $out : '';
+}
+
+/**
+ * Read a scalar value from $_GET for the given param.
+ * Returns '' if missing or if the value is not scalar (e.g. array).
+ *
+ * @param string $param Param name.
+ * @return string
+ */
+function meprmf_get_request_value($param)
+{
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+    if (! isset($_GET[ $param ])) {
+        return '';
+    }
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+    $value = wp_unslash($_GET[ $param ]);
+    if (! is_scalar($value)) {
+        return '';
+    }
+    return sanitize_text_field((string) $value);
+}
+
+/**
  * Output one filter control (select or search input).
  *
  * @param array<string, mixed> $field Field definition.
@@ -665,14 +798,13 @@ function meprmf_get_field_match_mode(array $field)
  */
 function meprmf_render_single_filter_control(array $field, $compact)
 {
-    $param = preg_replace('/[^a-z0-9_]/', '', $field['param']);
+    $param = meprmf_sanitize_param(isset($field['param']) ? $field['param'] : '');
     if ('' === $param) {
         return;
     }
 
-    $label = $field['label'];
-    // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-    $current = isset($_GET[ $param ]) ? sanitize_text_field(wp_unslash($_GET[ $param ])) : '';
+    $label   = isset($field['label']) ? (string) $field['label'] : '';
+    $current = meprmf_get_request_value($param);
 
     if ($compact) {
         echo '<div class="meprmf-meta-filters__cell">';
@@ -751,18 +883,23 @@ function meprmf_render_meta_filters($search_term, $perpage)
     }
 
     $valid = [];
+    $seen  = [];
     foreach ($fields as $field) {
         if (empty($field['param']) || empty($field['meta_key']) || empty($field['label']) || empty($field['type'])) {
             continue;
         }
-        $param = preg_replace('/[^a-z0-9_]/', '', $field['param']);
+        $param = meprmf_sanitize_param($field['param']);
         if ('' === $param) {
+            continue;
+        }
+        if (isset($seen[ $param ])) {
             continue;
         }
         if ('select' === $field['type'] && ( empty($field['options']) || ! is_array($field['options']) )) {
             continue;
         }
-        $valid[] = $field;
+        $seen[ $param ] = true;
+        $valid[]        = $field;
     }
 
     if (empty($valid)) {
@@ -817,37 +954,38 @@ function meprmf_filter_members_list_args($args)
 
     global $wpdb;
 
+    $seen = [];
     foreach ($fields as $field) {
         if (empty($field['param']) || empty($field['meta_key']) || empty($field['type'])) {
             continue;
         }
 
-        $param = preg_replace('/[^a-z0-9_]/', '', $field['param']);
-        if ('' === $param) {
+        $param = meprmf_sanitize_param($field['param']);
+        if ('' === $param || isset($seen[ $param ])) {
             continue;
         }
 
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-        if (! isset($_GET[ $param ]) || '' === $_GET[ $param ]) {
+        $raw = meprmf_get_request_value($param);
+        if ('' === $raw) {
             continue;
         }
 
-        $raw    = sanitize_text_field(wp_unslash($_GET[ $param ]));
+        $seen[ $param ] = true;
+
         $meta   = (string) $field['meta_key'];
-        $alias  = 'mpf_um_' . preg_replace('/[^a-z0-9_]/', '_', $param);
+        $alias  = 'mpf_um_' . $param;
         $ftype  = (string) $field['type'];
         $match  = meprmf_get_field_match_mode($field);
 
-        if ('checkbox' === $ftype && '1' === $raw) {
+        if ('checkbox' === $ftype) {
+            if ('1' !== $raw) {
+                continue;
+            }
             // MemberPress stores HTML checkbox as the string "on" when checked.
             $args[] = $wpdb->prepare(
-                "EXISTS ( SELECT 1 FROM {$wpdb->usermeta} AS {$alias} WHERE {$alias}.user_id = u.ID AND {$alias}.meta_key = %s AND {$alias}.meta_value IN ('on', '1') )",
+                "EXISTS ( SELECT 1 FROM {$wpdb->usermeta} AS {$alias} WHERE {$alias}.user_id = u.ID AND {$alias}.meta_key = %s AND {$alias}.meta_value IN ('on', '1', 'true') )",
                 $meta
             );
-            continue;
-        }
-
-        if ('checkbox' === $ftype) {
             continue;
         }
 
@@ -857,21 +995,28 @@ function meprmf_filter_members_list_args($args)
                 $meta,
                 $raw
             );
-        } elseif ('contains' === $match) {
-            $like = '%' . $wpdb->esc_like($raw) . '%';
-            $args[] = $wpdb->prepare(
-                "EXISTS ( SELECT 1 FROM {$wpdb->usermeta} AS {$alias} WHERE {$alias}.user_id = u.ID AND {$alias}.meta_key = %s AND {$alias}.meta_value LIKE %s )",
-                $meta,
-                $like
-            );
-        } else {
-            $like = '%' . $wpdb->esc_like($raw) . '%';
-            $args[] = $wpdb->prepare(
-                "EXISTS ( SELECT 1 FROM {$wpdb->usermeta} AS {$alias} WHERE {$alias}.user_id = u.ID AND {$alias}.meta_key = %s AND {$alias}.meta_value LIKE %s )",
-                $meta,
-                $like
-            );
+            continue;
         }
+
+        if ('contains' === $match) {
+            // Match either a scalar equal to $raw, or an exact serialized-array
+            // element equal to $raw (so value "a" doesn't match "ab").
+            $serialized_needle = 's:' . strlen($raw) . ':"' . $wpdb->esc_like($raw) . '";';
+            $args[] = $wpdb->prepare(
+                "EXISTS ( SELECT 1 FROM {$wpdb->usermeta} AS {$alias} WHERE {$alias}.user_id = u.ID AND {$alias}.meta_key = %s AND ( {$alias}.meta_value = %s OR {$alias}.meta_value LIKE %s ) )",
+                $meta,
+                $raw,
+                '%' . $serialized_needle . '%'
+            );
+            continue;
+        }
+
+        $like = '%' . $wpdb->esc_like($raw) . '%';
+        $args[] = $wpdb->prepare(
+            "EXISTS ( SELECT 1 FROM {$wpdb->usermeta} AS {$alias} WHERE {$alias}.user_id = u.ID AND {$alias}.meta_key = %s AND {$alias}.meta_value LIKE %s )",
+            $meta,
+            $like
+        );
     }
 
     return $args;
