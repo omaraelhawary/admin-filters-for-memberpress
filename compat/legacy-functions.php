@@ -41,26 +41,6 @@ function meprmf_current_user_can_filter()
 }
 
 /**
- * Register submenu under MemberPress.
- *
- * @return void
- */
-function meprmf_register_admin_menu()
-{
-    Meprmf_Plugin::register_admin_menu();
-}
-
-/**
- * Register option and sanitization.
- *
- * @return void
- */
-function meprmf_register_settings()
-{
-    Meprmf_Settings_Page::register();
-}
-
-/**
  * Load admin styles/scripts on relevant screens.
  *
  * @param string $hook_suffix Current admin page hook.
@@ -69,37 +49,6 @@ function meprmf_register_settings()
 function meprmf_admin_enqueue_scripts($hook_suffix)
 {
     Meprmf_Plugin::admin_enqueue_scripts($hook_suffix);
-}
-
-/**
- * Sanitize saved additional filter rows.
- *
- * @param mixed $value Raw option value.
- * @return array<int, array<string, mixed>>
- */
-function meprmf_sanitize_additional_filters_option($value)
-{
-    return Meprmf_Settings_Page::sanitize_additional_filters_option($value);
-}
-
-/**
- * Render settings page (MemberPress → Member list filters).
- *
- * @return void
- */
-function meprmf_render_settings_page()
-{
-    Meprmf_Settings_Page::render();
-}
-
-/**
- * Build filter field rows from saved additional filters option.
- *
- * @return array<int, array<string, mixed>>
- */
-function meprmf_get_additional_filter_fields()
-{
-    return Meprmf_Members_Provider::get_additional_filter_fields();
 }
 
 /**

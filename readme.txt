@@ -8,11 +8,11 @@ Stable tag: 1.6.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Adds address, MemberPress custom fields, and optional user-meta filters to the MemberPress Members admin list. Uses MemberPress hooks only.
+Adds address and MemberPress custom-field filters to the MemberPress Members admin list. Extra meta filters can be added in code. Uses MemberPress hooks only.
 
 == Description ==
 
-**Admin Filters for MemberPress** extends the **MemberPress → Members** admin screen with extra filters: MemberPress address fields (when your site captures them), every MemberPress registration **Settings → Fields** field, and optional **user meta** filters you configure under **MemberPress → Member list filters**.
+**Admin Filters for MemberPress** extends the **MemberPress → Members** admin screen with extra filters: MemberPress address fields (when your site captures them), every MemberPress registration **Settings → Fields** field, and any further **user meta** filters you add with the `mepr_members_meta_filters_fields` filter (for example in a small custom plugin).
 
 This plugin is an independent project. It is **not** affiliated with, endorsed by, or sponsored by MemberPress, Caseproof, LLC, or their brands. **MemberPress** is a trademark of Caseproof, LLC.
 
@@ -39,11 +39,11 @@ No. You must purchase and install MemberPress separately from Caseproof.
 
 = Will my settings be lost if I update? =
 
-Filter configuration is stored in the WordPress options table under a fixed option name; routine updates do not remove it.
+MemberPress field and address settings stay in MemberPress. Custom filters you add in PHP use your own code; keep that snippet in a child theme or plugin so updates to this extension do not remove it.
 
-= Where do I configure extra user-meta filters? =
+= How do I filter by user meta from another plugin? =
 
-**MemberPress → Member list filters** (MemberPress admin capability required).
+Add a field definition with the `mepr_members_meta_filters_fields` filter (see the GitHub README for a copy-paste example). You need the exact `meta_key` that plugin stores in `wp_usermeta`.
 
 == Changelog ==
 
