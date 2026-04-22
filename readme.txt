@@ -45,11 +45,6 @@ Filter configuration is stored in the WordPress options table under a fixed opti
 
 **MemberPress → Member list filters** (MemberPress admin capability required).
 
-== Screenshots ==
-
-1. Members list floating **Filters** panel (when enabled).
-2. **Member list filters** settings screen for optional user-meta filters.
-
 == Changelog ==
 
 = 1.6.6 =

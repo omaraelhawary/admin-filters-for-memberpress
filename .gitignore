@@ -3,6 +3,9 @@ CLAUDE.md
 REVIEW.md
 /docs/
 
+# Release artifacts (scripts/build-release.sh)
+/dist/
+
 # Composer & PHPUnit
 /vendor/
 composer.phar

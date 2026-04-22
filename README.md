@@ -125,6 +125,17 @@ Tests use `tests/bootstrap-unit.php` (no full WordPress test database required).
 
 GitHub Actions (`.github/workflows/phpunit.yml`) runs `composer install` and `vendor/bin/phpunit` on PHP 8.1–8.3.
 
+### Release zip (end users / WordPress.org upload)
+
+Run this from the **plugin root** — the directory that contains `admin-filters-for-memberpress.php` and the `scripts/` folder (not from `wp-content/plugins` unless you use the path below).
+
+```bash
+cd /path/to/admin-filters-for-memberpress
+bash scripts/build-release.sh
+```
+
+(`bash` avoids needing `chmod +x`.) Writes `dist/admin-filters-for-memberpress-<version>.zip` (version from the main plugin header), excluding tests, Composer, CI, `docs/`, and `scripts/`.
+
 ## Changelog
 
 ### 1.6.6
