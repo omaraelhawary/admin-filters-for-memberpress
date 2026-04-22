@@ -53,4 +53,18 @@ class MembersProviderMapTest extends TestCase
         $this->assertIsArray($mapped);
         $this->assertSame('contains', $mapped['match']);
     }
+
+    public function test_address_filters_enabled_when_show_on_account_only()
+    {
+        require_once dirname(__DIR__, 2) . '/includes/filters/providers/class-meprmf-members-provider.php';
+
+        $opts                       = new \stdClass();
+        $opts->show_address_fields   = false;
+        $opts->show_address_on_account = true;
+        $opts->address_fields        = [];
+
+        $fields = Meprmf_Members_Provider::get_address_filter_fields($opts);
+        $this->assertNotEmpty($fields);
+        $this->assertSame('mpf_country', $fields[0]['param']);
+    }
 }

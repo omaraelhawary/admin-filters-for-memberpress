@@ -43,6 +43,19 @@ if (! function_exists('wp_strip_all_tags')) {
     }
 }
 
+if (! function_exists('apply_filters')) {
+    /**
+     * @param string $hook_name Hook name.
+     * @param mixed  $value     Default value.
+     * @param mixed  ...$args  Extra args.
+     * @return mixed
+     */
+    function apply_filters($hook_name, $value, ...$args)
+    {
+        return $value;
+    }
+}
+
 if (! function_exists('__')) {
     /**
      * @param string $text Text.

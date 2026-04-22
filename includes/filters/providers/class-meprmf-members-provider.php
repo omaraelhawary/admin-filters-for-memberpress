@@ -188,9 +188,13 @@ class Meprmf_Members_Provider
      */
     public static function get_address_filter_fields($opts)
     {
+        // MemberPress separates "Show fields below…" (checkout / signup) from "Show on Account".
+        // Admins often enable only account-side capture; still expose address filters for the Members list.
+        $address_capture_enabled = ! empty($opts->show_address_fields) || ! empty($opts->show_address_on_account);
+
         $enabled = (bool) apply_filters(
             'meprmf_include_address_filters',
-            ! empty($opts->show_address_fields),
+            $address_capture_enabled,
             $opts
         );
 

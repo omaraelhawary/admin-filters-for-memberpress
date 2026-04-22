@@ -116,3 +116,190 @@
 .mepr-filter-by.meprmf-meta-filters--compact select.mepr_filter_field {
 	line-height: 1.4;
 }
+
+/* --- Floating filter panel (Members, Phase 1) --- */
+
+.meprmf-floating-root {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	vertical-align: middle;
+	margin-inline-start: 4px;
+}
+
+.meprmf-toggle-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	line-height: 1.4;
+	vertical-align: middle;
+}
+
+/* Dashicons glyph sits on ::before; flex-align the box and normalize metrics with label + badge */
+.meprmf-toggle-btn .meprmf-toggle-btn__icon.dashicons {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	font-size: 20px;
+	line-height: 0;
+	margin: 0;
+	flex-shrink: 0;
+}
+
+.meprmf-toggle-btn .meprmf-toggle-btn__icon.dashicons::before {
+	line-height: 1;
+	vertical-align: middle;
+}
+
+.meprmf-toggle-btn__badge {
+	display: inline-block;
+	min-width: 1.25em;
+	padding: 0 5px;
+	margin-inline-start: 2px;
+	border-radius: 9px;
+	background: #2271b1;
+	color: #fff;
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 1.4;
+	text-align: center;
+	vertical-align: middle;
+}
+
+.meprmf-filter-panel {
+	position: absolute;
+	z-index: 100000;
+	left: 0;
+	top: calc(100% + 4px);
+	/*
+	 * Do not use max-width: % here — percentage resolves against .meprmf-floating-root,
+	 * which is only as wide as the toggle, and would crush the panel.
+	 */
+	width: min(60rem, calc(100vw - 48px));
+	min-width: min(320px, calc(100vw - 32px));
+	max-width: min(60rem, calc(100vw - 32px));
+	box-sizing: border-box;
+	padding: 12px 14px;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	background: #fff;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+	overflow: visible;
+}
+
+.meprmf-filter-panel__grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
+	gap: 10px 14px;
+	box-sizing: border-box;
+	min-width: 0;
+}
+
+.meprmf-filter-panel__item {
+	min-width: 0;
+}
+
+.meprmf-filter-panel__item .meprmf-meta-filters__cell {
+	min-width: 0;
+}
+
+.meprmf-filter-panel__grid .meprmf-meta-filters__cell-label {
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+	color: #50575e;
+	line-height: 1.25;
+}
+
+/* Beat wp-admin .regular-text { width: 25em } so inputs stay inside the grid cell */
+.meprmf-filter-panel .mepr_filter_field.regular-text,
+.meprmf-filter-panel .mepr_filter_field {
+	width: 100%;
+	max-width: 100%;
+	min-width: 0;
+	min-height: 30px;
+	box-sizing: border-box;
+}
+
+.meprmf-filter-panel .mepr_filter_field[type="search"] {
+	-webkit-appearance: none;
+	appearance: none;
+}
+
+.meprmf-filter-panel__empty {
+	margin: 0 0 8px;
+	font-size: 13px;
+	color: #50575e;
+}
+
+.meprmf-filter-panel__actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 12px;
+	margin-top: 12px;
+	padding-top: 10px;
+	border-top: 1px solid #dcdcde;
+}
+
+.meprmf-filter-panel__customize {
+	margin-inline-start: auto;
+}
+
+.meprmf-filter-panel__customize-head {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 10px;
+	flex-wrap: wrap;
+}
+
+.meprmf-filter-panel__customize-title {
+	font-weight: 600;
+	font-size: 13px;
+}
+
+.meprmf-filter-panel__customize-list {
+	margin: 0 0 12px;
+	padding: 2px 2px 2px 4px;
+	list-style: none;
+	max-height: min(50vh, 22rem);
+	overflow-y: auto;
+	overflow-x: visible;
+}
+
+.meprmf-filter-panel__customize-list li {
+	margin: 0 0 10px;
+	padding: 0;
+	font-size: 13px;
+}
+
+.meprmf-filter-panel__customize-list label {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	cursor: pointer;
+	line-height: 1.5;
+}
+
+.meprmf-filter-panel__customize-list input[type="checkbox"].meprmf-filter-panel__vis-cb {
+	flex-shrink: 0;
+	width: 1rem;
+	height: 1rem;
+	margin: 0.15em 0 0;
+	accent-color: #2271b1;
+}
+
+.meprmf-filter-panel__done-wrap {
+	margin: 0;
+	padding-top: 4px;
+	overflow: visible;
+}
+
+.meprmf-filter-panel__done.button {
+	min-width: 6.5rem;
+}
