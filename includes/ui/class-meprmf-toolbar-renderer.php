@@ -184,7 +184,7 @@ class Meprmf_Toolbar_Renderer
             '<button type="button" class="button meprmf-toggle-btn" aria-expanded="false" aria-controls="%1$s" id="meprmf-members-filter-toggle">',
             esc_attr($panel_id)
         );
-        echo '<span class="meprmf-toggle-btn__icon dashicons dashicons-filter" aria-hidden="true"></span> ';
+        echo '<span class="meprmf-toggle-btn__icon dashicons dashicons-filter" aria-hidden="true"></span>';
         echo '<span class="meprmf-toggle-btn__label">' . esc_html__('Filters', 'memberpress-members-meta-filters') . '</span>';
         if ($active_count > 0) {
             printf(

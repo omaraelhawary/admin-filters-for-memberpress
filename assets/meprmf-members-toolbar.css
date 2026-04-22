@@ -129,29 +129,26 @@
 
 .meprmf-toggle-btn {
 	display: inline-flex;
+	flex-direction: row;
+	flex-wrap: nowrap;
 	align-items: center;
-	justify-content: center;
-	gap: 6px;
+	gap: 4px;
 	line-height: 1.4;
 	vertical-align: middle;
+	white-space: nowrap;
 }
 
-/* Dashicons glyph sits on ::before; flex-align the box and normalize metrics with label + badge */
 .meprmf-toggle-btn .meprmf-toggle-btn__icon.dashicons {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	width: 20px;
-	height: 20px;
-	font-size: 20px;
-	line-height: 0;
+	width: 18px;
+	height: 18px;
+	font-size: 18px;
+	line-height: 1;
 	margin: 0;
 	flex-shrink: 0;
-}
-
-.meprmf-toggle-btn .meprmf-toggle-btn__icon.dashicons::before {
-	line-height: 1;
-	vertical-align: middle;
+	padding-top: 4px;
 }
 
 .meprmf-toggle-btn__badge {
