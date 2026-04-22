@@ -8,7 +8,7 @@ The plugin lives in the folder **`admin-filters-for-memberpress`** with bootstra
 - **Dependency:** [MemberPress](https://memberpress.com/) (commercial; must be installed separately — not hosted on wordpress.org)
 - **Requires at least:** 5.6
 - **Requires PHP:** 8.1
-- **Version:** 1.6.6
+- **Version:** 1.6.7
 - **License:** GPLv2 or later
 - **Text Domain:** `admin-filters-for-memberpress`
 
@@ -137,6 +137,13 @@ bash scripts/build-release.sh
 (`bash` avoids needing `chmod +x`.) Writes `dist/admin-filters-for-memberpress-<version>.zip` (version from the main plugin header), excluding tests, Composer, CI, `docs/`, `wordpress-org-assets/`, and `scripts/`. Put WordPress.org icons/banners in **`wordpress-org-assets/`** (see that folder’s README), then copy them to SVN `assets/` when you publish the listing.
 
 ## Changelog
+
+### 1.6.7
+
+- **Plugin Check / PHPCS:** escape filter control attributes at output sites; escape settings “Filter %d” title and badge; document or scope ignores for dynamic SQL identifiers, MemberPress hook name, and internal field arrays that use a `meta_key` schema key (not `WP_Query` meta clauses).
+- **`languages/`:** remove `.gitkeep` (hidden file in zip); add `languages/index.php` with `ABSPATH` guard.
+- **i18n:** remove redundant `load_plugin_textdomain()` (WordPress.org + WP 4.6+ auto-load).
+- **Admin `GET`:** inline PHPCS directives for read-only `$_GET` use when enqueuing assets and when reading filter params.
 
 ### 1.6.6
 
