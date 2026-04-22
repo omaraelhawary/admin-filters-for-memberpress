@@ -2,15 +2,15 @@
 
 Adds address (country, state, city, zip, address lines), MemberPress custom fields (MemberPress → Settings → Fields), and optional extra **user-meta** filters to the **MemberPress → Members** admin list. Uses MemberPress hooks only — no core files are modified.
 
-The plugin lives in the folder **`admin-filters-for-memberpress`** with bootstrap file **`admin-filters-for-memberpress.php`**. The **text domain** stays `memberpress-members-meta-filters` so existing translations and `load_plugin_textdomain` paths keep working. The GitHub repository is [admin-filters-for-memberpress](https://github.com/omarelhawray/admin-filters-for-memberpress).
+The plugin lives in the folder **`admin-filters-for-memberpress`** with bootstrap file **`admin-filters-for-memberpress.php`**. The **text domain** is `admin-filters-for-memberpress` (matches the plugin slug for WordPress.org). Custom translation files that used the old domain `memberpress-members-meta-filters` should be renamed to `admin-filters-for-memberpress-{locale}.mo`. The GitHub repository is [admin-filters-for-memberpress](https://github.com/omarelhawray/admin-filters-for-memberpress).
 
-- **Contributors:** Omar ElHawary
-- **Requires Plugins:** [MemberPress](https://memberpress.com/)
+- **Contributors:** Omar ElHawary — WordPress.org: [omarelhawary](https://profiles.wordpress.org/omarelhawary/)
+- **Dependency:** [MemberPress](https://memberpress.com/) (commercial; must be installed separately — not hosted on wordpress.org)
 - **Requires at least:** 5.6
 - **Requires PHP:** 8.1
-- **Version:** 1.6.5
+- **Version:** 1.6.6
 - **License:** GPLv2 or later
-- **Text Domain:** `memberpress-members-meta-filters`
+- **Text Domain:** `admin-filters-for-memberpress`
 
 ## Features
 
@@ -126,6 +126,11 @@ Tests use `tests/bootstrap-unit.php` (no full WordPress test database required).
 GitHub Actions (`.github/workflows/phpunit.yml`) runs `composer install` and `vendor/bin/phpunit` on PHP 8.1–8.3.
 
 ## Changelog
+
+### 1.6.6
+
+- **WordPress.org:** add root `readme.txt`, align text domain with plugin slug, explicit non-affiliation wording for MemberPress / Caseproof; remove invalid `Requires Plugins: memberpress` header (MemberPress is not a wordpress.org plugin slug).
+- **`languages/`** directory tracked for translation drops.
 
 ### 1.6.5
 

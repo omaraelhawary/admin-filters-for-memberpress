@@ -46,7 +46,7 @@ class Meprmf_Toolbar_Renderer
         if ('country' === $field['type']) {
             $countries = MeprUtils::countries(true);
             echo '<select class="mepr_filter_field" id="' . esc_attr($param) . '"' . $name_attr . $data_attr . '>';
-            echo '<option value="">' . esc_html__('— Country —', 'memberpress-members-meta-filters') . '</option>';
+            echo '<option value="">' . esc_html__('— Country —', 'admin-filters-for-memberpress') . '</option>';
             foreach ($countries as $code => $name) {
                 printf(
                     '<option value="%s" %s>%s</option>',
@@ -62,7 +62,7 @@ class Meprmf_Toolbar_Renderer
             printf(
                 '<option value="1" %s>%s</option>',
                 selected($current, '1', false),
-                esc_html__('Checked', 'memberpress-members-meta-filters')
+                esc_html__('Checked', 'admin-filters-for-memberpress')
             );
             echo '</select>';
         } elseif ('select' === $field['type'] && ! empty($field['options']) && is_array($field['options'])) {
@@ -79,7 +79,7 @@ class Meprmf_Toolbar_Renderer
             echo '</select>';
         } else {
             $placeholder = $compact
-                ? __('Contains…', 'memberpress-members-meta-filters')
+                ? __('Contains…', 'admin-filters-for-memberpress')
                 : $label;
             if ($omit_name) {
                 printf(
@@ -135,7 +135,7 @@ class Meprmf_Toolbar_Renderer
             echo '<details class="meprmf-meta-filters__details" open>';
             printf(
                 '<summary class="meprmf-meta-filters__summary"><span class="meprmf-meta-filters__summary-text">%s</span> <span class="meprmf-meta-filters__count">(%d)</span></summary>',
-                esc_html__('Member filters', 'memberpress-members-meta-filters'),
+                esc_html__('Member filters', 'admin-filters-for-memberpress'),
                 (int) $count
             );
             echo '<div class="meprmf-meta-filters__grid">';
@@ -185,14 +185,14 @@ class Meprmf_Toolbar_Renderer
             esc_attr($panel_id)
         );
         echo '<span class="meprmf-toggle-btn__icon dashicons dashicons-filter" aria-hidden="true"></span>';
-        echo '<span class="meprmf-toggle-btn__label">' . esc_html__('Filters', 'memberpress-members-meta-filters') . '</span>';
+        echo '<span class="meprmf-toggle-btn__label">' . esc_html__('Filters', 'admin-filters-for-memberpress') . '</span>';
         if ($active_count > 0) {
             printf(
                 ' <span class="meprmf-toggle-btn__badge" aria-label="%s">%d</span>',
                 esc_attr(
                     sprintf(
                         /* translators: %d: number of active filters */
-                        _n('%d active filter', '%d active filters', $active_count, 'memberpress-members-meta-filters'),
+                        _n('%d active filter', '%d active filters', $active_count, 'admin-filters-for-memberpress'),
                         $active_count
                     )
                 ),
@@ -210,7 +210,7 @@ class Meprmf_Toolbar_Renderer
 
         echo '<div class="meprmf-filter-panel__mode meprmf-filter-panel__mode--filter">';
         echo '<p class="meprmf-filter-panel__empty" hidden>';
-        echo esc_html__('No filters visible. Click Customize to add some.', 'memberpress-members-meta-filters');
+        echo esc_html__('No filters visible. Click Customize to add some.', 'admin-filters-for-memberpress');
         echo '</p>';
 
         echo '<div class="meprmf-filter-panel__grid">';
@@ -228,15 +228,15 @@ class Meprmf_Toolbar_Renderer
         echo '<div class="meprmf-filter-panel__actions">';
         printf(
             '<button type="button" class="button button-primary meprmf-filter-panel__apply">%s</button> ',
-            esc_html__('Apply filters', 'memberpress-members-meta-filters')
+            esc_html__('Apply filters', 'admin-filters-for-memberpress')
         );
         printf(
             '<button type="button" class="button-link meprmf-filter-panel__clear">%s</button> ',
-            esc_html__('Clear', 'memberpress-members-meta-filters')
+            esc_html__('Clear', 'admin-filters-for-memberpress')
         );
         printf(
             '<button type="button" class="button-link meprmf-filter-panel__customize">%s</button>',
-            esc_html__('Customize', 'memberpress-members-meta-filters')
+            esc_html__('Customize', 'admin-filters-for-memberpress')
         );
         echo '</div>';
         echo '</div>';
@@ -245,9 +245,9 @@ class Meprmf_Toolbar_Renderer
         echo '<div class="meprmf-filter-panel__customize-head">';
         printf(
             '<button type="button" class="button-link meprmf-filter-panel__back">%s</button>',
-            esc_html__('← Back', 'memberpress-members-meta-filters')
+            esc_html__('← Back', 'admin-filters-for-memberpress')
         );
-        echo '<span class="meprmf-filter-panel__customize-title">' . esc_html__('Customize filters', 'memberpress-members-meta-filters') . '</span>';
+        echo '<span class="meprmf-filter-panel__customize-title">' . esc_html__('Customize filters', 'admin-filters-for-memberpress') . '</span>';
         echo '</div>';
         echo '<ul class="meprmf-filter-panel__customize-list">';
         foreach ($valid as $field) {
@@ -262,7 +262,7 @@ class Meprmf_Toolbar_Renderer
         echo '</ul>';
         printf(
             '<p class="meprmf-filter-panel__done-wrap"><button type="button" class="button meprmf-filter-panel__done">%s</button></p>',
-            esc_html__('Done', 'memberpress-members-meta-filters')
+            esc_html__('Done', 'admin-filters-for-memberpress')
         );
         echo '</div>';
 

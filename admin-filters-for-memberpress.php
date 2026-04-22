@@ -3,15 +3,14 @@
  * Plugin Name: Admin Filters for MemberPress
  * Plugin URI: https://github.com/omarelhawray/admin-filters-for-memberpress
  * Description: Adds address, MemberPress custom fields, and extra user-meta filters to the MemberPress Members admin list. Codebase refactored for Transactions and Subscriptions in upcoming releases. Uses MemberPress hooks only.
- * Version: 1.6.5
+ * Version: 1.6.6
  * Requires at least: 5.6
  * Requires PHP: 8.1
- * Requires Plugins: memberpress
  * Author: Omar ElHawray
  * Author URI: https://omarelhawary.com
  * GitHub URI: https://github.com/omarelhawray/admin-filters-for-memberpress
  * License: GPLv2 or later
- * Text Domain: memberpress-members-meta-filters
+ * Text Domain: admin-filters-for-memberpress
  *
  * @package MemberPress_Members_Meta_Filters
  */
@@ -32,7 +31,7 @@ if (! defined('MEPRMF_OPTION_ADDITIONAL')) {
 
 /** @var string Plugin version for asset cache-busting. */
 if (! defined('MEPRMF_VERSION')) {
-    define('MEPRMF_VERSION', '1.6.5');
+    define('MEPRMF_VERSION', '1.6.6');
 }
 
 /** @var int Maximum number of additional filter rows shown/stored on the settings page. */
@@ -50,7 +49,7 @@ add_action(
     'plugins_loaded',
     static function () {
         load_plugin_textdomain(
-            'memberpress-members-meta-filters',
+            'admin-filters-for-memberpress',
             false,
             dirname(plugin_basename(MEPRMF_PLUGIN_FILE)) . '/languages'
         );

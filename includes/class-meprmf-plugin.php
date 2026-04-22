@@ -70,8 +70,8 @@ class Meprmf_Plugin
 
         add_submenu_page(
             'memberpress',
-            __('Member list filters', 'memberpress-members-meta-filters'),
-            __('Member list filters', 'memberpress-members-meta-filters'),
+            __('Member list filters', 'admin-filters-for-memberpress'),
+            __('Member list filters', 'admin-filters-for-memberpress'),
             MeprUtils::get_mepr_admin_capability(),
             'meprmf-settings',
             'meprmf_render_settings_page'
