@@ -7,8 +7,8 @@ The plugin lives in the folder **`admin-filters-for-memberpress`** with bootstra
 - **Contributors:** Omar ElHawary
 - **Requires Plugins:** [MemberPress](https://memberpress.com/)
 - **Requires at least:** 5.6
-- **Requires PHP:** 7.4
-- **Version:** 1.6.1
+- **Requires PHP:** 8.1
+- **Version:** 1.6.2
 - **License:** GPLv2 or later
 - **Text Domain:** `memberpress-members-meta-filters`
 
@@ -105,7 +105,7 @@ The procedural API (`meprmf_*` functions) in `compat/legacy-functions.php` deleg
 
 ### Requirements
 
-- PHP 7.4+
+- PHP 8.1+
 - [Composer](https://getcomposer.org/) (for PHPUnit)
 
 ### Unit tests
@@ -121,9 +121,13 @@ Tests use `tests/bootstrap-unit.php` (no full WordPress test database required).
 
 ### Continuous integration
 
-GitHub Actions (`.github/workflows/phpunit.yml`) runs `composer install` and `vendor/bin/phpunit` on PHP 7.4–8.3.
+GitHub Actions (`.github/workflows/phpunit.yml`) runs `composer install` and `vendor/bin/phpunit` on PHP 8.1–8.3.
 
 ## Changelog
+
+### 1.6.2
+
+- **Requires PHP** raised to **8.1** (plugin header, Composer, and CI). PHPUnit workflow matrix is PHP 8.1–8.3 only.
 
 ### 1.6.1
 
