@@ -33,9 +33,6 @@ class Meprmf_Toolbar_Renderer
         $label   = isset($field['label']) ? (string) $field['label'] : '';
         $current = Meprmf_Util::get_request_value($param);
 
-        $name_attr = $omit_name ? '' : ' name="' . esc_attr($param) . '"';
-        $data_attr = $omit_name ? ' data-meprmf-param="' . esc_attr($param) . '"' : '';
-
         if ($compact) {
             echo '<div class="meprmf-meta-filters__cell">';
             echo '<label class="meprmf-meta-filters__cell-label" for="' . esc_attr($param) . '">' . esc_html($label) . '</label>';
@@ -45,7 +42,13 @@ class Meprmf_Toolbar_Renderer
 
         if ('country' === $field['type']) {
             $countries = MeprUtils::countries(true);
-            echo '<select class="mepr_filter_field" id="' . esc_attr($param) . '"' . $name_attr . $data_attr . '>';
+            echo '<select class="mepr_filter_field" id="' . esc_attr($param) . '"';
+            if (! $omit_name) {
+                echo ' name="' . esc_attr($param) . '"';
+            } else {
+                echo ' data-meprmf-param="' . esc_attr($param) . '"';
+            }
+            echo '>';
             echo '<option value="">' . esc_html__('— Country —', 'admin-filters-for-memberpress') . '</option>';
             foreach ($countries as $code => $name) {
                 printf(
@@ -57,7 +60,13 @@ class Meprmf_Toolbar_Renderer
             }
             echo '</select>';
         } elseif ('checkbox' === $field['type']) {
-            echo '<select class="mepr_filter_field" id="' . esc_attr($param) . '"' . $name_attr . $data_attr . '>';
+            echo '<select class="mepr_filter_field" id="' . esc_attr($param) . '"';
+            if (! $omit_name) {
+                echo ' name="' . esc_attr($param) . '"';
+            } else {
+                echo ' data-meprmf-param="' . esc_attr($param) . '"';
+            }
+            echo '>';
             echo '<option value="">' . esc_html(sprintf('— %s —', $label)) . '</option>';
             printf(
                 '<option value="1" %s>%s</option>',
@@ -66,7 +75,13 @@ class Meprmf_Toolbar_Renderer
             );
             echo '</select>';
         } elseif ('select' === $field['type'] && ! empty($field['options']) && is_array($field['options'])) {
-            echo '<select class="mepr_filter_field" id="' . esc_attr($param) . '"' . $name_attr . $data_attr . '>';
+            echo '<select class="mepr_filter_field" id="' . esc_attr($param) . '"';
+            if (! $omit_name) {
+                echo ' name="' . esc_attr($param) . '"';
+            } else {
+                echo ' data-meprmf-param="' . esc_attr($param) . '"';
+            }
+            echo '>';
             echo '<option value="">' . esc_html(sprintf('— %s —', $label)) . '</option>';
             foreach ($field['options'] as $value => $opt_label) {
                 printf(

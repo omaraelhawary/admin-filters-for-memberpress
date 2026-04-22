@@ -51,6 +51,8 @@ class Meprmf_Predicate_Builder
 
         $uid = $ctx->get_user_id_column_sql();
 
+        // Table alias and outer user_id column expression are fixed SQL fragments (not user input); values use %s placeholders.
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
         foreach ($valid as $field) {
             $param = (string) $field['param'];
             $raw   = Meprmf_Util::get_request_value($param);
@@ -109,6 +111,7 @@ class Meprmf_Predicate_Builder
             $args[] = $sql;
             self::$last_fragments[] = $sql;
         }
+        // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
         return $args;
     }
