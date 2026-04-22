@@ -41,26 +41,28 @@ If you previously used the old directory name `memberpress-members-meta-filters/
 
 Open **MemberPress → Members**. Open the **Filters** control, set values in the panel, then click **Apply filters** (or press Enter in a text field). MemberPress **Go** still runs the native search / membership row; it does not read the plugin panel fields. To hide the floating panel and use the previous inline toolbar, add `add_filter( 'meprmf_use_floating_members_panel', '__return_false' );`.
 
-### Configuring additional user-meta filters
+### Configuring extra filters (Member list filters)
 
-Go to **MemberPress → Member list filters** to add filters for meta keys written by other plugins or by your own code.
+Use **MemberPress → Member list filters** only when you need to filter by **data that another plugin (or custom code) saves** on each member. MemberPress’s own **Settings → Fields** still appear on the Members list automatically; you do not duplicate them here.
 
-For each row, provide:
+**Simplest setup (what most sites need)**
 
-| Field           | Purpose                                                                          |
-| --------------- | -------------------------------------------------------------------------------- |
-| User meta key   | The exact `meta_key` stored in `wp_usermeta`.                                    |
-| Filter label    | Label shown in the Members toolbar.                                              |
-| Filter type     | `Text contains`, `Single choice (exact match)`, or `Checkbox is checked`.        |
-| Choices         | Required for `Single choice`. One per line: `stored_value|Optional label`.       |
+1. **Field name (technical)** — the exact internal name your other tool uses (often one word, e.g. `company_type`). If you are not sure, ask whoever set up that plugin.
+2. **Filter label** — what you want admins to read on the Members screen (e.g. “Company type”).
+3. **Filter type** — leave **Search box — type part of a value**.
+4. **Dropdown choices** — leave **empty**. Save.
 
-Empty rows are ignored when saving. Up to 25 additional filters can be configured.
+Then on **MemberPress → Members**, open **Filters**, type part of a value, and click **Apply filters**.
 
-### Filter types reference
+**Dropdown setup (fixed list only)**
 
-- **Text contains** — substring match (`LIKE %value%`). Best for free-form values (names, notes, URLs).
-- **Single choice (exact match)** — renders a `<select>`; matches the stored meta value exactly.
-- **Checkbox is checked** — matches users whose meta value is `on` or `1` (MemberPress's stored checked value).
+If each member’s value must be one of a known list (e.g. LLC, Corporation), choose **Dropdown — member must match one listed value** and fill **Dropdown choices**, one per line, like: `LLC|Limited liability company` (left = saved value, right = label shown).
+
+**Checkbox option**
+
+Use **Checkbox — only members who checked it** when the stored value is a simple on/off flag (same idea as a checked box in other plugins).
+
+Empty rows are ignored when saving. Up to 25 extra filters can be configured.
 
 ## Extending with code
 

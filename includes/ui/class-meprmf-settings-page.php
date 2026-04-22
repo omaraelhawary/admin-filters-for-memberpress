@@ -135,7 +135,7 @@ class Meprmf_Settings_Page
                 'meprmf_missing_choices',
                 sprintf(
                     /* translators: %s: comma-separated list of filter labels */
-                    esc_html__('“Single choice” filter(s) without options will not appear until you add choices: %s.', 'memberpress-members-meta-filters'),
+                    esc_html__('“Dropdown” filter(s) without choices will not appear until you add lines in the choices box: %s.', 'memberpress-members-meta-filters'),
                     esc_html(implode(', ', array_unique($missing_choices)))
                 ),
                 'warning'
@@ -216,13 +216,14 @@ class Meprmf_Settings_Page
 
             <div class="notice notice-info">
                 <p>
-                    <?php esc_html_e('Configure extra filters for user meta keys (for example values saved by other plugins). Filters appear on the Members screen next to search.', 'memberpress-members-meta-filters'); ?>
+                    <strong><?php esc_html_e('You usually only fill this page for data that comes from another plugin or custom setup.', 'memberpress-members-meta-filters'); ?></strong>
+                    <?php esc_html_e(' Fields you create in MemberPress already show up on the Members list by themselves.', 'memberpress-members-meta-filters'); ?>
                 </p>
                 <p>
                     <?php
                     printf(
                         /* translators: 1: open link MemberPress settings, 2: close link, 3: open link Members, 4: close link */
-                        esc_html__('Registration fields you set in %1$sMemberPress → Settings → Fields%2$s are added automatically. Open %3$sMemberPress → Members%4$s to use the filters.', 'memberpress-members-meta-filters'),
+                        esc_html__('Optional: %1$sMemberPress → Settings → Fields%2$s for registration fields. Then open %3$sMemberPress → Members%4$s, click Filters, and use Apply.', 'memberpress-members-meta-filters'),
                         '<a href="' . esc_url($mepr_fields_url) . '">',
                         '</a>',
                         '<a href="' . esc_url($members_url) . '">',
@@ -240,7 +241,7 @@ class Meprmf_Settings_Page
                         <?php settings_fields('meprmf_settings_group'); ?>
 
                         <h2 class="title screen-reader-text">
-                            <?php esc_html_e('Additional filters', 'memberpress-members-meta-filters'); ?>
+                            <?php esc_html_e('Extra member filters', 'memberpress-members-meta-filters'); ?>
                         </h2>
 
                         <?php
@@ -268,7 +269,7 @@ class Meprmf_Settings_Page
                                     <div class="meprmf-filter-card__grid">
                                         <div class="meprmf-field">
                                             <label for="meprmf-meta-key-<?php echo (int) $i; ?>">
-                                                <?php esc_html_e('User meta key', 'memberpress-members-meta-filters'); ?>
+                                                <?php esc_html_e('Field name (technical)', 'memberpress-members-meta-filters'); ?>
                                             </label>
                                             <input
                                                 id="meprmf-meta-key-<?php echo (int) $i; ?>"
@@ -276,11 +277,11 @@ class Meprmf_Settings_Page
                                                 class="regular-text"
                                                 name="<?php echo esc_attr(MEPRMF_OPTION_ADDITIONAL); ?>[<?php echo (int) $i; ?>][meta_key]"
                                                 value="<?php echo esc_attr($mk); ?>"
-                                                placeholder="<?php esc_attr_e('e.g. my_custom_meta', 'memberpress-members-meta-filters'); ?>"
+                                                placeholder="<?php esc_attr_e('Example: company_type', 'memberpress-members-meta-filters'); ?>"
                                                 autocomplete="off"
                                             />
                                             <p class="description">
-                                                <?php esc_html_e('Must match the key stored in the WordPress usermeta table.', 'memberpress-members-meta-filters'); ?>
+                                                <?php esc_html_e('One word or words_with_underscores — exactly how your site stores this for each member. If you did not build the site yourself, ask whoever installed the plugin that collects this data.', 'memberpress-members-meta-filters'); ?>
                                             </p>
                                         </div>
                                         <div class="meprmf-field">
@@ -305,27 +306,27 @@ class Meprmf_Settings_Page
                                                 id="meprmf-type-<?php echo (int) $i; ?>"
                                                 name="<?php echo esc_attr(MEPRMF_OPTION_ADDITIONAL); ?>[<?php echo (int) $i; ?>][filter_type]"
                                             >
-                                                <option value="text" <?php selected($ft, 'text'); ?>><?php esc_html_e('Text contains', 'memberpress-members-meta-filters'); ?></option>
-                                                <option value="select" <?php selected($ft, 'select'); ?>><?php esc_html_e('Single choice (exact match)', 'memberpress-members-meta-filters'); ?></option>
-                                                <option value="checkbox" <?php selected($ft, 'checkbox'); ?>><?php esc_html_e('Checkbox is checked', 'memberpress-members-meta-filters'); ?></option>
+                                                <option value="text" <?php selected($ft, 'text'); ?>><?php esc_html_e('Search box — type part of a value', 'memberpress-members-meta-filters'); ?></option>
+                                                <option value="select" <?php selected($ft, 'select'); ?>><?php esc_html_e('Dropdown — member must match one listed value', 'memberpress-members-meta-filters'); ?></option>
+                                                <option value="checkbox" <?php selected($ft, 'checkbox'); ?>><?php esc_html_e('Checkbox — only members who checked it', 'memberpress-members-meta-filters'); ?></option>
                                             </select>
                                             <p class="description">
-                                                <?php esc_html_e('Use “Single choice” when the stored value must match one of a fixed set of options.', 'memberpress-members-meta-filters'); ?>
+                                                <?php esc_html_e('Most people use the first option. Use the dropdown only for fixed lists (company type, plan tier, etc.). Leave the big “Choices” box empty unless you picked dropdown.', 'memberpress-members-meta-filters'); ?>
                                             </p>
                                         </div>
                                         <div class="meprmf-field meprmf-field--full meprmf-options-field">
                                             <label for="meprmf-options-<?php echo (int) $i; ?>">
-                                                <?php esc_html_e('Choices (single choice only)', 'memberpress-members-meta-filters'); ?>
+                                                <?php esc_html_e('Dropdown choices (only if you chose “Dropdown” above)', 'memberpress-members-meta-filters'); ?>
                                             </label>
                                             <textarea
                                                 id="meprmf-options-<?php echo (int) $i; ?>"
                                                 name="<?php echo esc_attr(MEPRMF_OPTION_ADDITIONAL); ?>[<?php echo (int) $i; ?>][options_text]"
                                                 rows="4"
                                                 class="large-text code"
-                                                placeholder="<?php esc_attr_e('stored_value|Optional label&#10;other_value|Another label', 'memberpress-members-meta-filters'); ?>"
+                                                placeholder="<?php esc_attr_e('LLC|Limited liability company&#10;corp|Corporation', 'memberpress-members-meta-filters'); ?>"
                                             ><?php echo esc_textarea($otxt); ?></textarea>
                                             <p class="description">
-                                                <?php esc_html_e('One option per line. Use value|Label or a single value per line. Required when filter type is “Single choice”.', 'memberpress-members-meta-filters'); ?>
+                                                <?php esc_html_e('Leave empty for a search box. For a dropdown: one line per choice. Format: what_is_saved|What_people_see — example: LLC|Limited liability company.', 'memberpress-members-meta-filters'); ?>
                                             </p>
                                         </div>
                                     </div>
@@ -352,11 +353,13 @@ class Meprmf_Settings_Page
 
                 <div class="meprmf-settings-sidebar">
                     <div class="postbox">
-                        <h2 class="hndle"><?php esc_html_e('Tips', 'memberpress-members-meta-filters'); ?></h2>
+                        <h2 class="hndle"><?php esc_html_e('Quick guide', 'memberpress-members-meta-filters'); ?></h2>
                         <div class="inside">
-                            <p><?php esc_html_e('Text contains is best for free-form values (names, notes, URLs).', 'memberpress-members-meta-filters'); ?></p>
-                            <p><?php esc_html_e('Single choice fits dropdown-style data where the meta value must equal one stored option.', 'memberpress-members-meta-filters'); ?></p>
-                            <p><?php esc_html_e('Checkbox is checked looks for MemberPress-style checked values (on / 1).', 'memberpress-members-meta-filters'); ?></p>
+                            <ol class="meprmf-tips-list">
+                                <li><?php esc_html_e('Pick a short label members will recognize (e.g. “Company type”).', 'memberpress-members-meta-filters'); ?></li>
+                                <li><?php esc_html_e('Leave “Search box” and leave the choices box empty — that is enough for most extra fields.', 'memberpress-members-meta-filters'); ?></li>
+                                <li><?php esc_html_e('Save, go to Members, open Filters, type part of a value, then Apply filters.', 'memberpress-members-meta-filters'); ?></li>
+                            </ol>
                             <p>
                                 <a class="button button-secondary" href="<?php echo esc_url($members_url); ?>">
                                     <?php esc_html_e('Open Members list', 'memberpress-members-meta-filters'); ?>
