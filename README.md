@@ -1,12 +1,14 @@
-# MemberPress Members Meta Filters
+# Admin Filters for MemberPress
 
-Adds address (country, state, city, zip, address lines), MemberPress custom fields, and optional extra user-meta filters to the MemberPress Members admin list. Uses MemberPress hooks only — no core files are modified.
+Adds address (country, state, city, zip, address lines), MemberPress custom fields (MemberPress → Settings → Fields), and optional extra **user-meta** filters to the **MemberPress → Members** admin list. Uses MemberPress hooks only — no core files are modified.
+
+The plugin lives in the folder **`admin-filters-for-memberpress`** with bootstrap file **`admin-filters-for-memberpress.php`**. The **text domain** stays `memberpress-members-meta-filters` so existing translations and `load_plugin_textdomain` paths keep working. The GitHub repository is [admin-filters-for-memberpress](https://github.com/omarelhawray/admin-filters-for-memberpress).
 
 - **Contributors:** Omar ElHawary
 - **Requires Plugins:** [MemberPress](https://memberpress.com/)
 - **Requires at least:** 5.6
 - **Requires PHP:** 7.4
-- **Version:** 1.5.0
+- **Version:** 1.6.1
 - **License:** GPLv2 or later
 - **Text Domain:** `memberpress-members-meta-filters`
 
@@ -18,15 +20,20 @@ Adds address (country, state, city, zip, address lines), MemberPress custom fiel
   - `multiselect`, `checkboxes` → single-choice (substring match against the stored serialized value)
   - `checkbox` → checked / not set
   - `text`, `email`, `url`, `tel`, `date`, `textarea`, `file` → "contains" search
-- Add unlimited **custom user-meta filters** through a dedicated settings page (text, single choice, or checkbox).
+- Add unlimited **custom user-meta filters** through **MemberPress → Member list filters** (text, single choice, or checkbox).
 - Compact collapsible toolbar when six or more filters are active, so the Members list stays usable.
-- All filtering is applied as `EXISTS` subqueries on `wp_usermeta` via the `mepr_list_table_args` filter — no queries on other MemberPress list tables are touched.
+- Filtering is applied as `EXISTS` subqueries on `wp_usermeta` via the `mepr_list_table_args` filter, scoped to the `u` alias used by `MeprUser::list_table()`.
+- With `WP_DEBUG` enabled, predicate SQL fragments can be echoed at the bottom of the Members screen for administrators (see `includes/ui/class-meprmf-debug-panel.php`).
 
 ## Installation
 
-1. Copy the `memberpress-members-meta-filters` folder into `wp-content/plugins/`.
-2. Activate **MemberPress Members Meta Filters** from the Plugins screen.
+1. Copy the `admin-filters-for-memberpress` folder into `wp-content/plugins/` (or clone the repo into that path).
+2. Activate **Admin Filters for MemberPress** from the Plugins screen.
 3. MemberPress must already be active; the plugin does nothing if `MeprUtils` or `MeprOptions` are missing.
+
+### Upgrading from `memberpress-members-meta-filters`
+
+If you previously used the old directory name `memberpress-members-meta-filters/` and `memberpress-members-meta-filters.php`, deactivate the plugin, remove the old folder, upload or clone this plugin as `admin-filters-for-memberpress/`, then activate again. WordPress stores settings by option name, not folder name, so your filter configuration is preserved.
 
 ## Usage
 
@@ -88,11 +95,46 @@ Other available hooks:
 
 ## How it works
 
-- `mepr_table_controls_search` — renders the filter controls inside the Members toolbar.
-- `mepr_list_table_args` — appends `EXISTS ( SELECT 1 FROM {$wpdb->usermeta} ... )` fragments, scoped to the `u` alias used by `MeprUser::list_table()`.
-- The `admin_menu` and `admin_init` hooks register the settings page and option (`meprmf_additional_filters`) only for users with MemberPress admin capability.
+- `mepr_table_controls_search` — renders the filter controls inside the Members toolbar (`Meprmf_Toolbar_Renderer`).
+- `mepr_list_table_args` — appends `EXISTS ( SELECT 1 FROM {$wpdb->usermeta} ... )` fragments (`Meprmf_Predicate_Builder`), scoped to `u.ID`.
+- `admin_menu` / `admin_init` — register the settings page and option (`meprmf_additional_filters`) for users with MemberPress admin capability.
+
+The procedural API (`meprmf_*` functions) in `compat/legacy-functions.php` delegates to classes in `includes/` so existing snippets and `remove_action` calls keep working.
+
+## Development
+
+### Requirements
+
+- PHP 7.4+
+- [Composer](https://getcomposer.org/) (for PHPUnit)
+
+### Unit tests
+
+From the plugin directory:
+
+```bash
+composer install
+vendor/bin/phpunit
+```
+
+Tests use `tests/bootstrap-unit.php` (no full WordPress test database required). They cover utilities, screen detection, MemberPress field mapping, and safe no-op behavior when `$_GET['page']` is not the Members screen (so migration-style queries that call `mepr_list_table_args` without a Members page are not altered).
+
+### Continuous integration
+
+GitHub Actions (`.github/workflows/phpunit.yml`) runs `composer install` and `vendor/bin/phpunit` on PHP 7.4–8.3.
 
 ## Changelog
+
+### 1.6.1
+
+- **Rename** plugin directory to `admin-filters-for-memberpress` and bootstrap file to `admin-filters-for-memberpress.php` to match the product name. Text domain and option keys are unchanged.
+
+### 1.6.0
+
+- **Rebrand** display name to **Admin Filters for MemberPress**. Update GitHub repository to [admin-filters-for-memberpress](https://github.com/omarelhawray/admin-filters-for-memberpress).
+- **Refactor** into `includes/` (Plugin, Screen, Members provider, Predicate builder, Toolbar, Settings, Debug) and `compat/legacy-functions.php` for backward-compatible `meprmf_*` functions.
+- **Tests:** PHPUnit unit suite (`tests/unit/`) and GitHub Actions workflow.
+- **Debug:** optional footer output of SQL predicate fragments on the Members list when `WP_DEBUG` is on (`Meprmf_Debug_Panel`).
 
 ### 1.5.0
 
