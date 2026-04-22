@@ -202,12 +202,12 @@ class Meprmf_Members_Provider
             return [];
         }
 
-        $country_label = __('Country', 'memberpress-members-meta-filters');
-        $state_label   = __('State / Province', 'memberpress-members-meta-filters');
-        $city_label    = __('City', 'memberpress-members-meta-filters');
-        $zip_label     = __('Zip / Postal code', 'memberpress-members-meta-filters');
-        $addr1_label   = __('Address line 1', 'memberpress-members-meta-filters');
-        $addr2_label   = __('Address line 2', 'memberpress-members-meta-filters');
+        $country_label = __('Country', 'admin-filters-for-memberpress');
+        $state_label   = __('State / Province', 'admin-filters-for-memberpress');
+        $city_label    = __('City', 'admin-filters-for-memberpress');
+        $zip_label     = __('Zip / Postal code', 'admin-filters-for-memberpress');
+        $addr1_label   = __('Address line 1', 'admin-filters-for-memberpress');
+        $addr2_label   = __('Address line 2', 'admin-filters-for-memberpress');
 
         if (! empty($opts->address_fields) && is_array($opts->address_fields)) {
             foreach ($opts->address_fields as $af) {

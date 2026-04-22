@@ -1,6 +1,6 @@
 <?php
 /**
- * Uninstall handler for Admin Filters for MemberPress (folder: admin-filters-for-memberpress; text domain: memberpress-members-meta-filters).
+ * Uninstall handler for Admin Filters for MemberPress (folder: admin-filters-for-memberpress; text domain: admin-filters-for-memberpress).
  *
  * @package MemberPress_Members_Meta_Filters
  */
