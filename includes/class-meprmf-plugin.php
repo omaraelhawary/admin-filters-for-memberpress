@@ -105,7 +105,9 @@ class Meprmf_Plugin
 
         if (
             Meprmf_Capabilities::current_user_can_filter()
-            && isset($_GET['page']) // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+            // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only admin screen slug for conditional assets; no form submission.
+            && isset($_GET['page'])
+            // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only admin screen slug for conditional assets; no form submission.
             && 'memberpress-members' === sanitize_text_field(wp_unslash($_GET['page']))
         ) {
             wp_enqueue_style(

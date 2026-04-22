@@ -134,7 +134,7 @@ cd /path/to/admin-filters-for-memberpress
 bash scripts/build-release.sh
 ```
 
-(`bash` avoids needing `chmod +x`.) Writes `dist/admin-filters-for-memberpress-<version>.zip` (version from the main plugin header), excluding tests, Composer, CI, `docs/`, and `scripts/`.
+(`bash` avoids needing `chmod +x`.) Writes `dist/admin-filters-for-memberpress-<version>.zip` (version from the main plugin header), excluding tests, Composer, CI, `docs/`, `wordpress-org-assets/`, and `scripts/`. Put WordPress.org icons/banners in **`wordpress-org-assets/`** (see that folder’s README), then copy them to SVN `assets/` when you publish the listing.
 
 ## Changelog
 

@@ -48,11 +48,7 @@ require_once __DIR__ . '/compat/legacy-functions.php';
 add_action(
     'plugins_loaded',
     static function () {
-        load_plugin_textdomain(
-            'admin-filters-for-memberpress',
-            false,
-            dirname(plugin_basename(MEPRMF_PLUGIN_FILE)) . '/languages'
-        );
+        // Translations load automatically for WordPress.org plugins (WP 4.6+); no load_plugin_textdomain() needed.
 
         if (! class_exists('MeprUtils') || ! class_exists('MeprOptions')) {
             return;

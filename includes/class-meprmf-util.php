@@ -38,12 +38,16 @@ class Meprmf_Util
      */
     public static function get_request_value($param)
     {
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $param = self::sanitize_param($param);
+        if ('' === $param) {
+            return '';
+        }
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only filter query args on admin list screens.
         if (! isset($_GET[ $param ])) {
             return '';
         }
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-        $value = wp_unslash($_GET[ $param ]);
+        $value = wp_unslash($_GET[ $param ]); // phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Key restricted via sanitize_param(); value sanitized below.
         if (! is_scalar($value)) {
             return '';
         }

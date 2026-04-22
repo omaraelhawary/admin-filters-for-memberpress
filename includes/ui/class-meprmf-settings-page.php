@@ -51,6 +51,7 @@ class Meprmf_Settings_Page
         $missing_choices   = [];
         $duplicate_choices = [];
 
+        // phpcs:disable WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Saved option row shape; not a WP_Query meta_key argument.
         foreach ($value as $row) {
             if (! is_array($row)) {
                 continue;
@@ -115,6 +116,7 @@ class Meprmf_Settings_Page
                 'options_text' => $opts_raw,
             ];
         }
+        // phpcs:enable WordPress.DB.SlowDBQuery.slow_db_query_meta_key
 
         if (! empty($collisions)) {
             add_settings_error(
@@ -198,6 +200,7 @@ class Meprmf_Settings_Page
             $max_rows,
             max(count($saved) + $min_trailing_blank, $min_trailing_blank)
         );
+        // phpcs:disable WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Blank row template keys; not a WP_Query meta_key argument.
         while (count($rows) < $target_count) {
             $rows[] = [
                 'meta_key'     => '',
@@ -206,6 +209,7 @@ class Meprmf_Settings_Page
                 'options_text' => '',
             ];
         }
+        // phpcs:enable WordPress.DB.SlowDBQuery.slow_db_query_meta_key
 
         $members_url     = admin_url('admin.php?page=memberpress-members');
         $mepr_fields_url = admin_url('admin.php?page=memberpress-options');
@@ -256,14 +260,16 @@ class Meprmf_Settings_Page
                                 <div class="meprmf-filter-card__head">
                                     <h3 class="meprmf-filter-card__title">
                                         <?php
-                                        printf(
-                                            /* translators: %d: filter row number */
-                                            esc_html__('Filter %d', 'admin-filters-for-memberpress'),
-                                            $num
+                                        echo esc_html(
+                                            sprintf(
+                                                /* translators: %d: filter row number */
+                                                __('Filter %d', 'admin-filters-for-memberpress'),
+                                                (int) $num
+                                            )
                                         );
                                         ?>
                                     </h3>
-                                    <span class="meprmf-filter-card__badge" aria-hidden="true"><?php echo (int) $num; ?></span>
+                                    <span class="meprmf-filter-card__badge" aria-hidden="true"><?php echo esc_html((string) (int) $num); ?></span>
                                 </div>
                                 <div class="meprmf-filter-card__body">
                                     <div class="meprmf-filter-card__grid">

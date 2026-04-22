@@ -12,6 +12,7 @@ if (! defined('ABSPATH')) {
 /**
  * Members list filter definitions.
  */
+// phpcs:disable WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Field definitions use usermeta key name as schema; arrays are not WP_Query meta_key clauses.
 class Meprmf_Members_Provider
 {
 
@@ -309,9 +310,11 @@ class Meprmf_Members_Provider
 
         $fields = array_merge($fields, self::get_additional_filter_fields());
 
+        // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- MemberPress extension filter (upstream hook name).
         $fields = apply_filters('mepr_members_meta_filters_fields', $fields);
 
         self::$cached_filter_fields = $fields;
         return self::$cached_filter_fields;
     }
 }
+// phpcs:enable WordPress.DB.SlowDBQuery.slow_db_query_meta_key
