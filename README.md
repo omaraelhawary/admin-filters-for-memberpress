@@ -8,20 +8,20 @@ The plugin lives in the folder **`admin-filters-for-memberpress`** with bootstra
 - **Requires Plugins:** [MemberPress](https://memberpress.com/)
 - **Requires at least:** 5.6
 - **Requires PHP:** 8.1
-- **Version:** 1.6.2
+- **Version:** 1.6.5
 - **License:** GPLv2 or later
 - **Text Domain:** `memberpress-members-meta-filters`
 
 ## Features
 
-- Filter the Members list by the six built-in MemberPress address fields: **Country**, **State / Province**, **City**, **Zip / Postal code**, and **Address lines 1 & 2**. Address filters appear only when MemberPress address capture is enabled (toggleable via the `meprmf_include_address_filters` hook).
+- Filter the Members list by the six built-in MemberPress address fields: **Country**, **State / Province**, **City**, **Zip / Postal code**, and **Address lines 1 & 2**. Address filters appear when MemberPress has address capture enabled for **signup / checkout** (`show_address_fields`) **or** for the **account** page (`show_address_on_account`), unless you override with the `meprmf_include_address_filters` hook.
 - Automatically expose every **MemberPress custom field** (MemberPress → Settings → Fields) as a filter:
   - `dropdown`, `radios` → single-choice (exact match)
   - `multiselect`, `checkboxes` → single-choice (substring match against the stored serialized value)
   - `checkbox` → checked / not set
   - `text`, `email`, `url`, `tel`, `date`, `textarea`, `file` → "contains" search
 - Add unlimited **custom user-meta filters** through **MemberPress → Member list filters** (text, single choice, or checkbox).
-- Compact collapsible toolbar when six or more filters are active, so the Members list stays usable.
+- **Members** list: floating **Filters** panel (customize which fields show; preferences in the browser via `localStorage`). The previous inline / collapsible toolbar is still available by filtering `meprmf_use_floating_members_panel` to false.
 - Filtering is applied as `EXISTS` subqueries on `wp_usermeta` via the `mepr_list_table_args` filter, scoped to the `u` alias used by `MeprUser::list_table()`.
 - With `WP_DEBUG` enabled, predicate SQL fragments can be echoed at the bottom of the Members screen for administrators (see `includes/ui/class-meprmf-debug-panel.php`).
 
@@ -39,7 +39,7 @@ If you previously used the old directory name `memberpress-members-meta-filters/
 
 ### Built-in and custom-field filters
 
-Open **MemberPress → Members**. Country, City, and every configured MemberPress custom field appear next to the search box. Select or type a value and press the Members list's existing **Go** button.
+Open **MemberPress → Members**. Open the **Filters** control, set values in the panel, then click **Apply filters** (or press Enter in a text field). MemberPress **Go** still runs the native search / membership row; it does not read the plugin panel fields. To hide the floating panel and use the previous inline toolbar, add `add_filter( 'meprmf_use_floating_members_panel', '__return_false' );`.
 
 ### Configuring additional user-meta filters
 
@@ -124,6 +124,19 @@ Tests use `tests/bootstrap-unit.php` (no full WordPress test database required).
 GitHub Actions (`.github/workflows/phpunit.yml`) runs `composer install` and `vendor/bin/phpunit` on PHP 8.1–8.3.
 
 ## Changelog
+
+### 1.6.5
+
+- **Floating panel:** align Filters **dashicon** with label/badge; **Apply** / **Clear** now save `meprmf_panel_open` = false so the panel reopens closed after reload; customize list **checkbox** / **Done** layout (remove panel `overflow-x` clipping).
+- **Address filters:** shown when MemberPress **Show on Account** is enabled even if signup/checkout address row is off (`show_address_on_account` without `show_address_fields`).
+
+### 1.6.4
+
+- **Members floating panel:** fix layout — panel `max-width: 100%` was resolving against the narrow toggle wrapper and crushing the panel; inputs also pick up wp-admin `.regular-text { width: 25em }`. Panel width is now viewport-based; grid items and fields use `min-width: 0` and full-width fields inside the panel.
+
+### 1.6.3
+
+- **Members list:** floating **Filters** panel (toggle, grid, **Apply filters**, **Clear**, **Customize**) with per-browser `localStorage` (`meprmf_panel_open`, `meprmf_visible_filters`). Use **Apply filters** (or Enter in a field) to apply; MemberPress **Go** does not submit these controls. Disable with `add_filter( 'meprmf_use_floating_members_panel', '__return_false' );` to restore the previous inline / collapsible toolbar.
 
 ### 1.6.2
 

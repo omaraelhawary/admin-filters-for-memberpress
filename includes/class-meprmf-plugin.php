@@ -114,6 +114,30 @@ class Meprmf_Plugin
                 [],
                 MEPRMF_VERSION
             );
+
+            if (apply_filters('meprmf_use_floating_members_panel', true)) {
+                wp_enqueue_script(
+                    'meprmf-members-floating-panel',
+                    meprmf_plugin_url('assets/meprmf-members-floating-panel.js'),
+                    [],
+                    MEPRMF_VERSION,
+                    true
+                );
+                $known = [];
+                foreach (Meprmf_Filter_Registry::get_normalized_fields_for_members() as $field) {
+                    $p = Meprmf_Util::sanitize_param(isset($field['param']) ? $field['param'] : '');
+                    if ('' !== $p) {
+                        $known[] = $p;
+                    }
+                }
+                wp_localize_script(
+                    'meprmf-members-floating-panel',
+                    'meprmfMembersFloating',
+                    [
+                        'knownParams' => $known,
+                    ]
+                );
+            }
         }
     }
 }

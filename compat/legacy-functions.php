@@ -182,12 +182,13 @@ function meprmf_get_request_value($param)
  * Output one filter control (select or search input).
  *
  * @param array<string, mixed> $field Field definition.
- * @param bool                 $compact When true, show visible label and wrap in a grid cell.
+ * @param bool                 $compact   When true, show visible label and wrap in a grid cell.
+ * @param bool                 $omit_name When true, omit `name` (floating panel).
  * @return void
  */
-function meprmf_render_single_filter_control(array $field, $compact)
+function meprmf_render_single_filter_control(array $field, $compact, $omit_name = false)
 {
-    Meprmf_Toolbar_Renderer::render_single_filter_control($field, $compact);
+    Meprmf_Toolbar_Renderer::render_single_filter_control($field, $compact, $omit_name);
 }
 
 /**
