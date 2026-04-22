@@ -1,16 +1,41 @@
+<div align="center">
+
+<img src=".github/readme-assets/logo.png" width="128" height="128" alt="Admin Filters for MemberPress — plugin icon">
+
 # Admin Filters for MemberPress
 
-Adds address (country, state, city, zip, address lines), MemberPress custom fields (MemberPress → Settings → Fields), and optional extra **user-meta** filters to the **MemberPress → Members** admin list. Uses MemberPress hooks only — no core files are modified.
+**Filter the MemberPress Members admin list** by address, MemberPress custom fields (Settings → Fields), and optional extra **user-meta** filters — using MemberPress hooks only; no core files are modified.
 
-The plugin lives in the folder **`admin-filters-for-memberpress`** with bootstrap file **`admin-filters-for-memberpress.php`**. The **text domain** is `admin-filters-for-memberpress` (matches the plugin slug for WordPress.org). Custom translation files that used the old domain `memberpress-members-meta-filters` should be renamed to `admin-filters-for-memberpress-{locale}.mo`. The GitHub repository is [admin-filters-for-memberpress](https://github.com/omarelhawray/admin-filters-for-memberpress).
+[![PHPUnit](https://github.com/omarelhawray/admin-filters-for-memberpress/actions/workflows/phpunit.yml/badge.svg)](https://github.com/omarelhawray/admin-filters-for-memberpress/actions/workflows/phpunit.yml)
+![PHP](https://img.shields.io/badge/PHP-8.1%2B-777BB4?logo=php&logoColor=white)
+![WordPress](https://img.shields.io/badge/WordPress-5.6%2B-21759B?logo=wordpress&logoColor=white)
+[![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/gpl-2.0.html)
 
-- **Contributors:** Omar ElHawary — WordPress.org: [omarelhawary](https://profiles.wordpress.org/omarelhawary/)
-- **Dependency:** [MemberPress](https://memberpress.com/) (commercial; must be installed separately — not hosted on wordpress.org)
-- **Requires at least:** 5.6
-- **Requires PHP:** 8.1
-- **Version:** 1.6.7
-- **License:** GPLv2 or later
-- **Text Domain:** `admin-filters-for-memberpress`
+[GitHub repository](https://github.com/omarelhawray/admin-filters-for-memberpress) · [MemberPress](https://memberpress.com/) (required; install separately — not on WordPress.org)
+
+</div>
+
+---
+
+## At a glance
+
+| | |
+| --- | --- |
+| **Contributors** | Omar ElHawary — [WordPress.org profile](https://profiles.wordpress.org/omarelhawary/) |
+| **Requires** | WordPress 5.6+, PHP 8.1+, active [MemberPress](https://memberpress.com/) |
+| **Current release** | 1.6.7 (see plugin header in `admin-filters-for-memberpress.php`) |
+| **Text domain** | `admin-filters-for-memberpress` (matches the plugin slug) |
+| **License** | GPLv2 or later |
+
+The plugin lives in **`admin-filters-for-memberpress/`** with bootstrap **`admin-filters-for-memberpress.php`**. Custom translation files that used the old domain `memberpress-members-meta-filters` should be renamed to `admin-filters-for-memberpress-{locale}.mo`.
+
+## Screenshots
+
+Add or replace images under [`.github/readme-assets/`](.github/readme-assets/).
+
+### Members list — floating Filters panel
+
+![MemberPress Members screen with the Filters panel open — address fields, custom fields, and Apply filters](.github/readme-assets/members-table-filters.png)
 
 ## Features
 
@@ -150,52 +175,9 @@ bash scripts/build-release.sh
 - **WordPress.org:** add root `readme.txt`, align text domain with plugin slug, explicit non-affiliation wording for MemberPress / Caseproof; remove invalid `Requires Plugins: memberpress` header (MemberPress is not a wordpress.org plugin slug).
 - **`languages/`** directory tracked for translation drops.
 
-### 1.6.5
+### Earlier releases
 
-- **Floating panel:** align Filters **dashicon** with label/badge; **Apply** / **Clear** now save `meprmf_panel_open` = false so the panel reopens closed after reload; customize list **checkbox** / **Done** layout (remove panel `overflow-x` clipping).
-- **Address filters:** shown when MemberPress **Show on Account** is enabled even if signup/checkout address row is off (`show_address_on_account` without `show_address_fields`).
-
-### 1.6.4
-
-- **Members floating panel:** fix layout — panel `max-width: 100%` was resolving against the narrow toggle wrapper and crushing the panel; inputs also pick up wp-admin `.regular-text { width: 25em }`. Panel width is now viewport-based; grid items and fields use `min-width: 0` and full-width fields inside the panel.
-
-### 1.6.3
-
-- **Members list:** floating **Filters** panel (toggle, grid, **Apply filters**, **Clear**, **Customize**) with per-browser `localStorage` (`meprmf_panel_open`, `meprmf_visible_filters`). Use **Apply filters** (or Enter in a field) to apply; MemberPress **Go** does not submit these controls. Disable with `add_filter( 'meprmf_use_floating_members_panel', '__return_false' );` to restore the previous inline / collapsible toolbar.
-
-### 1.6.2
-
-- **Requires PHP** raised to **8.1** (plugin header, Composer, and CI). PHPUnit workflow matrix is PHP 8.1–8.3 only.
-
-### 1.6.1
-
-- **Rename** plugin directory to `admin-filters-for-memberpress` and bootstrap file to `admin-filters-for-memberpress.php` to match the product name. Text domain and option keys are unchanged.
-
-### 1.6.0
-
-- **Rebrand** display name to **Admin Filters for MemberPress**. Update GitHub repository to [admin-filters-for-memberpress](https://github.com/omarelhawray/admin-filters-for-memberpress).
-- **Refactor** into `includes/` (Plugin, Screen, Members provider, Predicate builder, Toolbar, Settings, Debug) and `compat/legacy-functions.php` for backward-compatible `meprmf_*` functions.
-- **Tests:** PHPUnit unit suite (`tests/unit/`) and GitHub Actions workflow.
-- **Debug:** optional footer output of SQL predicate fragments on the Members list when `WP_DEBUG` is on (`Meprmf_Debug_Panel`).
-
-### 1.5.0
-
-- Added built-in filters for **State / Province**, **Zip / Postal code**, **Address line 1**, and **Address line 2** (previously only Country and City were supported).
-- Built-in address filters now inherit MemberPress' translated field labels when available.
-- Address filters are gated behind MemberPress' `show_address_fields` option and a new `meprmf_include_address_filters` hook so sites not capturing addresses don't see empty controls.
-- Extracted the address filter set into `meprmf_get_address_filter_fields()` for clarity.
-
-### 1.4.0
-
-- Added a `MemberPress → Member list filters` settings page for configuring unlimited custom user-meta filters (text contains / single choice / checkbox).
-- Settings sanitizer now reports duplicate meta keys, `select` filters missing options, and duplicate option values via admin notices.
-- Added translation loading (`load_plugin_textdomain`).
-- Registered an uninstall cleanup that deletes the plugin option when the plugin is removed.
-- Declared `Requires at least: 5.6` and `Requires PHP: 7.4` in the plugin header.
-
-### 1.3.0
-
-- Initial public version.
+Full line-by-line history (1.6.5 through 1.3.0, upgrade notes, and older refactors) is kept in **[readme.txt](readme.txt)** so it stays aligned with the WordPress.org listing. Bump **Current release** in the table above when you ship a new version.
 
 ## License
 
