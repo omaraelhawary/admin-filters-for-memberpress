@@ -4,7 +4,7 @@
 
 # Admin Filters for MemberPress
 
-**Filter the MemberPress Members admin list** by address, MemberPress custom fields (Settings → Fields), and optional extra **user-meta** filters — using MemberPress hooks only; no core files are modified.
+**Filter the MemberPress Members admin list** by address and MemberPress custom fields (**Settings → Fields**), and optionally more fields you register in code — using MemberPress hooks only; no core files are modified.
 
 [![PHPUnit](https://github.com/omarelhawray/admin-filters-for-memberpress/actions/workflows/phpunit.yml/badge.svg)](https://github.com/omarelhawray/admin-filters-for-memberpress/actions/workflows/phpunit.yml)
 ![PHP](https://img.shields.io/badge/PHP-8.1%2B-777BB4?logo=php&logoColor=white)
@@ -45,7 +45,6 @@ Add or replace images under [`.github/readme-assets/`](.github/readme-assets/).
   - `multiselect`, `checkboxes` → single-choice (substring match against the stored serialized value)
   - `checkbox` → checked / not set
   - `text`, `email`, `url`, `tel`, `date`, `textarea`, `file` → "contains" search
-- Add unlimited **custom user-meta filters** through **MemberPress → Member list filters** (text, single choice, or checkbox).
 - **Members** list: floating **Filters** panel (customize which fields show; preferences in the browser via `localStorage`). The previous inline / collapsible toolbar is still available by filtering `meprmf_use_floating_members_panel` to false.
 - Filtering is applied as `EXISTS` subqueries on `wp_usermeta` via the `mepr_list_table_args` filter, scoped to the `u` alias used by `MeprUser::list_table()`.
 - With `WP_DEBUG` enabled, predicate SQL fragments can be echoed at the bottom of the Members screen for administrators (see `includes/ui/class-meprmf-debug-panel.php`).
@@ -58,36 +57,13 @@ Add or replace images under [`.github/readme-assets/`](.github/readme-assets/).
 
 ### Upgrading from `memberpress-members-meta-filters`
 
-If you previously used the old directory name `memberpress-members-meta-filters/` and `memberpress-members-meta-filters.php`, deactivate the plugin, remove the old folder, upload or clone this plugin as `admin-filters-for-memberpress/`, then activate again. WordPress stores settings by option name, not folder name, so your filter configuration is preserved.
+If you previously used the old directory name `memberpress-members-meta-filters/` and `memberpress-members-meta-filters.php`, deactivate the plugin, remove the old folder, upload or clone this plugin as `admin-filters-for-memberpress/`, then activate again. MemberPress **Settings → Fields** and address settings live in MemberPress; any extra filters you added with the `mepr_members_meta_filters_fields` filter in your theme or a small plugin are unchanged.
 
 ## Usage
 
 ### Built-in and custom-field filters
 
 Open **MemberPress → Members**. Open the **Filters** control, set values in the panel, then click **Apply filters** (or press Enter in a text field). MemberPress **Go** still runs the native search / membership row; it does not read the plugin panel fields. To hide the floating panel and use the previous inline toolbar, add `add_filter( 'meprmf_use_floating_members_panel', '__return_false' );`.
-
-### Configuring extra filters (Member list filters)
-
-Use **MemberPress → Member list filters** only when you need to filter by **data that another plugin (or custom code) saves** on each member. MemberPress’s own **Settings → Fields** still appear on the Members list automatically; you do not duplicate them here.
-
-**Simplest setup (what most sites need)**
-
-1. **Field name (technical)** — the exact internal name your other tool uses (often one word, e.g. `company_type`). If you are not sure, ask whoever set up that plugin.
-2. **Filter label** — what you want admins to read on the Members screen (e.g. “Company type”).
-3. **Filter type** — leave **Search box — type part of a value**.
-4. **Dropdown choices** — leave **empty**. Save.
-
-Then on **MemberPress → Members**, open **Filters**, type part of a value, and click **Apply filters**.
-
-**Dropdown setup (fixed list only)**
-
-If each member’s value must be one of a known list (e.g. LLC, Corporation), choose **Dropdown — member must match one listed value** and fill **Dropdown choices**, one per line, like: `LLC|Limited liability company` (left = saved value, right = label shown).
-
-**Checkbox option**
-
-Use **Checkbox — only members who checked it** when the stored value is a simple on/off flag (same idea as a checked box in other plugins).
-
-Empty rows are ignored when saving. Up to 25 extra filters can be configured.
 
 ## Extending with code
 
@@ -118,13 +94,11 @@ Each field supports:
 Other available hooks:
 
 - `meprmf_compact_filters_threshold` (int, default `6`) — number of filters that triggers the compact collapsible layout.
-- `meprmf_settings_trailing_blank_rows` (int) — number of empty rows shown on the settings page.
 
 ## How it works
 
 - `mepr_table_controls_search` — renders the filter controls inside the Members toolbar (`Meprmf_Toolbar_Renderer`).
 - `mepr_list_table_args` — appends `EXISTS ( SELECT 1 FROM {$wpdb->usermeta} ... )` fragments (`Meprmf_Predicate_Builder`), scoped to `u.ID`.
-- `admin_menu` / `admin_init` — register the settings page and option (`meprmf_additional_filters`) for users with MemberPress admin capability.
 
 The procedural API (`meprmf_*` functions) in `compat/legacy-functions.php` delegates to classes in `includes/` so existing snippets and `remove_action` calls keep working.
 

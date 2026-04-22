@@ -30,69 +30,6 @@ class Meprmf_Members_Provider
     }
 
     /**
-     * Build filter field rows from saved additional filters option.
-     *
-     * @return array<int, array<string, mixed>>
-     */
-    public static function get_additional_filter_fields()
-    {
-        $saved = get_option(MEPRMF_OPTION_ADDITIONAL, []);
-        if (! is_array($saved) || empty($saved)) {
-            return [];
-        }
-
-        $fields = [];
-        foreach ($saved as $row) {
-            if (empty($row['meta_key']) || empty($row['label'])) {
-                continue;
-            }
-
-            $meta_key = (string) $row['meta_key'];
-            $label    = (string) $row['label'];
-            $ftype    = isset($row['filter_type']) ? sanitize_key((string) $row['filter_type']) : 'text';
-
-            $prefix = 'mpf_ext_';
-            $param  = $prefix . sanitize_key(str_replace('-', '_', $meta_key));
-            if (strlen($param) <= strlen($prefix)) {
-                continue;
-            }
-
-            if ('select' === $ftype) {
-                $options = isset($row['options']) && is_array($row['options']) ? $row['options'] : [];
-                if (empty($options)) {
-                    continue;
-                }
-                $fields[] = [
-                    'param'    => $param,
-                    'meta_key' => $meta_key,
-                    'label'    => $label,
-                    'type'     => 'select',
-                    'match'    => 'exact',
-                    'options'  => $options,
-                ];
-            } elseif ('checkbox' === $ftype) {
-                $fields[] = [
-                    'param'    => $param,
-                    'meta_key' => $meta_key,
-                    'label'    => $label,
-                    'type'     => 'checkbox',
-                    'match'    => 'exact',
-                ];
-            } else {
-                $fields[] = [
-                    'param'    => $param,
-                    'meta_key' => $meta_key,
-                    'label'    => $label,
-                    'type'     => 'text',
-                    'match'    => 'like',
-                ];
-            }
-        }
-
-        return $fields;
-    }
-
-    /**
      * Map a MemberPress custom field definition to a filter field row, or null to skip.
      *
      * @param object $cf Custom field object from MeprOptions.
@@ -307,8 +244,6 @@ class Meprmf_Members_Provider
                 }
             }
         }
-
-        $fields = array_merge($fields, self::get_additional_filter_fields());
 
         // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- MemberPress extension filter (upstream hook name).
         $fields = apply_filters('mepr_members_meta_filters_fields', $fields);
