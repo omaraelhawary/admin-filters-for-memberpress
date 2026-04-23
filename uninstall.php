@@ -9,4 +9,5 @@ if (! defined('WP_UNINSTALL_PLUGIN')) {
     exit;
 }
 
+// Legacy option from older releases; harmless if already absent.
 delete_option('meprmf_additional_filters');

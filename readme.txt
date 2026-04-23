@@ -51,7 +51,7 @@ This section follows the Version line in the main plugin file on the default bra
 
 = 1.6.7 =
 
-* Improve escaping in Members filter controls and on the Member list filters settings screen (WordPress Plugin Check / PHPCS).
+* Improve escaping in Members filter controls (WordPress Plugin Check / PHPCS).
 * Replace the languages directory placeholder with a non-hidden `index.php` so release zips avoid dotfiles flagged by Plugin Check.
 * Drop redundant `load_plugin_textdomain()`; WordPress.org installs load translations automatically (WordPress 4.6+).
 * Clarify read-only admin `GET` usage for script loading and filter query parameters where static analysis required it.
@@ -71,7 +71,7 @@ This section follows the Version line in the main plugin file on the default bra
 * Address filters when MemberPress captures address on the **account** page only (not only at checkout).
 * Refine filter control rendering for the floating panel.
 * Style: toggle control layout and icon dimensions on the Members filters UI.
-* Member list filters settings: clearer copy, tips, and admin CSS; README guidance for when to use extra user-meta filters vs MemberPress **Settings → Fields**; slightly smaller Members toolbar typography for alignment.
+* README guidance for when to use extra user-meta filters vs MemberPress **Settings → Fields**; slightly smaller Members toolbar typography for alignment.
 
 = 1.6.2 =
 
@@ -81,11 +81,11 @@ This section follows the Version line in the main plugin file on the default bra
 
 = 1.6.1 =
 
-* Rebrand and paths: plugin folder **`admin-filters-for-memberpress`**, main file **`admin-filters-for-memberpress.php`** (formerly *MemberPress Members Meta Filters* / `memberpress-members-meta-filters.php`). Option data is unchanged (same option name).
+* Rebrand and paths: plugin folder **`admin-filters-for-memberpress`**, main file **`admin-filters-for-memberpress.php`** (formerly *MemberPress Members Meta Filters* / `memberpress-members-meta-filters.php`).
 * Refactor monolithic bootstrap into **`includes/`** classes with a compatibility layer in **`compat/legacy-functions.php`** so existing `meprmf_*` snippets keep working.
 * Add **`uninstall.php`** for option cleanup on delete; remove redundant `register_uninstall_hook` usage.
 * Add PHPUnit suite, `phpunit.xml.dist`, and GitHub Actions workflow.
-* Consolidate settings sanitization (duplicate `meta_key` rows, select rows missing choices, duplicate dropdown keys) and related helpers.
+* Consolidate filter field definition validation (duplicate `meta_key` rows, select rows missing choices, duplicate dropdown keys) and related helpers.
 
 = 1.5.0 =
 
@@ -97,21 +97,20 @@ This section follows the Version line in the main plugin file on the default bra
 * Pre-1.6.1 while the header still read 1.5.0 (monolithic memberpress-members-meta-filters.php): README sync — metadata and changelog match the shipped 1.4.0/1.5.0 feature set; document all six address filter fields.
 * Uninstall: move option cleanup to `uninstall.php` and remove redundant `register_uninstall_hook` usage.
 * Refactor: replace magic numbers with named constants; document maximum lengths enforced when validating filter `param` values.
-* Refactor: extract `meprmf_normalize_filter_fields()` (and related helpers) for the Member list filters save path.
+* Refactor: extract `meprmf_normalize_filter_fields()` (and related helpers) for shared filter field validation.
 * Merge `develop` (pull request #1): consolidate validation and handling for configured meta filters ahead of the rebrand.
 
 = 1.4.0 =
 
 * Declare **Requires at least: 5.6** and **Requires PHP: 7.4** in the plugin header.
-* Guard **`MEPRMF_OPTION_ADDITIONAL`** and **`MEPRMF_VERSION`** with `defined()` checks so constants are not redefined.
+* Guard plugin constants with `defined()` checks so they are not redefined.
 * Load a text domain from the **`languages/`** directory.
-* On uninstall, remove the **`meprmf_additional_filters`** option when the plugin is deleted from wp-admin (superseded in later releases by `uninstall.php`).
-* Stricter sanitization on **Member list filters**: skip duplicate `meta_key` rows, require choices for select-type rows, and handle duplicate option keys in saved dropdown definitions.
+* On uninstall, remove leftover plugin options when the plugin is deleted from wp-admin (`uninstall.php`).
+* Stricter sanitization when normalizing filter field definitions: skip duplicate `meta_key` rows, require choices for select-type rows, and handle duplicate option keys in dropdown definitions.
 
 = 1.3.0 =
 
 * Initial release (as *MemberPress Members Meta Filters*): filters on the MemberPress **Members** admin list for **country**, **city**, and **MemberPress custom fields** (dropdown, radios, multiselect, checkboxes, checkbox, and text-style field types mapped to sensible controls).
-* **MemberPress → Member list filters** settings for extra **user meta** filters (text, dropdown, checkbox).
 * Apply list constraints via **`EXISTS`** subqueries on **`wp_usermeta`** through **`mepr_list_table_args`**, scoped to the Members list query.
 * Compact collapsible filter layout when many filters are active (threshold filterable in later releases).
 
@@ -135,7 +134,7 @@ Requires PHP 8.1 or newer. Upgrade PHP before updating the plugin if you are sti
 
 = 1.6.1 =
 
-Folder and main PHP file were renamed from `memberpress-members-meta-filters`. Deactivate, remove the old folder, install `admin-filters-for-memberpress/`, then activate again. Saved filter settings are kept.
+Folder and main PHP file were renamed from `memberpress-members-meta-filters`. Deactivate, remove the old folder, install `admin-filters-for-memberpress/`, then activate again. MemberPress **Settings → Fields** and address options are unchanged; keep custom `mepr_members_meta_filters_fields` snippets in your own theme or plugin.
 
 = 1.5.0 =
 
