@@ -139,7 +139,7 @@ bash scripts/build-release.sh
 
 ### 1.6.7
 
-- **Plugin Check / PHPCS:** escape filter control attributes at output sites; escape settings “Filter %d” title and badge; document or scope ignores for dynamic SQL identifiers, MemberPress hook name, and internal field arrays that use a `meta_key` schema key (not `WP_Query` meta clauses).
+- **Plugin Check / PHPCS:** escape filter control attributes at output sites; document or scope ignores for dynamic SQL identifiers, MemberPress hook name, and internal field arrays that use a `meta_key` schema key (not `WP_Query` meta clauses).
 - **`languages/`:** remove `.gitkeep` (hidden file in zip); add `languages/index.php` with `ABSPATH` guard.
 - **i18n:** remove redundant `load_plugin_textdomain()` (WordPress.org + WP 4.6+ auto-load).
 - **Admin `GET`:** inline PHPCS directives for read-only `$_GET` use when enqueuing assets and when reading filter params.
