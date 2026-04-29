@@ -4,7 +4,7 @@ Tags: memberpress, members, admin, filters, membership
 Requires at least: 5.6
 Tested up to: 6.9
 Requires PHP: 8.1
-Stable tag: 1.6.7
+Stable tag: 1.6.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -12,7 +12,7 @@ Adds address and MemberPress custom-field filters to the MemberPress Members adm
 
 == Description ==
 
-**Admin Filters for MemberPress** extends the **MemberPress → Members** admin screen with extra filters: MemberPress address fields (when your site captures them), every MemberPress registration **Settings → Fields** field, and any further **user meta** filters you add with the `mepr_members_meta_filters_fields` filter (for example in a small custom plugin).
+**Admin Filters for MemberPress** extends the **MemberPress → Members** admin screen with extra filters: MemberPress address fields (when your site captures them), every MemberPress registration **Settings → Fields** field, and any further **user meta** filters you add with the `meprmf_members_meta_filters_fields` filter (for example in a small custom plugin).
 
 This plugin is an independent project. It is **not** affiliated with, endorsed by, or sponsored by MemberPress, Caseproof, LLC, or their brands. **MemberPress** is a trademark of Caseproof, LLC.
 
@@ -43,7 +43,7 @@ MemberPress field and address settings stay in MemberPress. Custom filters you a
 
 = How do I filter by user meta from another plugin? =
 
-Add a field definition with the `mepr_members_meta_filters_fields` filter (see the GitHub README for a copy-paste example). You need the exact `meta_key` that plugin stores in `wp_usermeta`.
+Add a field definition with the `meprmf_members_meta_filters_fields` filter (see the GitHub README for a copy-paste example). You need the exact `meta_key` that plugin stores in `wp_usermeta`.
 
 == Changelog ==
 
@@ -64,6 +64,8 @@ This section follows the Version line in the main plugin file on the default bra
 * Remove the `Requires Plugins: memberpress` header because MemberPress is not distributed from the wordpress.org plugin directory (dependency is documented here instead).
 * Track a `languages/` directory for translation drops (initial placeholder before the 1.6.7 `index.php` layout).
 * Release hygiene: tighten `.gitignore`, extend `scripts/build-release.sh`, and align `readme.txt` / README notes with the zip build and WordPress.org upload flow.
+* WordPress.org review: set Plugin URI to the plugin directory listing; correct GitHub repository URL in plugin header and developer metadata (`composer.json` / README where applicable).
+* Prefix compliance: rename the custom extension filter from `mepr_members_meta_filters_fields` to `meprmf_members_meta_filters_fields`. If you added filters in code, update your `add_filter` hook name.
 
 = 1.6.5 =
 
@@ -122,7 +124,7 @@ Maintenance release: output hardening, languages folder layout for WordPress.org
 
 = 1.6.6 =
 
-Text domain changed to match the plugin slug. If you ship custom translations, rename MO/PO files to `admin-filters-for-memberpress-*`.
+Text domain changed to match the plugin slug. If you ship custom translations, rename MO/PO files to `admin-filters-for-memberpress-*`. If you use `add_filter( 'mepr_members_meta_filters_fields', … )` for extra Members list filters, change the hook to `meprmf_members_meta_filters_fields`. Plugin URI and GitHub URI in the plugin header point at WordPress.org and the public repository.
 
 = 1.6.5 =
 
@@ -134,7 +136,7 @@ Requires PHP 8.1 or newer. Upgrade PHP before updating the plugin if you are sti
 
 = 1.6.1 =
 
-Folder and main PHP file were renamed from `memberpress-members-meta-filters`. Deactivate, remove the old folder, install `admin-filters-for-memberpress/`, then activate again. MemberPress **Settings → Fields** and address options are unchanged; keep custom `mepr_members_meta_filters_fields` snippets in your own theme or plugin.
+Folder and main PHP file were renamed from `memberpress-members-meta-filters`. Deactivate, remove the old folder, install `admin-filters-for-memberpress/`, then activate again. MemberPress **Settings → Fields** and address options are unchanged; keep custom `meprmf_members_meta_filters_fields` snippets in your own theme or plugin (older snippets may still use `mepr_members_meta_filters_fields` — update to `meprmf_members_meta_filters_fields`).
 
 = 1.5.0 =
 

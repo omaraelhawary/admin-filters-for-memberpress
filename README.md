@@ -6,12 +6,12 @@
 
 **Filter the MemberPress Members admin list** by address and MemberPress custom fields (**Settings → Fields**), and optionally more fields you register in code — using MemberPress hooks only; no core files are modified.
 
-[![PHPUnit](https://github.com/omarelhawray/admin-filters-for-memberpress/actions/workflows/phpunit.yml/badge.svg)](https://github.com/omarelhawray/admin-filters-for-memberpress/actions/workflows/phpunit.yml)
+[![PHPUnit](https://github.com/omaraelhawary/admin-filters-for-memberpress/actions/workflows/phpunit.yml/badge.svg)](https://github.com/omaraelhawary/admin-filters-for-memberpress/actions/workflows/phpunit.yml)
 ![PHP](https://img.shields.io/badge/PHP-8.1%2B-777BB4?logo=php&logoColor=white)
 ![WordPress](https://img.shields.io/badge/WordPress-5.6%2B-21759B?logo=wordpress&logoColor=white)
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/gpl-2.0.html)
 
-[GitHub repository](https://github.com/omarelhawray/admin-filters-for-memberpress) · [MemberPress](https://memberpress.com/) (required; install separately — not on WordPress.org)
+[GitHub repository](https://github.com/omaraelhawary/admin-filters-for-memberpress) · [WordPress.org plugin](https://wordpress.org/plugins/admin-filters-for-memberpress/) · [MemberPress](https://memberpress.com/) (required; install separately — not on WordPress.org)
 
 </div>
 
@@ -23,7 +23,7 @@
 | --- | --- |
 | **Contributors** | Omar ElHawary — [WordPress.org profile](https://profiles.wordpress.org/omarelhawary/) |
 | **Requires** | WordPress 5.6+, PHP 8.1+, active [MemberPress](https://memberpress.com/) |
-| **Current release** | 1.6.7 (see plugin header in `admin-filters-for-memberpress.php`) |
+| **Current release** | 1.6.6 (see plugin header in `admin-filters-for-memberpress.php`) |
 | **Text domain** | `admin-filters-for-memberpress` (matches the plugin slug) |
 | **License** | GPLv2 or later |
 
@@ -57,7 +57,7 @@ Add or replace images under [`.github/readme-assets/`](.github/readme-assets/).
 
 ### Upgrading from `memberpress-members-meta-filters`
 
-If you previously used the old directory name `memberpress-members-meta-filters/` and `memberpress-members-meta-filters.php`, deactivate the plugin, remove the old folder, upload or clone this plugin as `admin-filters-for-memberpress/`, then activate again. MemberPress **Settings → Fields** and address settings live in MemberPress; any extra filters you added with the `mepr_members_meta_filters_fields` filter in your theme or a small plugin are unchanged.
+If you previously used the old directory name `memberpress-members-meta-filters/` and `memberpress-members-meta-filters.php`, deactivate the plugin, remove the old folder, upload or clone this plugin as `admin-filters-for-memberpress/`, then activate again. MemberPress **Settings → Fields** and address settings live in MemberPress; any extra filters you added with the `meprmf_members_meta_filters_fields` filter in your theme or a small plugin are unchanged.
 
 ## Usage
 
@@ -67,10 +67,10 @@ Open **MemberPress → Members**. Open the **Filters** control, set values in th
 
 ## Extending with code
 
-All filter definitions pass through the `mepr_members_meta_filters_fields` filter, so you can add, remove, or reorder filters programmatically:
+All filter definitions pass through the `meprmf_members_meta_filters_fields` filter, so you can add, remove, or reorder filters programmatically:
 
 ```php
-add_filter( 'mepr_members_meta_filters_fields', function ( $fields ) {
+add_filter( 'meprmf_members_meta_filters_fields', function ( $fields ) {
     $fields[] = [
         'param'    => 'mpf_ext_referrer',
         'meta_key' => 'signup_referrer',
@@ -148,6 +148,8 @@ bash scripts/build-release.sh
 
 - **WordPress.org:** add root `readme.txt`, align text domain with plugin slug, explicit non-affiliation wording for MemberPress / Caseproof; remove invalid `Requires Plugins: memberpress` header (MemberPress is not a wordpress.org plugin slug).
 - **`languages/`** directory tracked for translation drops.
+- **WordPress.org review:** `Plugin URI` points to the [plugin directory listing](https://wordpress.org/plugins/admin-filters-for-memberpress/); `GitHub URI` and README badges use the public repository.
+- **Prefix compliance:** the extension filter for custom field definitions was renamed from `mepr_members_meta_filters_fields` to `meprmf_members_meta_filters_fields`. Update any `add_filter( 'mepr_members_meta_filters_fields', … )` snippets to use the new hook name.
 
 ### Earlier releases
 
