@@ -92,11 +92,13 @@ class Meprmf_Plugin
                         $known[] = $p;
                     }
                 }
+                sort($known, SORT_STRING);
                 wp_localize_script(
                     'meprmf-members-floating-panel',
                     'meprmfMembersFloating',
                     [
-                        'knownParams' => $known,
+                        'knownParams'           => $known,
+                        'knownParamsSignature'  => md5(implode('|', $known)),
                     ]
                 );
             }

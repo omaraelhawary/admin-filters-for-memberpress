@@ -6,6 +6,7 @@
 
 	var LS_OPEN = 'meprmf_panel_open';
 	var LS_VIS = 'meprmf_visible_filters';
+	var LS_VIS_SIG = 'meprmf_visible_filters_sig';
 
 	function getKnownKeys() {
 		if (typeof window.meprmfMembersFloating === 'undefined' || !window.meprmfMembersFloating.knownParams) {
@@ -123,6 +124,23 @@
 		}
 	}
 
+	/**
+	 * When MemberPress adds filter params (e.g. address after enabling Show on Account / Show on Signup),
+	 * clear saved visibility so new fields are not stuck hidden by an older whitelist.
+	 */
+	function invalidateVisibleIfKnownParamsChanged() {
+		var floating = window.meprmfMembersFloating;
+		if (!floating || typeof floating.knownParamsSignature !== 'string' || floating.knownParamsSignature === '') {
+			return;
+		}
+		var current = String(floating.knownParamsSignature);
+		var prev = localStorage.getItem(LS_VIS_SIG);
+		if (prev !== null && prev !== current) {
+			localStorage.removeItem(LS_VIS);
+		}
+		localStorage.setItem(LS_VIS_SIG, current);
+	}
+
 	function initRoot(root) {
 		var toggle = root.querySelector('.meprmf-toggle-btn');
 		var panel = root.querySelector('.meprmf-filter-panel');
@@ -131,6 +149,8 @@
 		if (!toggle || !panel || !modeFilter || !modeCustomize) {
 			return;
 		}
+
+		invalidateVisibleIfKnownParamsChanged();
 
 		function setPanelOpen(open) {
 			localStorage.setItem(LS_OPEN, open ? 'true' : 'false');

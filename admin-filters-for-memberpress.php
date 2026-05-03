@@ -3,7 +3,7 @@
  * Plugin Name: Admin Filters for MemberPress
  * Plugin URI: https://wordpress.org/plugins/admin-filters-for-memberpress/
  * Description: Adds address and MemberPress custom-field filters to the MemberPress Members admin list. Codebase refactored for Transactions and Subscriptions in upcoming releases. Uses MemberPress hooks only.
- * Version: 1.6.7
+ * Version: 1.6.8
  * Requires at least: 5.6
  * Requires PHP: 8.1
  * Author: Omar ElHawray
@@ -26,7 +26,7 @@ if (! defined('MEPRMF_PLUGIN_FILE')) {
 
 /** @var string Plugin version for asset cache-busting. */
 if (! defined('MEPRMF_VERSION')) {
-    define('MEPRMF_VERSION', '1.6.7');
+    define('MEPRMF_VERSION', '1.6.8');
 }
 
 require_once __DIR__ . '/includes/meprmf-load.php';

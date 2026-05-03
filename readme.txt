@@ -4,7 +4,7 @@ Tags: memberpress, members, admin, filters, membership
 Requires at least: 5.6
 Tested up to: 6.9
 Requires PHP: 8.1
-Stable tag: 1.6.7
+Stable tag: 1.6.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -77,6 +77,11 @@ The plugin waits quietly. Once MemberPress is active again, the filters show on 
 == Changelog ==
 
 This section follows the Version line in the main plugin file on the default branch. Version labels 1.6.3 and 1.6.4 were never used as semver bumps here (development went from 1.6.2 to 1.6.5). Commits that shipped on main while the header still read 1.5.0, before 1.6.1, are grouped under 1.5.0 so the git history is complete.
+
+= 1.6.8 =
+
+* Floating Filters panel: when the set of filter query params changes (for example after enabling MemberPress **Show on Account** or **Show on Signup** for address), reset saved field visibility so new address filters are not left hidden by an older `localStorage` whitelist.
+* Members provider: document address toggles explicitly; add a unit test for signup-only address capture.
 
 = 1.6.7 =
 
