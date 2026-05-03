@@ -23,15 +23,13 @@
 | --- | --- |
 | **Contributors** | Omar ElHawary — [WordPress.org profile](https://profiles.wordpress.org/omarelhawary/) |
 | **Requires** | WordPress 5.6+, PHP 8.1+, active [MemberPress](https://memberpress.com/) |
-| **Current release** | 1.6.7 (see plugin header in `admin-filters-for-memberpress.php`) |
+| **Current release** | 1.6.8 (see plugin header in `admin-filters-for-memberpress.php`) |
 | **Text domain** | `admin-filters-for-memberpress` (matches the plugin slug) |
 | **License** | GPLv2 or later |
 
 The plugin lives in **`admin-filters-for-memberpress/`** with bootstrap **`admin-filters-for-memberpress.php`**. Custom translation files that used the old domain `memberpress-members-meta-filters` should be renamed to `admin-filters-for-memberpress-{locale}.mo`.
 
 ## Screenshots
-
-Add or replace images under [`.github/readme-assets/`](.github/readme-assets/).
 
 ### Members list — floating Filters panel
 
@@ -45,7 +43,7 @@ Add or replace images under [`.github/readme-assets/`](.github/readme-assets/).
   - `multiselect`, `checkboxes` → single-choice (substring match against the stored serialized value)
   - `checkbox` → checked / not set
   - `text`, `email`, `url`, `tel`, `date`, `textarea`, `file` → "contains" search
-- **Members** list: floating **Filters** panel (customize which fields show; preferences in the browser via `localStorage`). The previous inline / collapsible toolbar is still available by filtering `meprmf_use_floating_members_panel` to false.
+- **Members** list: floating **Filters** panel (customize which fields show; preferences in the browser via `localStorage`). If MemberPress starts exposing new filter params (for example after you enable **Show on Account** or **Show on Signup** for address), saved visibility resets automatically so new fields are not stuck hidden. The previous inline / collapsible toolbar is still available by filtering `meprmf_use_floating_members_panel` to false.
 - Filtering is applied as `EXISTS` subqueries on `wp_usermeta` via the `mepr_list_table_args` filter, scoped to the `u` alias used by `MeprUser::list_table()`.
 - With `WP_DEBUG` enabled, predicate SQL fragments can be echoed at the bottom of the Members screen for administrators (see `includes/ui/class-meprmf-debug-panel.php`).
 
@@ -133,9 +131,14 @@ cd /path/to/admin-filters-for-memberpress
 bash scripts/build-release.sh
 ```
 
-(`bash` avoids needing `chmod +x`.) Writes `dist/admin-filters-for-memberpress-<version>.zip` (version from the main plugin header), excluding tests, Composer, CI, `docs/`, `wordpress-org-assets/`, and `scripts/`. Put WordPress.org icons/banners in **`wordpress-org-assets/`** (see that folder’s README). After `svn checkout` of `https://plugins.svn.wordpress.org/admin-filters-for-memberpress`, run **`bash scripts/prepare-wordpress-org-svn-working-copy.sh /path/to/checkout`** to fill **`trunk/`** from the zip and **`assets/`** from `wordpress-org-assets/` plus **`screenshot-1.png`** (from `.github/readme-assets/members-table-filters.png` when present); then `svn add`, `svn commit`, `svn copy trunk tags/<version>`, and commit the tag.
+(`bash` avoids needing `chmod +x`.) Writes `dist/admin-filters-for-memberpress-<version>.zip` (version from the main plugin header), excluding tests, Composer, CI, `docs/`, `wordpress-org-assets/`, and `scripts/`. Put WordPress.org icons/banners in **`wordpress-org-assets/`** (see that folder’s README). After `svn checkout` of `https://plugins.svn.wordpress.org/admin-filters-for-memberpress`, run **`bash scripts/prepare-wordpress-org-svn-working-copy.sh /path/to/checkout`** to fill **`trunk/`** from the zip and **`assets/`** from `wordpress-org-assets/` plus **`screenshot-1.png`** (from `.github/readme-assets/members-table-filters.png` when present); then `svn add --force trunk assets`, `svn commit -m "Release <version>"`, `svn copy trunk tags/<version>`, and `svn commit -m "Tag <version>"`.
 
 ## Changelog
+
+### 1.6.8
+
+- **Floating Filters panel:** when the set of filter query params changes (for example after enabling MemberPress **Show on Account** or **Show on Signup** for address), clear saved field visibility so new address filters are not left hidden by an older `localStorage` whitelist.
+- **Members provider:** document address toggles explicitly; add a unit test for signup-only address capture.
 
 ### 1.6.7
 

@@ -14,9 +14,9 @@
 # Then commit (uses username omarelhawary and your application password):
 #   cd ~/path/to/svn-wc
 #   svn add --force trunk assets
-#   svn commit -m "Release 1.6.7 — initial plugin"
-#   svn copy trunk tags/1.6.7
-#   svn commit -m "Tag 1.6.7"
+#   svn commit -m "Release 1.6.8"
+#   svn copy trunk tags/1.6.8
+#   svn commit -m "Tag 1.6.8"
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
