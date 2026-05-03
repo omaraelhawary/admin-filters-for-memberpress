@@ -68,18 +68,6 @@ No. Filtering runs inside your WordPress install and database. See the **Privacy
 
 The plugin waits quietly. Once MemberPress is active again, the filters show on **Members** as before.
 
-= What are the minimum WordPress and PHP versions? =
-
-WordPress **5.6** or newer and **PHP 8.1** or newer, matching the plugin header on wordpress.org.
-
-= I had custom code for an old filter hook name. What do I use now? =
-
-Use **`meprmf_members_meta_filters_fields`**. An older name was renamed for consistency; see the changelog for version 1.6.6.
-
-= Can I hide the floating Filters panel or change how it behaves? =
-
-Developers can use the **`meprmf_use_floating_members_panel`** filter to switch back to the previous inline toolbar layout if needed.
-
 == Other Notes ==
 
 * **Support:** Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-memberpress/) on wordpress.org for this plugin. MemberPress licensing and product support come from MemberPress / Caseproof.
