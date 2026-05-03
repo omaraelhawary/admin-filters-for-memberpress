@@ -25,6 +25,11 @@ This plugin is an independent project. It is **not** affiliated with, endorsed b
 
 Filtering reads values you or your administrators submit on the Members list (standard admin `GET` requests) and builds SQL `EXISTS` conditions on `wp_usermeta` scoped to the list query. No data is sent to external services by this plugin.
 
+**What you get (in plain terms)**
+
+* Extra filter controls on the **MemberPress → Members** screen so you can narrow the member list by address, registration fields, and (optionally) other stored member data you wire in with code.
+* The member list itself still works like MemberPress; this plugin only adds filtering options for administrators.
+
 == Installation ==
 
 1. Upload the plugin files to the `/wp-content/plugins/admin-filters-for-memberpress` directory, or install the plugin through the WordPress plugins screen directly.
@@ -39,10 +44,47 @@ Filtering reads values you or your administrators submit on the Members list (st
 
 = Does this plugin include MemberPress? =
 
-No. You must purchase and install MemberPress.
+No. You must purchase and install MemberPress separately. This plugin only adds filters to the Members admin list when MemberPress is active.
 
+= Where do I use the filters? =
 
+In the WordPress admin, open **MemberPress → Members**. Use the **Filters** area above the table to choose criteria, then apply them to refresh the list.
 
+= What can I filter members by? =
+
+* **Address** fields when your site collects them in MemberPress (for example country, city, postal code), including when address is captured on the account page.
+* Every field you configure under **MemberPress → Settings → Fields** (registration / profile style fields).
+* **Extra user meta** only if a developer adds filter definitions using the `meprmf_members_meta_filters_fields` filter hook (for data stored in `wp_usermeta` that is not already covered).
+
+= Does this change my public website or checkout? =
+
+No. It only affects the **admin** Members list. Visitors and the front of your site are unchanged.
+
+= Is member data sent to a third-party service? =
+
+No. Filtering runs inside your WordPress install and database. See the **Privacy** note in the description above.
+
+= What happens if MemberPress is turned off? =
+
+The plugin waits quietly. Once MemberPress is active again, the filters show on **Members** as before.
+
+= What are the minimum WordPress and PHP versions? =
+
+WordPress **5.6** or newer and **PHP 8.1** or newer, matching the plugin header on wordpress.org.
+
+= I had custom code for an old filter hook name. What do I use now? =
+
+Use **`meprmf_members_meta_filters_fields`**. An older name was renamed for consistency; see the changelog for version 1.6.6.
+
+= Can I hide the floating Filters panel or change how it behaves? =
+
+Developers can use the **`meprmf_use_floating_members_panel`** filter to switch back to the previous inline toolbar layout if needed.
+
+== Other Notes ==
+
+* **Support:** Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-memberpress/) on wordpress.org for this plugin. MemberPress licensing and product support come from MemberPress / Caseproof.
+* **Trademark:** "MemberPress" is a trademark of its owner. This plugin is not affiliated with, endorsed by, or sponsored by MemberPress.
+* **Developers:** Filter hook for extra meta-based filters: `meprmf_members_meta_filters_fields`. Optional UI hook: `meprmf_use_floating_members_panel`. Repository and issues: see the **Plugin URI** / **GitHub URI** in the main plugin file header.
 
 == Changelog ==
 
