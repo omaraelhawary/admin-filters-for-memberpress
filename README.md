@@ -23,7 +23,7 @@
 | --- | --- |
 | **Contributors** | Omar ElHawary — [WordPress.org profile](https://profiles.wordpress.org/omarelhawary/) |
 | **Requires** | WordPress 5.6+, PHP 8.1+, active [MemberPress](https://memberpress.com/) |
-| **Current release** | 1.6.6 (see plugin header in `admin-filters-for-memberpress.php`) |
+| **Current release** | 1.6.7 (see plugin header in `admin-filters-for-memberpress.php`) |
 | **Text domain** | `admin-filters-for-memberpress` (matches the plugin slug) |
 | **License** | GPLv2 or later |
 
@@ -133,7 +133,7 @@ cd /path/to/admin-filters-for-memberpress
 bash scripts/build-release.sh
 ```
 
-(`bash` avoids needing `chmod +x`.) Writes `dist/admin-filters-for-memberpress-<version>.zip` (version from the main plugin header), excluding tests, Composer, CI, `docs/`, `wordpress-org-assets/`, and `scripts/`. Put WordPress.org icons/banners in **`wordpress-org-assets/`** (see that folder’s README), then copy them to SVN `assets/` when you publish the listing.
+(`bash` avoids needing `chmod +x`.) Writes `dist/admin-filters-for-memberpress-<version>.zip` (version from the main plugin header), excluding tests, Composer, CI, `docs/`, `wordpress-org-assets/`, and `scripts/`. Put WordPress.org icons/banners in **`wordpress-org-assets/`** (see that folder’s README). After `svn checkout` of `https://plugins.svn.wordpress.org/admin-filters-for-memberpress`, run **`bash scripts/prepare-wordpress-org-svn-working-copy.sh /path/to/checkout`** to fill **`trunk/`** from the zip and **`assets/`** from `wordpress-org-assets/` plus **`screenshot-1.png`** (from `.github/readme-assets/members-table-filters.png` when present); then `svn add`, `svn commit`, `svn copy trunk tags/<version>`, and commit the tag.
 
 ## Changelog
 
