@@ -11,7 +11,7 @@
 ![WordPress](https://img.shields.io/badge/WordPress-5.6%2B-21759B?logo=wordpress&logoColor=white)
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/gpl-2.0.html)
 
-[GitHub repository](https://github.com/omaraelhawary/admin-filters-for-memberpress) · [WordPress.org plugin](https://wordpress.org/plugins/admin-filters-for-memberpress/) · [MemberPress](https://memberpress.com/) (required; install separately — not on WordPress.org)
+[GitHub repository](https://github.com/omaraelhawary/admin-filters-for-memberpress) · [WordPress.org plugin](https://wordpress.org/plugins/admin-filters-for-memberpress/) ([download latest .zip](https://downloads.wordpress.org/plugin/admin-filters-for-memberpress.latest-stable.zip)) · [MemberPress](https://memberpress.com/) (required; install separately — not on WordPress.org)
 
 </div>
 
@@ -48,6 +48,10 @@ The plugin lives in **`admin-filters-for-memberpress/`** with bootstrap **`admin
 - With `WP_DEBUG` enabled, predicate SQL fragments can be echoed at the bottom of the Members screen for administrators (see `includes/ui/class-meprmf-debug-panel.php`).
 
 ## Installation
+
+**From WordPress.org:** In wp-admin go to **Plugins → Add New**, search for **Admin Filters for MemberPress**, then install and activate. You can also use the listing’s **Download** button on [the plugin page](https://wordpress.org/plugins/admin-filters-for-memberpress/), or grab the [latest stable .zip](https://downloads.wordpress.org/plugin/admin-filters-for-memberpress.latest-stable.zip) and use **Plugins → Add New → Upload Plugin**.
+
+**Manual / from GitHub:**
 
 1. Copy the `admin-filters-for-memberpress` folder into `wp-content/plugins/` (or clone the repo into that path).
 2. Activate **Admin Filters for MemberPress** from the Plugins screen.

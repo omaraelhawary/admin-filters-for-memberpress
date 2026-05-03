@@ -64,10 +64,6 @@ No. It only affects the **admin** Members list. Visitors and the front of your s
 
 No. Filtering runs inside your WordPress install and database. See the **Privacy** note in the description above.
 
-= I enabled address on signup or account — why don’t I see address filters? =
-
-Address filters are added when MemberPress collects address (**Show on Signup** and/or **Show on Account**). If you use the floating **Filters** panel, the plugin resets saved field visibility when the list of filter parameters changes so new fields are not left hidden by an older browser `localStorage` entry. Reload **MemberPress → Members** after changing MemberPress field settings.
-
 = What happens if MemberPress is turned off? =
 
 The plugin waits quietly. Once MemberPress is active again, the filters show on **Members** as before.
