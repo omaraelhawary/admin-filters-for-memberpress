@@ -8,26 +8,26 @@ Stable tag: 1.6.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Filters MemberPress Members by address, custom fields, and optional meta. Uses MemberPress hooks only.
+Adds admin filters on the MemberPress Members list (address, registration fields, optional custom meta). Requires MemberPress.
 
 == Description ==
 
-**Admin Filters for MemberPress** extends the **MemberPress → Members** admin screen with extra filters: MemberPress address fields (when your site captures them), every MemberPress registration **Settings → Fields** field, and any further **user meta** filters you add with the `meprmf_members_meta_filters_fields` filter (for example in a small custom plugin).
+**Admin Filters for MemberPress** extends the **MemberPress -> Members** admin screen with extra filters: MemberPress address fields (when your site captures them), every MemberPress registration **Settings -> Fields** field, and any further **user meta** filters you add with the `meprmf_members_meta_filters_fields` filter (for example in a small custom plugin).
 
-This plugin is an independent project. It is **not** affiliated with, endorsed by, or sponsored by MemberPress. 
+This plugin is an independent project. It is **not** affiliated with, endorsed by, or sponsored by MemberPress.
 
-**Requirements**
+= Requirements =
 
 * WordPress 5.6 or newer and PHP 8.1 or newer.
 * A working install of **MemberPress**. This extension does not ship MemberPress and cannot run without it.
 
-**Privacy**
+= Privacy =
 
 Filtering reads values you or your administrators submit on the Members list (standard admin `GET` requests) and builds SQL `EXISTS` conditions on `wp_usermeta` scoped to the list query. No data is sent to external services by this plugin.
 
-**What you get (in plain terms)**
+= What you get =
 
-* Extra filter controls on the **MemberPress → Members** screen so you can narrow the member list by address, registration fields, and (optionally) other stored member data you wire in with code.
+* Extra filter controls on the **MemberPress -> Members** screen so you can narrow the member list by address, registration fields, and (optionally) other stored member data you wire in with code.
 * The member list itself still works like MemberPress; this plugin only adds filtering options for administrators.
 
 == Installation ==
@@ -38,7 +38,7 @@ Filtering reads values you or your administrators submit on the Members list (st
 
 == Screenshots ==
 
-1. MemberPress **Members** admin list with the **Filters** panel open — address fields, MemberPress **Settings → Fields** fields, and **Apply filters**.
+1. MemberPress **Members** admin list with the **Filters** panel open: address fields, MemberPress **Settings -> Fields** fields, and **Apply filters**.
 
 == Frequently Asked Questions ==
 
@@ -48,12 +48,12 @@ No. You must purchase and install MemberPress separately. This plugin only adds 
 
 = Where do I use the filters? =
 
-In the WordPress admin, open **MemberPress → Members**. Use the **Filters** area above the table to choose criteria, then apply them to refresh the list.
+In the WordPress admin, open **MemberPress -> Members**. Use the **Filters** area above the table to choose criteria, then apply them to refresh the list.
 
 = What can I filter members by? =
 
 * **Address** fields when your site collects them in MemberPress (for example country, city, postal code), including when address is captured on the account page.
-* Every field you configure under **MemberPress → Settings → Fields** (registration / profile style fields).
+* Every field you configure under **MemberPress -> Settings -> Fields** (registration / profile style fields).
 * **Extra user meta** only if a developer adds filter definitions using the `meprmf_members_meta_filters_fields` filter hook (for data stored in `wp_usermeta` that is not already covered).
 
 = Does this change my public website or checkout? =
@@ -68,15 +68,17 @@ No. Filtering runs inside your WordPress install and database. See the **Privacy
 
 The plugin waits quietly. Once MemberPress is active again, the filters show on **Members** as before.
 
-== Other Notes ==
+= Where do I get support for this plugin? =
 
-* **Support:** Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-memberpress/) on wordpress.org for this plugin. MemberPress licensing and product support come from MemberPress / Caseproof.
-* **Trademark:** "MemberPress" is a trademark of its owner. This plugin is not affiliated with, endorsed by, or sponsored by MemberPress.
-* **Developers:** Filter hook for extra meta-based filters: `meprmf_members_meta_filters_fields`. Optional UI hook: `meprmf_use_floating_members_panel`. Repository and issues: see the **Plugin URI** / **GitHub URI** in the main plugin file header.
+Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-memberpress/) on WordPress.org for **Admin Filters for MemberPress**.
+
+= How do developers extend the filters? =
+
+* Filter hook for extra meta-based filter definitions: `meprmf_members_meta_filters_fields`.
+* Optional UI hook (floating **Filters** panel vs inline toolbar): `meprmf_use_floating_members_panel`.
+* Source and issues: see **Plugin URI** and **GitHub URI** in the main plugin file header (`admin-filters-for-memberpress.php`).
 
 == Changelog ==
-
-This section follows the Version line in the main plugin file on the default branch. Version labels 1.6.3 and 1.6.4 were never used as semver bumps here (development went from 1.6.2 to 1.6.5). Commits that shipped on main while the header still read 1.5.0, before 1.6.1, are grouped under 1.5.0 so the git history is complete.
 
 = 1.6.8 =
 
@@ -103,11 +105,11 @@ This section follows the Version line in the main plugin file on the default bra
 
 = 1.6.5 =
 
-* Floating **Filters** panel on **MemberPress → Members** (field visibility in the browser via `localStorage`; filter `meprmf_use_floating_members_panel` to use the previous inline toolbar).
+* Floating **Filters** panel on **MemberPress -> Members** (field visibility in the browser via `localStorage`; filter `meprmf_use_floating_members_panel` to use the previous inline toolbar).
 * Address filters when MemberPress captures address on the **account** page only (not only at checkout).
 * Refine filter control rendering for the floating panel.
 * Style: toggle control layout and icon dimensions on the Members filters UI.
-* README guidance for when to use extra user-meta filters vs MemberPress **Settings → Fields**; slightly smaller Members toolbar typography for alignment.
+* README guidance for when to use extra user-meta filters vs MemberPress **Settings -> Fields**; slightly smaller Members toolbar typography for alignment.
 
 = 1.6.2 =
 
