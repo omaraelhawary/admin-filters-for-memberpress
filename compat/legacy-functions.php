@@ -31,6 +31,16 @@ function meprmf_is_members_admin_list_request()
 }
 
 /**
+ * Whether the current admin request is a MemberPress list screen that supports meta filters.
+ *
+ * @return bool
+ */
+function meprmf_is_meta_filters_admin_list_request()
+{
+    return Meprmf_Screen::is_meta_filters_admin_list_request();
+}
+
+/**
  * Capability aligned with MemberPress admin menus.
  *
  * @return bool

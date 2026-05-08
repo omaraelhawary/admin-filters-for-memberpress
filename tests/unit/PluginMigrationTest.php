@@ -1,6 +1,6 @@
 <?php
 /**
- * Ensures list-table filter hook is a no-op when not on the Members screen (migration-safe).
+ * Ensures list-table filter hook is a no-op when not on a supported MemberPress list screen (migration-safe).
  *
  * @package MemberPress_Members_Meta_Filters
  */

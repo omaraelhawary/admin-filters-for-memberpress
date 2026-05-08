@@ -1,6 +1,6 @@
 <?php
 /**
- * Resolves filter definitions per screen (Members in Phase 0).
+ * Resolves filter definitions per MemberPress admin list screen.
  *
  * @package MemberPress_Members_Meta_Filters
  */
@@ -33,9 +33,9 @@ class Meprmf_Filter_Registry
      */
     public static function get_normalized_fields_for_context(Meprmf_Screen_Context $ctx)
     {
-        if ($ctx->is_members()) {
-            return self::get_normalized_fields_for_members();
+        if (! $ctx->supports_meta_filters_list()) {
+            return [];
         }
-        return [];
+        return Meprmf_Util::normalize_filter_fields(Meprmf_Members_Provider::get_filter_fields_for_context($ctx));
     }
 }

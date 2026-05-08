@@ -127,17 +127,18 @@ class Meprmf_Toolbar_Renderer
      */
     public static function render($search_term, $perpage)
     {
-        if (! Meprmf_Screen::is_members_admin_list_request() || ! Meprmf_Capabilities::current_user_can_filter()) {
+        $ctx = Meprmf_Screen::detect();
+        if (null === $ctx || ! $ctx->supports_meta_filters_list() || ! Meprmf_Capabilities::current_user_can_filter()) {
             return;
         }
 
-        $valid = Meprmf_Filter_Registry::get_normalized_fields_for_members();
+        $valid = Meprmf_Filter_Registry::get_normalized_fields_for_context($ctx);
         if (empty($valid)) {
             return;
         }
 
-        if (apply_filters('meprmf_use_floating_members_panel', true)) {
-            self::render_members_floating_panel($valid);
+        if (Meprmf_Plugin::use_floating_filter_panel($ctx)) {
+            self::render_floating_filter_panel($valid, $ctx);
             return;
         }
 
@@ -148,9 +149,12 @@ class Meprmf_Toolbar_Renderer
         if ($compact) {
             echo '<div class="mepr-filter-by meprmf-meta-filters meprmf-meta-filters--compact">';
             echo '<details class="meprmf-meta-filters__details" open>';
+            $summary = $ctx->is_members()
+                ? __('Member filters', 'admin-filters-for-memberpress')
+                : __('Member profile filters', 'admin-filters-for-memberpress');
             printf(
                 '<summary class="meprmf-meta-filters__summary"><span class="meprmf-meta-filters__summary-text">%s</span> <span class="meprmf-meta-filters__count">(%d)</span></summary>',
-                esc_html__('Member filters', 'admin-filters-for-memberpress'),
+                esc_html($summary),
                 (int) $count
             );
             echo '<div class="meprmf-meta-filters__grid">';
@@ -169,12 +173,13 @@ class Meprmf_Toolbar_Renderer
     }
 
     /**
-     * Floating filter panel + toggle (Members list, Phase 1 — DESIGN-SCREENS-AND-COMPONENTS.md §11).
+     * Toggle id, panel id, and active filter count for the floating UI.
      *
      * @param array<int, array<string, mixed>> $valid Normalized field definitions.
-     * @return void
+     * @param Meprmf_Screen_Context            $ctx   Current screen context.
+     * @return array{toggle_id: string, panel_id: string, active_count: int}
      */
-    public static function render_members_floating_panel(array $valid)
+    private static function get_floating_filter_mount_state(array $valid, Meprmf_Screen_Context $ctx)
     {
         $known_params = [];
         foreach ($valid as $field) {
@@ -191,36 +196,34 @@ class Meprmf_Toolbar_Renderer
             }
         }
 
-        $panel_id = 'meprmf-members-filter-panel';
+        $sid       = $ctx->get_storage_id();
+        $panel_id  = 'meprmf-filter-panel--' . $sid;
+        $toggle_id = 'meprmf-filter-toggle--' . $sid;
 
-        echo '<div class="mepr-filter-by meprmf-floating-root" data-meprmf-panel-id="' . esc_attr($panel_id) . '">';
+        return [
+            'toggle_id'    => $toggle_id,
+            'panel_id'     => $panel_id,
+            'active_count' => $active_count,
+        ];
+    }
 
-        printf(
-            '<button type="button" class="button meprmf-toggle-btn" aria-expanded="false" aria-controls="%1$s" id="meprmf-members-filter-toggle">',
-            esc_attr($panel_id)
-        );
-        echo '<span class="meprmf-toggle-btn__icon dashicons dashicons-filter" aria-hidden="true"></span>';
-        echo '<span class="meprmf-toggle-btn__label">' . esc_html__('Filters', 'admin-filters-for-memberpress') . '</span>';
-        if ($active_count > 0) {
-            printf(
-                ' <span class="meprmf-toggle-btn__badge" aria-label="%s">%d</span>',
-                esc_attr(
-                    sprintf(
-                        /* translators: %d: number of active filters */
-                        _n('%d active filter', '%d active filters', $active_count, 'admin-filters-for-memberpress'),
-                        $active_count
-                    )
-                ),
-                (int) $active_count
-            );
-        } else {
-            echo ' <span class="meprmf-toggle-btn__badge" hidden aria-hidden="true">0</span>';
-        }
-        echo '</button>';
+    /**
+     * The floating panel surface only (printed in admin_footer pool, then moved next to the toggle by JS).
+     *
+     * @param array<int, array<string, mixed>> $valid Normalized field definitions.
+     * @param Meprmf_Screen_Context            $ctx   Current screen context.
+     * @return void
+     */
+    public static function echo_floating_filter_panel_surface(array $valid, Meprmf_Screen_Context $ctx)
+    {
+        $mount = self::get_floating_filter_mount_state($valid, $ctx);
+        $panel_id  = $mount['panel_id'];
+        $toggle_id = $mount['toggle_id'];
 
         printf(
-            '<div id="%1$s" class="meprmf-filter-panel" role="region" aria-labelledby="meprmf-members-filter-toggle" hidden>',
-            esc_attr($panel_id)
+            '<div id="%1$s" class="meprmf-filter-panel" role="region" aria-labelledby="%2$s" hidden>',
+            esc_attr($panel_id),
+            esc_attr($toggle_id)
         );
 
         echo '<div class="meprmf-filter-panel__mode meprmf-filter-panel__mode--filter">';
@@ -281,6 +284,66 @@ class Meprmf_Toolbar_Renderer
         );
         echo '</div>';
 
-        echo '</div></div>';
+        echo '</div>';
+    }
+
+    /**
+     * Floating filter toggle (MemberPress admin lists). Panel DOM is deferred — see Meprmf_Plugin::print_deferred_floating_filter_panels().
+     *
+     * @param array<int, array<string, mixed>> $valid Normalized field definitions.
+     * @param Meprmf_Screen_Context            $ctx   Current screen context.
+     * @return void
+     */
+    public static function render_floating_filter_panel(array $valid, Meprmf_Screen_Context $ctx)
+    {
+        $mount        = self::get_floating_filter_mount_state($valid, $ctx);
+        $panel_id     = $mount['panel_id'];
+        $toggle_id    = $mount['toggle_id'];
+        $active_count = $mount['active_count'];
+
+        // Span (phrasing) keeps MemberPress's `<p class="mepr-search-box">` valid; block panel is printed in admin_footer.
+        echo '<span class="mepr-filter-by meprmf-floating-root" data-meprmf-panel-id="' . esc_attr($panel_id) . '">';
+
+        printf(
+            '<button type="button" class="button meprmf-toggle-btn" aria-expanded="false" aria-controls="%1$s" id="%2$s">',
+            esc_attr($panel_id),
+            esc_attr($toggle_id)
+        );
+        echo '<span class="meprmf-toggle-btn__icon dashicons dashicons-filter" aria-hidden="true"></span>';
+        echo '<span class="meprmf-toggle-btn__label">' . esc_html__('Filters', 'admin-filters-for-memberpress') . '</span>';
+        if ($active_count > 0) {
+            printf(
+                ' <span class="meprmf-toggle-btn__badge" aria-label="%s">%d</span>',
+                esc_attr(
+                    sprintf(
+                        /* translators: %d: number of active filters */
+                        _n('%d active filter', '%d active filters', $active_count, 'admin-filters-for-memberpress'),
+                        $active_count
+                    )
+                ),
+                (int) $active_count
+            );
+        } else {
+            echo ' <span class="meprmf-toggle-btn__badge" hidden aria-hidden="true">0</span>';
+        }
+        echo '</button>';
+
+        echo '</span>';
+
+        Meprmf_Plugin::queue_deferred_floating_filter_panel($valid, $ctx);
+    }
+
+    /**
+     * Backward-compatible alias for the Members screen only.
+     *
+     * @param array<int, array<string, mixed>> $valid Normalized field definitions.
+     * @return void
+     */
+    public static function render_members_floating_panel(array $valid)
+    {
+        self::render_floating_filter_panel(
+            $valid,
+            new Meprmf_Screen_Context(Meprmf_Screen::PAGE_MEMBERS, 'u.ID')
+        );
     }
 }

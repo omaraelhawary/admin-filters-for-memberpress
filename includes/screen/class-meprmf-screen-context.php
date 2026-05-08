@@ -48,10 +48,74 @@ class Meprmf_Screen_Context
     }
 
     /**
+     * WP_Screen id for this admin list (MemberPress submenu pattern).
+     *
+     * @return string
+     */
+    public function get_wp_screen_id()
+    {
+        return 'memberpress_page_' . $this->page;
+    }
+
+    /**
+     * Stable id for HTML / localStorage (alphanumeric + underscores).
+     *
+     * @return string
+     */
+    public function get_storage_id()
+    {
+        $id = preg_replace('/[^a-z0-9]+/', '_', strtolower($this->page));
+        return is_string($id) ? trim($id, '_') : 'screen';
+    }
+
+    /**
      * @return bool
      */
     public function is_members()
     {
         return 'memberpress-members' === $this->page;
+    }
+
+    /**
+     * Recurring subscriptions list (mepr_subscriptions AS sub).
+     *
+     * @return bool
+     */
+    public function is_subscriptions_recurring()
+    {
+        return 'memberpress-subscriptions' === $this->page;
+    }
+
+    /**
+     * Lifetime / non-recurring subscriptions list (mepr_transactions AS txn).
+     *
+     * @return bool
+     */
+    public function is_lifetimes()
+    {
+        return 'memberpress-lifetimes' === $this->page;
+    }
+
+    /**
+     * Transactions list (mepr_transactions AS tr).
+     *
+     * @return bool
+     */
+    public function is_transactions()
+    {
+        return 'memberpress-trans' === $this->page;
+    }
+
+    /**
+     * Screens that support the usermeta EXISTS filters in this plugin.
+     *
+     * @return bool
+     */
+    public function supports_meta_filters_list()
+    {
+        return $this->is_members()
+            || $this->is_subscriptions_recurring()
+            || $this->is_lifetimes()
+            || $this->is_transactions();
     }
 }

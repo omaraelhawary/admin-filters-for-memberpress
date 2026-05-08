@@ -6,6 +6,9 @@ REVIEW.md
 # Release artifacts (scripts/build-release.sh)
 /dist/
 
+# Node (asset minification)
+node_modules/
+
 # Composer & PHPUnit
 /vendor/
 composer.phar

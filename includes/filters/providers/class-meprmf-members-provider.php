@@ -1,6 +1,6 @@
 <?php
 /**
- * Filter field definitions for the Members admin list (user meta / address / custom fields).
+ * Filter field definitions for MemberPress admin member lists (user meta / address / custom fields).
  *
  * @package MemberPress_Members_Meta_Filters
  */
@@ -10,14 +10,14 @@ if (! defined('ABSPATH')) {
 }
 
 /**
- * Members list filter definitions.
+ * Meta filter field definitions shared across Members, Subscriptions, Transactions lists.
  */
 // phpcs:disable WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Field definitions use usermeta key name as schema; arrays are not WP_Query meta_key clauses.
 class Meprmf_Members_Provider
 {
 
-    /** @var array<int, array<string, mixed>>|null */
-    private static $cached_filter_fields = null;
+    /** @var array<string, array<int, array<string, mixed>>> */
+    private static $cached_filter_fields = [];
 
     /**
      * Clear in-request cache (e.g. after tests or option updates).
@@ -26,7 +26,7 @@ class Meprmf_Members_Provider
      */
     public static function clear_filter_fields_cache()
     {
-        self::$cached_filter_fields = null;
+        self::$cached_filter_fields = [];
     }
 
     /**
@@ -224,16 +224,12 @@ class Meprmf_Members_Provider
     }
 
     /**
-     * All filter field definitions for Members (cached per request).
+     * Address + MemberPress custom fields, before screen-specific hooks or param prefixes.
      *
      * @return array<int, array<string, mixed>>
      */
-    public static function get_filter_fields()
+    private static function get_base_meta_filter_fields()
     {
-        if (null !== self::$cached_filter_fields) {
-            return self::$cached_filter_fields;
-        }
-
         $opts = MeprOptions::fetch();
 
         $fields = self::get_address_filter_fields($opts);
@@ -247,10 +243,70 @@ class Meprmf_Members_Provider
             }
         }
 
-        $fields = apply_filters('meprmf_members_meta_filters_fields', $fields);
+        return $fields;
+    }
 
-        self::$cached_filter_fields = $fields;
-        return self::$cached_filter_fields;
+    /**
+     * Replace leading mpf_ param keys (GET / SQL alias) for non-Members screens.
+     *
+     * @param array<int, array<string, mixed>> $fields Field rows.
+     * @param string                             $new_prefix e.g. mpfs_ or mpft_ (includes trailing underscore).
+     * @return array<int, array<string, mixed>>
+     */
+    public static function remap_field_params_from_mpf_prefix(array $fields, $new_prefix)
+    {
+        $new_prefix = (string) $new_prefix;
+        $out        = [];
+        $old_len    = strlen('mpf_');
+        foreach ($fields as $field) {
+            if (! empty($field['param']) && is_string($field['param']) && 0 === strpos($field['param'], 'mpf_')) {
+                $field['param'] = $new_prefix . substr($field['param'], $old_len);
+            }
+            $out[] = $field;
+        }
+        return $out;
+    }
+
+    /**
+     * Filter field definitions for a list screen (cached per request per page).
+     *
+     * @param Meprmf_Screen_Context $ctx Screen context.
+     * @return array<int, array<string, mixed>>
+     */
+    public static function get_filter_fields_for_context(Meprmf_Screen_Context $ctx)
+    {
+        $cache_key = $ctx->get_page();
+        if (isset(self::$cached_filter_fields[ $cache_key ])) {
+            return self::$cached_filter_fields[ $cache_key ];
+        }
+
+        $base = self::get_base_meta_filter_fields();
+
+        if ($ctx->is_members()) {
+            $fields = apply_filters('meprmf_members_meta_filters_fields', $base);
+        } elseif ($ctx->is_subscriptions_recurring() || $ctx->is_lifetimes()) {
+            $fields = apply_filters('meprmf_subscriptions_meta_filters_fields', $base);
+            $fields  = self::remap_field_params_from_mpf_prefix($fields, 'mpfs_');
+        } elseif ($ctx->is_transactions()) {
+            $fields = apply_filters('meprmf_transactions_meta_filters_fields', $base);
+            $fields  = self::remap_field_params_from_mpf_prefix($fields, 'mpft_');
+        } else {
+            $fields = [];
+        }
+
+        self::$cached_filter_fields[ $cache_key ] = $fields;
+        return self::$cached_filter_fields[ $cache_key ];
+    }
+
+    /**
+     * All filter field definitions for Members (cached per request).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function get_filter_fields()
+    {
+        $ctx = new Meprmf_Screen_Context(Meprmf_Screen::PAGE_MEMBERS, 'u.ID');
+        return self::get_filter_fields_for_context($ctx);
     }
 }
 // phpcs:enable WordPress.DB.SlowDBQuery.slow_db_query_meta_key

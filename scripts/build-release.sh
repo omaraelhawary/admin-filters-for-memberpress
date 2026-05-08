@@ -30,6 +30,10 @@ OUT_DIR="${ROOT}/dist"
 ARCHIVE_NAME="${SLUG}-${VERSION}.zip"
 ARCHIVE_PATH="${OUT_DIR}/${ARCHIVE_NAME}"
 
+if [[ -f "${ROOT}/package.json" ]] && command -v npm >/dev/null 2>&1; then
+  (cd "${ROOT}" && npm ci && npm run build)
+fi
+
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/${SLUG}.build.XXXXXX")"
 cleanup() {
   rm -rf "${TMP}"
@@ -64,6 +68,9 @@ rsync -a \
   --exclude='.gitignore' \
   --exclude='CLAUDE.md' \
   --exclude='REVIEW.md' \
+  --exclude='node_modules/' \
+  --exclude='package.json' \
+  --exclude='package-lock.json' \
   "${ROOT}/" "${STAGE}/"
 
 (

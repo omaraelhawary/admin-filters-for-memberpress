@@ -81,4 +81,26 @@ class MembersProviderMapTest extends TestCase
         $this->assertNotEmpty($fields);
         $this->assertSame('mpf_country', $fields[0]['param']);
     }
+
+    public function test_remap_field_params_for_subscriptions_screen_prefix()
+    {
+        require_once dirname(__DIR__, 2) . '/includes/filters/providers/class-meprmf-members-provider.php';
+
+        $fields = [
+            [ 'param' => 'mpf_country', 'meta_key' => 'mepr-address-country' ],
+            [ 'param' => 'mpf_custom_thing', 'meta_key' => 'x' ],
+        ];
+        $out = Meprmf_Members_Provider::remap_field_params_from_mpf_prefix($fields, 'mpfs_');
+        $this->assertSame('mpfs_country', $out[0]['param']);
+        $this->assertSame('mpfs_custom_thing', $out[1]['param']);
+    }
+
+    public function test_remap_field_params_for_transactions_screen_prefix()
+    {
+        require_once dirname(__DIR__, 2) . '/includes/filters/providers/class-meprmf-members-provider.php';
+
+        $fields = [ [ 'param' => 'mpf_zip', 'meta_key' => 'mepr-address-zip' ] ];
+        $out    = Meprmf_Members_Provider::remap_field_params_from_mpf_prefix($fields, 'mpft_');
+        $this->assertSame('mpft_zip', $out[0]['param']);
+    }
 }

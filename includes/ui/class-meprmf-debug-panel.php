@@ -35,7 +35,7 @@ class Meprmf_Debug_Panel
         if (! defined('WP_DEBUG') || ! WP_DEBUG) {
             return;
         }
-        if (! Meprmf_Screen::is_members_admin_list_request()) {
+        if (! Meprmf_Screen::is_meta_filters_admin_list_request()) {
             return;
         }
         if (! Meprmf_Capabilities::current_user_can_filter()) {

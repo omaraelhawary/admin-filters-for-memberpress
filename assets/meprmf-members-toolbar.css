@@ -1,6 +1,31 @@
 /**
- * Members admin list — extra meta filter controls.
+ * MemberPress admin lists — extra meta filter controls.
  */
+
+.memberpress_page_memberpress-members .mepr-search-box,
+.memberpress_page_memberpress-subscriptions .mepr-search-box,
+.memberpress_page_memberpress-lifetimes .mepr-search-box,
+.memberpress_page_memberpress-trans .mepr-search-box {
+	width: 100%;
+	box-sizing: border-box;
+}
+
+/*
+ * Pin the floating "Filters" control to the start (left in LTR) of `.mepr-search-box`.
+ * MemberPress uses a column flex + stretch; without this the row matches other end-justified rows.
+ */
+.memberpress_page_memberpress-members .mepr-search-box .mepr-filter-by.meprmf-floating-root,
+.memberpress_page_memberpress-subscriptions .mepr-search-box .mepr-filter-by.meprmf-floating-root,
+.memberpress_page_memberpress-lifetimes .mepr-search-box .mepr-filter-by.meprmf-floating-root,
+.memberpress_page_memberpress-trans .mepr-search-box .mepr-filter-by.meprmf-floating-root {
+	justify-content: flex-start;
+	align-self: flex-start;
+	width: auto;
+	max-width: 100%;
+	margin-inline-start: 0;
+	margin-inline-end: auto;
+	box-sizing: border-box;
+}
 
 /* Inline mode (few filters): sit next to search */
 .mepr-filter-by.meprmf-meta-filters:not(.meprmf-meta-filters--compact) {
@@ -125,6 +150,19 @@
 	align-items: center;
 	vertical-align: middle;
 	margin-inline-start: 4px;
+}
+
+/* Staging area for panel markup before JS moves it beside the toggle (see Meprmf_Plugin::print_deferred_floating_filter_panels). */
+.meprmf-floating-panels-pool {
+	position: absolute;
+	width: 0;
+	height: 0;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+	padding: 0;
+	margin: 0;
 }
 
 .meprmf-toggle-btn {
