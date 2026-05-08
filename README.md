@@ -4,7 +4,7 @@
 
 # Admin Filters for MemberPress
 
-**Filter the MemberPress Members admin list** by address and MemberPress custom fields (**Settings → Fields**), and optionally more fields you register in code — using MemberPress hooks only; no core files are modified.
+**Filter MemberPress admin lists** (Members, Subscriptions, Lifetimes, Transactions) by address and MemberPress custom fields (**Settings → Fields**), and optionally more fields you register in code — using MemberPress hooks only; no core files are modified.
 
 [![PHPUnit](https://github.com/omaraelhawary/admin-filters-for-memberpress/actions/workflows/phpunit.yml/badge.svg)](https://github.com/omaraelhawary/admin-filters-for-memberpress/actions/workflows/phpunit.yml)
 ![PHP](https://img.shields.io/badge/PHP-8.1%2B-777BB4?logo=php&logoColor=white)
@@ -23,7 +23,7 @@
 | --- | --- |
 | **Contributors** | Omar ElHawary — [WordPress.org profile](https://profiles.wordpress.org/omarelhawary/) |
 | **Requires** | WordPress 5.6+, PHP 8.1+, active [MemberPress](https://memberpress.com/) |
-| **Current release** | 1.6.8 (see plugin header in `admin-filters-for-memberpress.php`) |
+| **Current release** | 1.7.0 (see plugin header in `admin-filters-for-memberpress.php`) |
 | **Text domain** | `admin-filters-for-memberpress` (matches the plugin slug) |
 | **License** | GPLv2 or later |
 
@@ -65,7 +65,7 @@ If you previously used the old directory name `memberpress-members-meta-filters/
 
 ### Built-in and custom-field filters
 
-Open **MemberPress → Members**. Open the **Filters** control, set values in the panel, then click **Apply filters** (or press Enter in a text field). MemberPress **Go** still runs the native search / membership row; it does not read the plugin panel fields. To hide the floating panel and use the previous inline toolbar, add `add_filter( 'meprmf_use_floating_members_panel', '__return_false' );`.
+Open **MemberPress → Members**, **Subscriptions**, **Lifetimes**, or **Transactions**. Open the **Filters** control, set values in the panel, then click **Apply filters** (or press Enter in a text field). MemberPress **Go** still runs the native search / row filters; it does not read the plugin panel fields. To hide the floating panel on **Members** and use the previous inline toolbar, add `add_filter( 'meprmf_use_floating_members_panel', '__return_false' );`. On all supported lists you can filter the floating panel with `meprmf_use_floating_meta_filters_panel`.
 
 ## Extending with code
 
@@ -99,8 +99,8 @@ Other available hooks:
 
 ## How it works
 
-- `mepr_table_controls_search` — renders the filter controls inside the Members toolbar (`Meprmf_Toolbar_Renderer`).
-- `mepr_list_table_args` — appends `EXISTS ( SELECT 1 FROM {$wpdb->usermeta} ... )` fragments (`Meprmf_Predicate_Builder`), scoped to `u.ID`.
+- `mepr_table_controls_search` — renders the filter controls in the MemberPress list toolbar (`Meprmf_Toolbar_Renderer`) on supported screens.
+- `mepr_list_table_args` — appends `EXISTS ( SELECT 1 FROM {$wpdb->usermeta} ... )` fragments (`Meprmf_Predicate_Builder`), scoped to the user id column for that list (for example `u.ID` on Members, `sub.user_id` on Subscriptions).
 
 The procedural API (`meprmf_*` functions) in `compat/legacy-functions.php` delegates to classes in `includes/` so existing snippets and `remove_action` calls keep working.
 
@@ -138,6 +138,12 @@ bash scripts/build-release.sh
 (`bash` avoids needing `chmod +x`.) Writes `dist/admin-filters-for-memberpress-<version>.zip` (version from the main plugin header), excluding tests, Composer, CI, `docs/`, `wordpress-org-assets/`, and `scripts/`. Put WordPress.org icons/banners in **`wordpress-org-assets/`** (see that folder’s README). After `svn checkout` of `https://plugins.svn.wordpress.org/admin-filters-for-memberpress`, run **`bash scripts/prepare-wordpress-org-svn-working-copy.sh /path/to/checkout`** to fill **`trunk/`** from the zip and **`assets/`** from `wordpress-org-assets/` plus **`screenshot-1.png`** (from `.github/readme-assets/members-table-filters.png` when present); then `svn add --force trunk assets`, `svn commit -m "Release <version>"`, `svn copy trunk tags/<version>`, and `svn commit -m "Tag <version>"`.
 
 ## Changelog
+
+### 1.7.0
+
+- **Subscriptions, Lifetimes, Transactions:** same address and **Settings → Fields** meta filters as **Members**, applied via `mepr_list_table_args` with the correct user column per screen.
+- **Floating Filters panel:** defer panel markup to `admin_footer` on supported lists; `meprmf_use_floating_meta_filters_panel` filters panel use per screen (Members still uses `meprmf_use_floating_members_panel`).
+- **Release build:** minify floating-panel JS and toolbar CSS with esbuild when `build-release.sh` runs `npm run build`.
 
 ### 1.6.8
 

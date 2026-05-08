@@ -54,6 +54,7 @@ rsync -a \
   --exclude='.github/' \
   --exclude='.cursor/' \
   --exclude='dist/' \
+  --exclude='admin-filters-for-memberpress-svn/' \
   --exclude='wordpress-org-assets/' \
   --exclude='scripts/' \
   --exclude='tests/' \

@@ -4,15 +4,15 @@ Tags: memberpress, members, admin, filters, membership
 Requires at least: 5.6
 Tested up to: 6.9
 Requires PHP: 8.1
-Stable tag: 1.6.8
+Stable tag: 1.7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Adds admin filters on the MemberPress Members list (address, registration fields, optional custom meta). Requires MemberPress.
+Adds admin filters on the MemberPress Members, Subscriptions, Lifetimes, and Transactions lists (address, registration fields, optional custom meta). Requires MemberPress.
 
 == Description ==
 
-**Admin Filters for MemberPress** extends the **MemberPress -> Members** admin screen with extra filters: MemberPress address fields (when your site captures them), every MemberPress registration **Settings -> Fields** field, and any further **user meta** filters you add with the `meprmf_members_meta_filters_fields` filter (for example in a small custom plugin).
+**Admin Filters for MemberPress** extends the **MemberPress -> Members**, **Subscriptions**, **Lifetimes**, and **Transactions** admin screens with extra filters: MemberPress address fields (when your site captures them), every MemberPress registration **Settings -> Fields** field, and any further **user meta** filters you add with the `meprmf_members_meta_filters_fields` filter (for example in a small custom plugin).
 
 This plugin is an independent project. It is **not** affiliated with, endorsed by, or sponsored by MemberPress.
 
@@ -23,12 +23,12 @@ This plugin is an independent project. It is **not** affiliated with, endorsed b
 
 = Privacy =
 
-Filtering reads values you or your administrators submit on the Members list (standard admin `GET` requests) and builds SQL `EXISTS` conditions on `wp_usermeta` scoped to the list query. No data is sent to external services by this plugin.
+Filtering reads values you or your administrators submit on those admin lists (standard admin `GET` requests) and builds SQL `EXISTS` conditions on `wp_usermeta` scoped to each list query. No data is sent to external services by this plugin.
 
 = What you get =
 
-* Extra filter controls on the **MemberPress -> Members** screen so you can narrow the member list by address, registration fields, and (optionally) other stored member data you wire in with code.
-* The member list itself still works like MemberPress; this plugin only adds filtering options for administrators.
+* Extra filter controls on the **MemberPress -> Members**, **Subscriptions**, **Lifetimes**, and **Transactions** admin lists so you can narrow rows by address, registration fields, and (optionally) other stored member data you wire in with code.
+* Each list still works like MemberPress; this plugin only adds filtering options for administrators.
 
 == Installation ==
 
@@ -44,11 +44,11 @@ Filtering reads values you or your administrators submit on the Members list (st
 
 = Does this plugin include MemberPress? =
 
-No. You must purchase and install MemberPress separately. This plugin only adds filters to the Members admin list when MemberPress is active.
+No. You must purchase and install MemberPress separately. This plugin only adds filters to the supported MemberPress admin lists when MemberPress is active.
 
 = Where do I use the filters? =
 
-In the WordPress admin, open **MemberPress -> Members**. Use the **Filters** area above the table to choose criteria, then apply them to refresh the list.
+In the WordPress admin, open **MemberPress -> Members** (or **Subscriptions**, **Lifetimes**, or **Transactions**). Use the **Filters** area above the table to choose criteria, then apply them to refresh the list.
 
 = What can I filter members by? =
 
@@ -58,7 +58,7 @@ In the WordPress admin, open **MemberPress -> Members**. Use the **Filters** are
 
 = Does this change my public website or checkout? =
 
-No. It only affects the **admin** Members list. Visitors and the front of your site are unchanged.
+No. It only affects those **admin** MemberPress list screens. Visitors and the front of your site are unchanged.
 
 = Is member data sent to a third-party service? =
 
@@ -66,7 +66,7 @@ No. Filtering runs inside your WordPress install and database. See the **Privacy
 
 = What happens if MemberPress is turned off? =
 
-The plugin waits quietly. Once MemberPress is active again, the filters show on **Members** as before.
+The plugin waits quietly. Once MemberPress is active again, the filters show on the supported lists as before.
 
 = Where do I get support for this plugin? =
 
@@ -79,6 +79,12 @@ Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-m
 * Source and issues: see **Plugin URI** and **GitHub URI** in the main plugin file header (`admin-filters-for-memberpress.php`).
 
 == Changelog ==
+
+= 1.7.0 =
+
+* **Subscriptions, Lifetimes, and Transactions:** the same address and **Settings → Fields** meta filters as on **Members**, scoped to each list’s user column (`mepr_list_table_args`).
+* **Floating Filters panel:** print panel markup in `admin_footer` on supported screens so MemberPress toolbar markup stays valid; filter `meprmf_use_floating_meta_filters_panel` to control the panel per screen (Members still respects `meprmf_use_floating_members_panel`).
+* **Build:** minify floating-panel JS and toolbar CSS with esbuild when building the release zip (`npm run build` from `build-release.sh`).
 
 = 1.6.8 =
 
@@ -153,6 +159,10 @@ Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-m
 * Compact collapsible filter layout when many filters are active (threshold filterable in later releases).
 
 == Upgrade Notice ==
+
+= 1.7.0 =
+
+Feature release: filters on Subscriptions, Lifetimes, and Transactions admin lists in addition to Members. No database migration.
 
 = 1.6.7 =
 
