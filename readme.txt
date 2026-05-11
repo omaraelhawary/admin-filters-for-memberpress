@@ -8,7 +8,7 @@ Stable tag: 1.7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Adds admin filters on the MemberPress Members, Subscriptions, Lifetimes, and Transactions lists (address, registration fields, optional custom meta). Requires MemberPress.
+Adds filters to the MemberPress Members, Subscriptions, and Transactions admin lists. Requires MemberPress.
 
 == Description ==
 
