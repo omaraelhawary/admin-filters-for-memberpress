@@ -75,17 +75,26 @@ bash "${SCRIPT_DIR}/prepare-wordpress-org-svn-working-copy.sh" "${SVN_WC_DIR}"
 
 cd "${SVN_WC_DIR}"
 
+svn_non_interactive update
+
 svn_non_interactive add --force trunk assets
 
 while IFS= read -r missing; do
   [[ -n "${missing}" ]] && svn_non_interactive rm --force "${missing}"
 done < <(svn status | awk '/^!/ {print $2}')
 
-svn_non_interactive commit -m "Release ${VERSION}"
+if svn status --quiet | grep -q .; then
+  svn_non_interactive commit -m "Release ${VERSION}"
+  echo "Committed trunk/assets changes for ${VERSION}"
+else
+  echo "No trunk/assets changes to commit (trunk may already match the release zip)"
+fi
 
 if svn_non_interactive info "tags/${VERSION}" >/dev/null 2>&1; then
-  echo "tags/${VERSION} already exists on WordPress.org SVN — trunk updated, tag left unchanged"
+  echo "tags/${VERSION} already exists on WordPress.org SVN — done"
 else
   svn_non_interactive copy trunk "tags/${VERSION}" -m "Tag ${VERSION}"
-  echo "Deployed ${VERSION} to trunk and tags/${VERSION}"
+  echo "Created tags/${VERSION} from trunk"
 fi
+
+echo "Deploy finished for ${VERSION}"
