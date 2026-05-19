@@ -1,0 +1,41 @@
+name: Deploy to WordPress.org
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install Node dependencies and build assets
+        run: npm ci && npm run build
+
+      - name: Validate release tag matches plugin version
+        if: github.event_name == 'release'
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          TAG="${TAG#v}"
+          VERSION="$(sed -n 's/^[[:space:]]*\*[[:space:]]*Version:[[:space:]]*//p' admin-filters-for-memberpress.php | head -n1 | tr -d '\r')"
+          if [[ "${TAG}" != "${VERSION}" ]]; then
+            echo "::error::Release tag ${TAG} does not match plugin Version ${VERSION}"
+            exit 1
+          fi
+          echo "EXPECTED_VERSION=${VERSION}" >> "${GITHUB_ENV}"
+
+      - name: Install Subversion
+        run: sudo apt-get update && sudo apt-get install -y subversion
+
+      - name: Deploy to WordPress.org SVN
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+        run: bash scripts/deploy-wordpress-org-svn.sh

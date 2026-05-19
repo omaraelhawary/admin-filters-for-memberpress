@@ -87,4 +87,5 @@ fi
 
 echo "Prepared trunk + assets under ${SVN_WC}"
 echo "Version: ${VERSION} (from ${ZIP})"
-echo "Next: cd '${SVN_WC}' && svn status && svn add --force trunk assets && svn commit && svn copy trunk tags/${VERSION} && svn commit"
+echo "Next: export SVN_USERNAME SVN_PASSWORD, then bash scripts/deploy-wordpress-org-svn.sh"
+echo "      (or commit manually: svn add --force trunk assets && svn commit && svn copy trunk tags/${VERSION} && svn commit)"
