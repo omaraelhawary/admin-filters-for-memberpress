@@ -42,15 +42,29 @@ class Meprmf_Debug_Panel
             return;
         }
 
-        $fragments = Meprmf_Predicate_Builder::get_last_fragments();
-        if (null === $fragments) {
+        $meta_fragments = Meprmf_Predicate_Builder::get_last_fragments();
+        $mepr_fragments = Meprmf_Mepr_Predicate_Builder::get_last_fragments();
+
+        if (null === $meta_fragments && null === $mepr_fragments) {
             return;
         }
 
-        echo "\n<!-- Meprmf Debug: predicates=" . (int) count($fragments) . " -->\n";
-        if (! empty($fragments)) {
+        $all = [];
+        if (is_array($meta_fragments)) {
+            foreach ($meta_fragments as $sql) {
+                $all[] = '[meta] ' . $sql;
+            }
+        }
+        if (is_array($mepr_fragments)) {
+            foreach ($mepr_fragments as $sql) {
+                $all[] = '[mepr] ' . $sql;
+            }
+        }
+
+        echo "\n<!-- Meprmf Debug: predicates=" . (int) count($all) . " -->\n";
+        if (! empty($all)) {
             echo '<div class="notice notice-info meprmf-debug" style="margin:12px;"><p><strong>Meprmf (WP_DEBUG)</strong></p><pre style="white-space:pre-wrap;max-height:240px;overflow:auto;">';
-            foreach ($fragments as $i => $sql) {
+            foreach ($all as $i => $sql) {
                 echo esc_html((string) ( $i + 1 )) . '. ' . esc_html($sql) . "\n";
             }
             echo '</pre></div>';

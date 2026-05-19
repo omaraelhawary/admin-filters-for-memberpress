@@ -4,7 +4,7 @@ Tags: memberpress, members, admin, filters, membership
 Requires at least: 5.6
 Tested up to: 6.9
 Requires PHP: 8.1
-Stable tag: 1.7.0
+Stable tag: 1.8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -28,6 +28,7 @@ Filtering reads values you or your administrators submit on those admin lists (s
 = What you get =
 
 * Extra filter controls on the **MemberPress -> Members**, **Subscriptions**, **Lifetimes**, and **Transactions** admin lists so you can narrow rows by address, registration fields, and (optionally) other stored member data you wire in with code.
+* On **Members**, additional filters query MemberPress tables (memberships, access, subscriptions, dates) — not only wp_usermeta.
 * Each list still works like MemberPress; this plugin only adds filtering options for administrators.
 
 == Installation ==
@@ -79,6 +80,12 @@ Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-m
 * Source and issues: see **Plugin URI** and **GitHub URI** in the main plugin file header (`admin-filters-for-memberpress.php`).
 
 == Changelog ==
+
+= 1.8.0 =
+
+* **Members list — MemberPress table filters:** filter by membership (product), active/expired access (transactions), subscription status, expires date range, and member-since date range via EXISTS on mepr_transactions, mepr_subscriptions, and mepr_members.
+* Hooks meprmf_members_core_filters_fields and meprmf_mepr_predicate_fragments for extensions.
+* Debug panel shows both meta and MemberPress table predicate fragments when WP_DEBUG is on.
 
 = 1.7.0 =
 

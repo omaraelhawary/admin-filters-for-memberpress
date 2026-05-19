@@ -92,6 +92,20 @@ class Meprmf_Toolbar_Renderer
                 );
             }
             echo '</select>';
+        } elseif ('date' === $field['type']) {
+            if ($omit_name) {
+                printf(
+                    '<input type="date" class="mepr_filter_field meprmf-filter-date" id="%1$s" data-meprmf-param="%1$s" value="%2$s" />',
+                    esc_attr($param),
+                    esc_attr($current)
+                );
+            } else {
+                printf(
+                    '<input type="date" class="mepr_filter_field meprmf-filter-date" id="%1$s" name="%1$s" value="%2$s" />',
+                    esc_attr($param),
+                    esc_attr($current)
+                );
+            }
         } else {
             $placeholder = $compact
                 ? __('Contains…', 'admin-filters-for-memberpress')

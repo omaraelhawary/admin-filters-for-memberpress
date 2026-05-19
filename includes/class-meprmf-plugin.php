@@ -107,6 +107,7 @@ class Meprmf_Plugin
     public static function filter_list_table_args($args)
     {
         Meprmf_Predicate_Builder::reset_last_fragments();
+        Meprmf_Mepr_Predicate_Builder::reset_last_fragments();
 
         $ctx = Meprmf_Screen::detect();
         if (null === $ctx || ! $ctx->supports_meta_filters_list()) {
@@ -119,12 +120,19 @@ class Meprmf_Plugin
             return $args;
         }
 
-        $valid = Meprmf_Filter_Registry::get_normalized_fields_for_context($ctx);
-        if (empty($valid)) {
-            return $args;
+        $meta_valid = Meprmf_Filter_Registry::get_normalized_meta_fields_for_context($ctx);
+        if (! empty($meta_valid)) {
+            $args = Meprmf_Predicate_Builder::append_usermeta_exists($args, $ctx, $meta_valid);
         }
 
-        return Meprmf_Predicate_Builder::append_usermeta_exists($args, $ctx, $valid);
+        if ($ctx->is_members()) {
+            $core_valid = Meprmf_Filter_Registry::get_normalized_core_fields_for_members();
+            if (! empty($core_valid)) {
+                $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists($args, $ctx, $core_valid);
+            }
+        }
+
+        return $args;
     }
 
     /**

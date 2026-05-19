@@ -109,4 +109,43 @@ class Meprmf_Util
 
         return $valid;
     }
+
+    /**
+     * Validate, sanitize, and dedupe core MemberPress table filter field definitions.
+     *
+     * @param array<int, array<string, mixed>> $fields Raw field definitions.
+     * @return array<int, array<string, mixed>>
+     */
+    public static function normalize_core_filter_fields(array $fields)
+    {
+        $valid   = [];
+        $seen    = [];
+        $sources = [ 'mepr_transaction', 'mepr_subscription', 'mepr_member' ];
+
+        foreach ($fields as $field) {
+            if (empty($field['param']) || empty($field['label']) || empty($field['type']) || empty($field['source'])) {
+                continue;
+            }
+
+            $source = (string) $field['source'];
+            if (! in_array($source, $sources, true)) {
+                continue;
+            }
+
+            $param = self::sanitize_param($field['param']);
+            if ('' === $param || isset($seen[ $param ])) {
+                continue;
+            }
+
+            if ('select' === $field['type'] && ( empty($field['options']) || ! is_array($field['options']) )) {
+                continue;
+            }
+
+            $seen[ $param ] = true;
+            $field['param'] = $param;
+            $valid[]        = $field;
+        }
+
+        return $valid;
+    }
 }
