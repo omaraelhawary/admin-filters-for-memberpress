@@ -12,9 +12,6 @@
 #   export SVN_USERNAME=your-wp-org-username
 #   export SVN_PASSWORD=your-application-password
 #   bash scripts/deploy-wordpress-org-svn.sh
-#
-# GitHub Actions: set repository secrets SVN_USERNAME and SVN_PASSWORD, then publish
-# a GitHub Release whose tag matches the plugin Version (e.g. 1.7.0 or v1.7.0).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -51,8 +48,11 @@ svn_non_interactive() {
     --username "${SVN_USERNAME}" \
     --password "${SVN_PASSWORD}" \
     --non-interactive \
-    --no-auth-cache \
-    --trust-server-cert-failures unknown-ca,cn-mismatch,expired,not-yet-valid,other
+    --no-auth-cache
+}
+
+svn_tag_exists() {
+  svn_non_interactive list "${SVN_URL}/tags/" 2>/dev/null | grep -qE "^${VERSION}/"
 }
 
 bash "${SCRIPT_DIR}/build-release.sh"
@@ -71,11 +71,10 @@ cleanup() {
 }
 trap cleanup EXIT
 
-bash "${SCRIPT_DIR}/prepare-wordpress-org-svn-working-copy.sh" "${SVN_WC_DIR}"
-
 cd "${SVN_WC_DIR}"
-
 svn_non_interactive update
+
+bash "${SCRIPT_DIR}/prepare-wordpress-org-svn-working-copy.sh" "${SVN_WC_DIR}"
 
 svn_non_interactive add --force trunk assets
 
@@ -83,18 +82,22 @@ while IFS= read -r missing; do
   [[ -n "${missing}" ]] && svn_non_interactive rm --force "${missing}"
 done < <(svn status | awk '/^!/ {print $2}')
 
-if svn status --quiet | grep -q .; then
+if [[ -n "$(svn status --quiet)" ]]; then
   svn_non_interactive commit -m "Release ${VERSION}"
   echo "Committed trunk/assets changes for ${VERSION}"
 else
   echo "No trunk/assets changes to commit (trunk may already match the release zip)"
 fi
 
-if svn_non_interactive info "tags/${VERSION}" >/dev/null 2>&1; then
-  echo "tags/${VERSION} already exists on WordPress.org SVN — done"
+if svn_tag_exists; then
+  echo "tags/${VERSION} already exists on WordPress.org SVN"
 else
-  svn_non_interactive copy trunk "tags/${VERSION}" -m "Tag ${VERSION}"
-  echo "Created tags/${VERSION} from trunk"
+  echo "Creating tags/${VERSION} from trunk (remote copy)..."
+  if ! svn_non_interactive copy "${SVN_URL}/trunk" "${SVN_URL}/tags/${VERSION}" -m "Tag ${VERSION}"; then
+    echo "::error::Failed to create SVN tag ${VERSION}. Check SVN_USERNAME/SVN_PASSWORD and commit access." >&2
+    exit 1
+  fi
+  echo "Created tags/${VERSION}"
 fi
 
 echo "Deploy finished for ${VERSION}"
