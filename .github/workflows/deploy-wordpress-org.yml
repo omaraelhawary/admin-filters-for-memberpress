@@ -42,3 +42,13 @@ jobs:
           SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
           SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
         run: bash scripts/deploy-wordpress-org-svn.sh
+
+      - name: Remind to refresh local SVN mirror
+        if: success()
+        run: |
+          echo "## Local SVN mirror" >> "${GITHUB_STEP_SUMMARY}"
+          echo "Run on your Mac after this workflow succeeds:" >> "${GITHUB_STEP_SUMMARY}"
+          echo '```bash' >> "${GITHUB_STEP_SUMMARY}"
+          echo "bash scripts/sync-local-svn-working-copy.sh" >> "${GITHUB_STEP_SUMMARY}"
+          echo '```' >> "${GITHUB_STEP_SUMMARY}"
+          bash scripts/sync-local-svn-working-copy.sh

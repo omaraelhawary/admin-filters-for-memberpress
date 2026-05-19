@@ -101,3 +101,6 @@ else
 fi
 
 echo "Deploy finished for ${VERSION}"
+
+# Refresh local mirror (admin-filters-for-memberpress-svn/) when present or on developer machines.
+bash "${SCRIPT_DIR}/sync-local-svn-working-copy.sh"
