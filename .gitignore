@@ -7,7 +7,7 @@ REVIEW.md
 /dist/
 
 # Local WordPress.org SVN working copy (deploy via scripts/deploy-wordpress-org-svn.sh)
-admin-filters-for-memberpress-svn/
+/admin-filters-for-memberpress-svn/
 
 # Node (asset minification)
 node_modules/
