@@ -208,6 +208,10 @@ Uses `tests/bootstrap-unit.php` (no full WordPress test database). CI runs on PH
 
 ## Upgrade notices
 
+### 1.8.0
+
+Feature release: Members list filters for membership, access (active/inactive), subscription status, and date ranges on MemberPress tables. No database migration.
+
 ### 1.7.0
 
 Feature release: filters on Subscriptions, Lifetimes, and Transactions admin lists in addition to Members. No database migration.
