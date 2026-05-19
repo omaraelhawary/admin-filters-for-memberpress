@@ -16,17 +16,54 @@ class Meprmf_Filter_Registry
 {
 
     /**
+     * Normalized meta (usermeta) field definitions for the Members screen.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function get_normalized_meta_fields_for_members()
+    {
+        return Meprmf_Util::normalize_filter_fields(Meprmf_Members_Provider::get_filter_fields());
+    }
+
+    /**
      * Normalized field definitions for the Members screen.
      *
      * @return array<int, array<string, mixed>>
      */
     public static function get_normalized_fields_for_members()
     {
-        return Meprmf_Util::normalize_filter_fields(Meprmf_Members_Provider::get_filter_fields());
+        return array_merge(
+            self::get_normalized_core_fields_for_members(),
+            self::get_normalized_meta_fields_for_members()
+        );
     }
 
     /**
-     * Normalized fields for a detected screen context.
+     * Normalized core MemberPress table filter fields (Members list only).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function get_normalized_core_fields_for_members()
+    {
+        return Meprmf_Util::normalize_core_filter_fields(Meprmf_Members_Core_Provider::get_core_filter_fields());
+    }
+
+    /**
+     * Normalized meta (usermeta) fields for a detected screen context.
+     *
+     * @param Meprmf_Screen_Context $ctx Context.
+     * @return array<int, array<string, mixed>>
+     */
+    public static function get_normalized_meta_fields_for_context(Meprmf_Screen_Context $ctx)
+    {
+        if (! $ctx->supports_meta_filters_list()) {
+            return [];
+        }
+        return Meprmf_Util::normalize_filter_fields(Meprmf_Members_Provider::get_filter_fields_for_context($ctx));
+    }
+
+    /**
+     * Normalized fields for a detected screen context (core + meta on Members).
      *
      * @param Meprmf_Screen_Context $ctx Context.
      * @return array<int, array<string, mixed>>
@@ -36,6 +73,12 @@ class Meprmf_Filter_Registry
         if (! $ctx->supports_meta_filters_list()) {
             return [];
         }
-        return Meprmf_Util::normalize_filter_fields(Meprmf_Members_Provider::get_filter_fields_for_context($ctx));
+
+        $meta = self::get_normalized_meta_fields_for_context($ctx);
+        if ($ctx->is_members()) {
+            return array_merge(self::get_normalized_core_fields_for_members(), $meta);
+        }
+
+        return $meta;
     }
 }

@@ -265,6 +265,15 @@
 	appearance: none;
 }
 
+.meprmf-filter-panel .mepr_filter_field.meprmf-filter-date,
+.mepr-filter-by.meprmf-meta-filters .mepr_filter_field.meprmf-filter-date {
+	width: 100%;
+	max-width: 100%;
+	min-width: 0;
+	min-height: 30px;
+	box-sizing: border-box;
+}
+
 .meprmf-filter-panel__empty {
 	margin: 0 0 8px;
 	font-size: 13px;
