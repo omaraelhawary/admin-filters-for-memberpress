@@ -27,5 +27,11 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --no-interaction --prefer-dist
 
+      - name: Verify version sync
+        run: |
+          HEADER=$(sed -n 's/^[[:space:]]*\*[[:space:]]*Version:[[:space:]]*//p' admin-filters-for-memberpress.php | head -n1 | tr -d '\r')
+          CONST=$(grep "define('MEPRMF_VERSION'" admin-filters-for-memberpress.php | sed -E "s/.*'([0-9.]+)'.*/\1/")
+          [[ "$HEADER" == "$CONST" ]] || { echo "Version mismatch: header=$HEADER, const=$CONST"; exit 1; }
+
       - name: Run unit tests
         run: vendor/bin/phpunit

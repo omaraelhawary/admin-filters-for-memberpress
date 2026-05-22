@@ -132,6 +132,13 @@ class Meprmf_Members_Provider
         $show_on_account = ! empty($opts->show_address_on_account);
         $address_capture_enabled = $show_on_signup || $show_on_account;
 
+        /**
+         * Whether built-in address filters are included in meta filter definitions.
+         *
+         * @since 1.0.0
+         * @param bool        $enabled Default from MemberPress address settings.
+         * @param MeprOptions $opts    MemberPress options object.
+         */
         $enabled = (bool) apply_filters(
             'meprmf_include_address_filters',
             $address_capture_enabled,
@@ -283,13 +290,31 @@ class Meprmf_Members_Provider
         $base = self::get_base_meta_filter_fields();
 
         if ($ctx->is_members()) {
+            /**
+             * Filter meta filter fields on the Members list.
+             *
+             * @since 1.0.0
+             * @param array<int, array<string, mixed>> $fields Field rows; params use mpf_* prefix.
+             */
             $fields = apply_filters('meprmf_members_meta_filters_fields', $base);
         } elseif ($ctx->is_subscriptions_recurring() || $ctx->is_lifetimes()) {
-            $fields = apply_filters('meprmf_subscriptions_meta_filters_fields', $base);
-            $fields  = self::remap_field_params_from_mpf_prefix($fields, 'mpfs_');
+            $remapped = self::remap_field_params_from_mpf_prefix($base, 'mpfs_');
+            /**
+             * Filter meta filter fields on Subscriptions / Lifetimes lists.
+             *
+             * @since 1.0.0
+             * @param array<int, array<string, mixed>> $fields Field rows; params use mpfs_* prefix.
+             */
+            $fields = apply_filters('meprmf_subscriptions_meta_filters_fields', $remapped);
         } elseif ($ctx->is_transactions()) {
-            $fields = apply_filters('meprmf_transactions_meta_filters_fields', $base);
-            $fields  = self::remap_field_params_from_mpf_prefix($fields, 'mpft_');
+            $remapped = self::remap_field_params_from_mpf_prefix($base, 'mpft_');
+            /**
+             * Filter meta filter fields on the Transactions list.
+             *
+             * @since 1.0.0
+             * @param array<int, array<string, mixed>> $fields Field rows; params use mpft_* prefix.
+             */
+            $fields = apply_filters('meprmf_transactions_meta_filters_fields', $remapped);
         } else {
             $fields = [];
         }

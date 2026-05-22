@@ -24,6 +24,13 @@ class UtilTest extends TestCase
         $this->assertSame('abc123', Meprmf_Util::sanitize_param('abc123'));
     }
 
+    public function test_sanitize_param_caps_length_at_32()
+    {
+        $this->assertSame(str_repeat('a', 32), Meprmf_Util::sanitize_param(str_repeat('a', 70)));
+        $this->assertSame('mpf_short', Meprmf_Util::sanitize_param('mpf_short'));
+        $this->assertSame(32, Meprmf_Util::PARAM_MAX_LENGTH);
+    }
+
     public function test_normalize_filter_fields_dedupes_params()
     {
         $fields = [

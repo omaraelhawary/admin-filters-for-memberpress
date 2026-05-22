@@ -1,6 +1,6 @@
 {
   "name": "omaraelhawary/admin-filters-for-memberpress",
-  "description": "Admin filters for MemberPress Members (and more screens in development)",
+  "description": "Admin filters for MemberPress Members, Subscriptions, Lifetimes, and Transactions admin lists.",
   "type": "wordpress-plugin",
   "license": "GPL-2.0-or-later",
   "require": {

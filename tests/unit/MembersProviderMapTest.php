@@ -16,6 +16,12 @@ use PHPUnit\Framework\TestCase;
 class MembersProviderMapTest extends TestCase
 {
 
+    protected function tearDown(): void
+    {
+        $GLOBALS['meprmf_test_filters'] = [];
+        parent::tearDown();
+    }
+
     public function test_dropdown_maps_to_select_exact()
     {
         require_once dirname(__DIR__, 2) . '/includes/filters/providers/class-meprmf-members-provider.php';
@@ -102,5 +108,39 @@ class MembersProviderMapTest extends TestCase
         $fields = [ [ 'param' => 'mpf_zip', 'meta_key' => 'mepr-address-zip' ] ];
         $out    = Meprmf_Members_Provider::remap_field_params_from_mpf_prefix($fields, 'mpft_');
         $this->assertSame('mpft_zip', $out[0]['param']);
+    }
+
+    public function test_subscriptions_hook_receives_mpfs_prefixed_params()
+    {
+        require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen.php';
+        require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen-context.php';
+        require_once dirname(__DIR__, 2) . '/includes/filters/providers/class-meprmf-members-provider.php';
+
+        if (! class_exists('MeprOptions', false)) {
+            eval(
+                'class MeprOptions {
+                    public $custom_fields = [];
+                    public $show_address_fields = false;
+                    public $show_address_on_account = true;
+                    public $address_fields = [];
+                    public static function fetch() { return new self(); }
+                }'
+            );
+        }
+
+        $seen = null;
+        \add_filter(
+            'meprmf_subscriptions_meta_filters_fields',
+            static function ($fields) use (&$seen) {
+                $seen = ! empty($fields[0]['param']) ? $fields[0]['param'] : null;
+                return $fields;
+            }
+        );
+
+        $ctx    = new \Meprmf_Screen_Context(\Meprmf_Screen::PAGE_SUBSCRIPTIONS, 'sub.user_id');
+        $fields = Meprmf_Members_Provider::get_filter_fields_for_context($ctx);
+
+        $this->assertSame('mpfs_country', $seen);
+        $this->assertSame('mpfs_country', $fields[0]['param']);
     }
 }

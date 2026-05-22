@@ -18,7 +18,6 @@ require_once __DIR__ . '/filters/providers/class-meprmf-members-core-provider.ph
 require_once __DIR__ . '/filters/class-meprmf-filter-registry.php';
 require_once __DIR__ . '/sql/class-meprmf-predicate-builder.php';
 require_once __DIR__ . '/sql/class-meprmf-mepr-predicate-builder.php';
-require_once __DIR__ . '/cache/class-meprmf-definitions-cache.php';
 require_once __DIR__ . '/ui/class-meprmf-toolbar-renderer.php';
 require_once __DIR__ . '/ui/class-meprmf-debug-panel.php';
 require_once __DIR__ . '/class-meprmf-plugin.php';

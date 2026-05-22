@@ -94,9 +94,36 @@ add_filter( 'meprmf_members_meta_filters_fields', function ( $fields ) {
 
 Each meta field supports `param`, `meta_key`, `label`, `type` (`country`, `text`, `select`, `checkbox`, `date`), optional `options`, and `match` (`exact`, `like`, `contains`).
 
+**Param prefixes by screen** (use the native prefix in each hook callback):
+
+| Screen | Hook | `param` prefix |
+| --- | --- | --- |
+| Members | `meprmf_members_meta_filters_fields` | `mpf_*` |
+| Subscriptions / Lifetimes | `meprmf_subscriptions_meta_filters_fields` | `mpfs_*` |
+| Transactions | `meprmf_transactions_meta_filters_fields` | `mpft_*` |
+
 Core Members table filters use `meprmf_members_core_filters_fields` (fields need `param`, `label`, `type`, `source` of `mepr_transaction`, `mepr_subscription`, or `mepr_member`).
 
-Other hooks: `meprmf_mepr_predicate_fragments`, `meprmf_use_floating_meta_filters_panel`, `meprmf_use_floating_members_panel`, `meprmf_include_address_filters`, `meprmf_compact_filters_threshold` (default `6`).
+### Adding custom MemberPress-table predicates (Members list only)
+
+Use `meprmf_mepr_predicate_fragments` to inject additional WHERE fragments after core-field predicates are built:
+
+```php
+add_filter( 'meprmf_mepr_predicate_fragments', function ( $args, $ctx, $values, $valid ) {
+    if ( ! $ctx->is_members() ) {
+        return $args;
+    }
+    if ( ! empty( $values['mpm_custom_thing'] ) ) {
+        global $wpdb;
+        $args[] = $wpdb->prepare( 'EXISTS (SELECT 1 FROM ... WHERE ...)', /* ... */ );
+    }
+    return $args;
+}, 10, 4 );
+```
+
+Pair this with `meprmf_members_core_filters_fields` to register the UI field.
+
+**Other hooks:** `meprmf_use_floating_meta_filters_panel`, `meprmf_use_floating_members_panel`, `meprmf_include_address_filters`, `meprmf_compact_filters_threshold` (default `6`).
 
 ## How it works
 

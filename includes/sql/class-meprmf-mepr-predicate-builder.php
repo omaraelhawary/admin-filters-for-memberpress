@@ -18,6 +18,9 @@ class Meprmf_Mepr_Predicate_Builder
     /** @var array<int, string>|null Last fragments added (for debug). */
     private static $last_fragments = null;
 
+    /** @var array<string, string> Memoized txn_complete_types_sql per table alias. */
+    private static $txn_types_cache = [];
+
     /**
      * @return array<int, string>|null
      */
@@ -33,7 +36,8 @@ class Meprmf_Mepr_Predicate_Builder
      */
     public static function reset_last_fragments()
     {
-        self::$last_fragments = null;
+        self::$last_fragments  = null;
+        self::$txn_types_cache = [];
     }
 
     /**
@@ -208,9 +212,13 @@ class Meprmf_Mepr_Predicate_Builder
      */
     private static function txn_complete_types_sql($alias)
     {
+        if (isset(self::$txn_types_cache[ $alias ])) {
+            return self::$txn_types_cache[ $alias ];
+        }
+
         global $wpdb;
 
-        return $wpdb->prepare(
+        self::$txn_types_cache[ $alias ] = $wpdb->prepare(
             "( ( {$alias}.txn_type IN (%s,%s,%s,%s) AND {$alias}.status = %s )
                OR ( {$alias}.txn_type = %s AND {$alias}.status = %s ) )",
             MeprTransaction::$payment_str,
@@ -221,6 +229,8 @@ class Meprmf_Mepr_Predicate_Builder
             MeprTransaction::$subscription_confirmation_str,
             MeprTransaction::$confirmed_str
         );
+
+        return self::$txn_types_cache[ $alias ];
     }
 
     /**

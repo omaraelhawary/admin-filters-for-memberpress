@@ -157,6 +157,12 @@ class Meprmf_Toolbar_Renderer
         }
 
         $count     = count($valid);
+        /**
+         * Field count at or above which the inline toolbar uses a compact details UI.
+         *
+         * @since 1.0.0
+         * @param int $threshold Default 6.
+         */
         $threshold = (int) apply_filters('meprmf_compact_filters_threshold', 6);
         $compact   = $count >= $threshold;
 
@@ -327,7 +333,7 @@ class Meprmf_Toolbar_Renderer
         echo '<span class="meprmf-toggle-btn__label">' . esc_html__('Filters', 'admin-filters-for-memberpress') . '</span>';
         if ($active_count > 0) {
             printf(
-                ' <span class="meprmf-toggle-btn__badge" aria-label="%s">%d</span>',
+                ' <span class="meprmf-toggle-btn__badge" aria-live="polite" aria-label="%s">%d</span>',
                 esc_attr(
                     sprintf(
                         /* translators: %d: number of active filters */
@@ -338,7 +344,7 @@ class Meprmf_Toolbar_Renderer
                 (int) $active_count
             );
         } else {
-            echo ' <span class="meprmf-toggle-btn__badge" hidden aria-hidden="true">0</span>';
+            echo ' <span class="meprmf-toggle-btn__badge" aria-live="polite" hidden aria-hidden="true">0</span>';
         }
         echo '</button>';
 

@@ -15,8 +15,11 @@ if (! defined('ABSPATH')) {
 class Meprmf_Util
 {
 
+    /** Maximum length for a sanitized filter param (usermeta alias is mpf_um_ + param, MySQL limit 64). */
+    const PARAM_MAX_LENGTH = 32;
+
     /**
-     * Sanitize a HTML id / $_GET key to [a-z0-9_]. Null-safe.
+     * Sanitize a HTML id / $_GET key to [a-z0-9_], capped at {@see PARAM_MAX_LENGTH}. Null-safe.
      *
      * @param mixed $param Raw param.
      * @return string
@@ -27,7 +30,11 @@ class Meprmf_Util
             return '';
         }
         $out = preg_replace('/[^a-z0-9_]/', '', $param);
-        return is_string($out) ? $out : '';
+        if (! is_string($out) || '' === $out) {
+            return '';
+        }
+
+        return substr($out, 0, self::PARAM_MAX_LENGTH);
     }
 
     /**

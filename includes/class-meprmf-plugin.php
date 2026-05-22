@@ -93,8 +93,22 @@ class Meprmf_Plugin
     {
         $default = true;
         if ($ctx->is_members()) {
+            /**
+             * Whether the floating filter panel is used on the Members list.
+             *
+             * @since 1.6.5
+             * @param bool $enabled Default true; return false for inline toolbar.
+             */
             $default = (bool) apply_filters('meprmf_use_floating_members_panel', $default);
         }
+
+        /**
+         * Whether the floating filter panel is used for this list screen.
+         *
+         * @since 1.7.0
+         * @param bool                  $enabled Default true; return false for inline toolbar.
+         * @param Meprmf_Screen_Context $ctx     Screen context.
+         */
         return (bool) apply_filters('meprmf_use_floating_meta_filters_panel', $default, $ctx);
     }
 

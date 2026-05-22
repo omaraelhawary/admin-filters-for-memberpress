@@ -43,15 +43,35 @@ if (! function_exists('wp_strip_all_tags')) {
     }
 }
 
+if (! isset($GLOBALS['meprmf_test_filters'])) {
+    $GLOBALS['meprmf_test_filters'] = [];
+}
+
+if (! function_exists('add_filter')) {
+    /**
+     * @param string   $hook_name Hook name.
+     * @param callable $callback  Callback.
+     * @return true
+     */
+    function add_filter($hook_name, $callback)
+    {
+        $GLOBALS['meprmf_test_filters'][ $hook_name ][] = $callback;
+        return true;
+    }
+}
+
 if (! function_exists('apply_filters')) {
     /**
      * @param string $hook_name Hook name.
      * @param mixed  $value     Default value.
-     * @param mixed  ...$args  Extra args.
+     * @param mixed  ...$args   Extra args.
      * @return mixed
      */
     function apply_filters($hook_name, $value, ...$args)
     {
+        foreach ($GLOBALS['meprmf_test_filters'][ $hook_name ] ?? [] as $callback) {
+            $value = $callback($value, ...$args);
+        }
         return $value;
     }
 }
