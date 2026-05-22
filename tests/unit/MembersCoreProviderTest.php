@@ -45,6 +45,7 @@ class MembersCoreProviderTest extends TestCase
                     public static $pending_str = "pending";
                     public static $refunded_str = "refunded";
                     public static $failed_str = "failed";
+                    public static $confirmed_str = "confirmed";
                 }'
             );
         }
@@ -145,6 +146,47 @@ class MembersCoreProviderTest extends TestCase
         $params = array_column($fields, 'param');
 
         $this->assertContains('mpm_member_status', $params);
+    }
+
+    public function test_transactions_access_labels_are_row_scoped()
+    {
+        require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen-context.php';
+        require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen.php';
+        require_once dirname(__DIR__, 2) . '/includes/filters/providers/class-meprmf-members-core-provider.php';
+
+        $ctx    = new Meprmf_Screen_Context(Meprmf_Screen::PAGE_TRANSACTIONS, 'tr.user_id');
+        $fields = Meprmf_Members_Core_Provider::get_core_filter_fields_for_context($ctx);
+        $access = null;
+        foreach ($fields as $field) {
+            if (! empty($field['predicate']) && 'access' === $field['predicate']) {
+                $access = $field;
+                break;
+            }
+        }
+
+        $this->assertIsArray($access);
+        $this->assertArrayHasKey('active', $access['options']);
+        $this->assertStringContainsString('this row', (string) $access['options']['active']);
+    }
+
+    public function test_transactions_txn_status_includes_confirmed()
+    {
+        require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen-context.php';
+        require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen.php';
+        require_once dirname(__DIR__, 2) . '/includes/filters/providers/class-meprmf-members-core-provider.php';
+
+        $ctx    = new Meprmf_Screen_Context(Meprmf_Screen::PAGE_TRANSACTIONS, 'tr.user_id');
+        $fields = Meprmf_Members_Core_Provider::get_core_filter_fields_for_context($ctx);
+        $status = null;
+        foreach ($fields as $field) {
+            if (! empty($field['predicate']) && 'txn_status' === $field['predicate']) {
+                $status = $field;
+                break;
+            }
+        }
+
+        $this->assertIsArray($status);
+        $this->assertArrayHasKey('confirmed', $status['options']);
     }
 
     public function test_normalize_core_filter_fields_requires_source()

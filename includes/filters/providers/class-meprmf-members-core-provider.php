@@ -138,10 +138,11 @@ class Meprmf_Members_Core_Provider
         }
 
         return [
-            MeprTransaction::$pending_str  => __('Pending', 'admin-filters-for-memberpress'),
-            MeprTransaction::$complete_str => __('Complete', 'admin-filters-for-memberpress'),
-            MeprTransaction::$refunded_str  => __('Refunded', 'admin-filters-for-memberpress'),
-            MeprTransaction::$failed_str    => __('Failed', 'admin-filters-for-memberpress'),
+            MeprTransaction::$pending_str   => __('Pending', 'admin-filters-for-memberpress'),
+            MeprTransaction::$complete_str  => __('Complete', 'admin-filters-for-memberpress'),
+            MeprTransaction::$confirmed_str  => __('Confirmed', 'admin-filters-for-memberpress'),
+            MeprTransaction::$refunded_str   => __('Refunded', 'admin-filters-for-memberpress'),
+            MeprTransaction::$failed_str     => __('Failed', 'admin-filters-for-memberpress'),
         ];
     }
 
@@ -215,6 +216,32 @@ class Meprmf_Members_Core_Provider
                 'type'      => 'date',
                 'source'    => 'mepr_transaction',
                 'predicate' => 'created_to',
+            ];
+        }
+
+        return $fields;
+    }
+
+    /**
+     * Clarify Access labels on row-scoped lists (Transactions, Subscriptions, Lifetimes).
+     *
+     * @param array<int, array<string, mixed>> $fields Field rows.
+     * @param Meprmf_Screen_Context              $ctx    Screen context.
+     * @return array<int, array<string, mixed>>
+     */
+    private static function apply_access_field_labels(array $fields, Meprmf_Screen_Context $ctx)
+    {
+        if ($ctx->is_members()) {
+            return $fields;
+        }
+
+        foreach ($fields as $i => $field) {
+            if (empty($field['predicate']) || 'access' !== $field['predicate']) {
+                continue;
+            }
+            $fields[ $i ]['options'] = [
+                'active'   => __('Active access (this row)', 'admin-filters-for-memberpress'),
+                'inactive' => __('Inactive / expired (this row)', 'admin-filters-for-memberpress'),
             ];
         }
 
@@ -297,7 +324,7 @@ class Meprmf_Members_Core_Provider
         }
 
         $products = self::fetch_product_options();
-        $base     = self::build_core_filter_fields($products);
+        $base     = self::apply_access_field_labels(self::build_core_filter_fields($products), $ctx);
         $extra    = self::build_screen_specific_core_fields($ctx);
 
         if ($ctx->is_members()) {
@@ -315,6 +342,7 @@ class Meprmf_Members_Core_Provider
         }
 
         $remapped = array_merge(self::remap_core_field_params($base, $prefix), $extra);
+        $remapped = self::apply_access_field_labels($remapped, $ctx);
 
         if ($ctx->is_transactions()) {
             /**

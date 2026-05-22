@@ -83,6 +83,8 @@ Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-m
 
 = 1.9.0 =
 
+* Safer list-table scoping: predicates only when the matching MemberPress list_table() caller and WP_Screen align.
+* Members member-since uses EXISTS on mepr_members; transaction status includes Confirmed; row-scoped Access labels on non-Members lists.
 * **Core table filters on all four lists:** membership, access, subscription status, expires range, and member-since range on Transactions, Subscriptions, and Lifetimes (mpmt_*, mpms_*, mpml_*), with row-scoped SQL.
 * **Screen-specific panel filters:** Members — member status (active / inactive / expired / non-members); Transactions and Lifetimes — transaction status, gateway, created date range; Subscriptions and Lifetimes — gateway.
 * Hooks meprmf_transactions_core_filters_fields, meprmf_subscriptions_core_filters_fields, and meprmf_lifetimes_core_filters_fields for extensions.

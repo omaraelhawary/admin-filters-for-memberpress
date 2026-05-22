@@ -127,7 +127,7 @@ class Meprmf_Plugin
         if (null === $ctx || ! $ctx->supports_meta_filters_list()) {
             return $args;
         }
-        if (! Meprmf_Screen::current_wp_screen_matches_context($ctx)) {
+        if (! Meprmf_Screen::should_apply_list_table_predicates($ctx)) {
             return $args;
         }
         if (! Meprmf_Capabilities::current_user_can_filter()) {

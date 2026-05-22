@@ -168,7 +168,7 @@ class MeprPredicateBuilderTest extends TestCase
         $this->assertNotEmpty($args_legacy);
     }
 
-    public function test_member_date_range_uses_members_table()
+    public function test_member_date_range_uses_members_table_exists()
     {
         $_GET['mpm_member_from'] = '2026-01-01';
         $_GET['mpm_member_to']   = '2026-12-31';
@@ -176,11 +176,12 @@ class MeprPredicateBuilderTest extends TestCase
         $ctx  = new Meprmf_Screen_Context('memberpress-members', 'u.ID');
         $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists([], $ctx, $this->core_field_defs());
 
-        $this->assertCount(2, $args);
-        $this->assertStringContainsString('m.created_at', $args[0]);
+        $this->assertCount(1, $args);
+        $this->assertStringContainsString('EXISTS', $args[0]);
+        $this->assertStringContainsString('wp_mepr_members', $args[0]);
         $this->assertStringContainsString('2026-01-01', $args[0]);
-        $this->assertStringContainsString('m.created_at', $args[1]);
-        $this->assertStringContainsString('2026-12-31', $args[1]);
+        $this->assertStringContainsString('2026-12-31', $args[0]);
+        $this->assertStringContainsString('u.ID', $args[0]);
     }
 
     /**
@@ -274,5 +275,146 @@ class MeprPredicateBuilderTest extends TestCase
         $this->assertCount(1, $args);
         $this->assertStringContainsString('tr.status', $args[0]);
         $this->assertStringContainsString("'complete'", $args[0]);
+    }
+
+    public function test_transactions_confirmed_txn_status_filter()
+    {
+        $_GET['mpmt_txn_status'] = 'confirmed';
+
+        $fields = $this->transactions_core_field_defs();
+        $fields[] = [
+            'param'     => 'mpmt_txn_status',
+            'label'     => 'Txn status',
+            'type'      => 'select',
+            'source'    => 'mepr_transaction',
+            'predicate' => 'txn_status',
+            'options'   => [ 'confirmed' => 'Confirmed' ],
+        ];
+
+        $ctx  = new Meprmf_Screen_Context('memberpress-trans', 'tr.user_id');
+        $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists([], $ctx, $fields);
+
+        $this->assertCount(1, $args);
+        $this->assertStringContainsString("'confirmed'", $args[0]);
+    }
+
+    public function test_transactions_gateway_filter()
+    {
+        if (! class_exists('MeprOptions', false)) {
+            eval(
+                'class MeprOptions {
+                    public static function fetch() { return new self(); }
+                    public function payment_methods() {
+                        return [ "manual" => (object) [ "label" => "Manual", "name" => "Manual" ] ];
+                    }
+                }'
+            );
+        }
+
+        $_GET['mpmt_gateway'] = 'manual';
+
+        $fields = $this->transactions_core_field_defs();
+        $fields[] = [
+            'param'     => 'mpmt_gateway',
+            'label'     => 'Gateway',
+            'type'      => 'select',
+            'source'    => 'mepr_transaction',
+            'predicate' => 'gateway',
+            'options'   => [ 'manual' => 'Manual' ],
+        ];
+
+        $ctx  = new Meprmf_Screen_Context('memberpress-trans', 'tr.user_id');
+        $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists([], $ctx, $fields);
+
+        $this->assertCount(1, $args);
+        $this->assertStringContainsString('tr.gateway', $args[0]);
+        $this->assertStringContainsString("'manual'", $args[0]);
+    }
+
+    public function test_transactions_created_date_range()
+    {
+        $_GET['mpmt_created_from'] = '2026-02-01';
+        $_GET['mpmt_created_to']   = '2026-02-28';
+
+        $fields = $this->transactions_core_field_defs();
+        $fields[] = [
+            'param'     => 'mpmt_created_from',
+            'label'     => 'Created from',
+            'type'      => 'date',
+            'source'    => 'mepr_transaction',
+            'predicate' => 'created_from',
+        ];
+        $fields[] = [
+            'param'     => 'mpmt_created_to',
+            'label'     => 'Created to',
+            'type'      => 'date',
+            'source'    => 'mepr_transaction',
+            'predicate' => 'created_to',
+        ];
+
+        $ctx  = new Meprmf_Screen_Context('memberpress-trans', 'tr.user_id');
+        $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists([], $ctx, $fields);
+
+        $this->assertCount(1, $args);
+        $this->assertStringContainsString('tr.created_at', $args[0]);
+        $this->assertStringContainsString('2026-02-01', $args[0]);
+        $this->assertStringContainsString('2026-02-28', $args[0]);
+    }
+
+    public function test_transactions_row_inactive_access()
+    {
+        $_GET['mpmt_access'] = 'inactive';
+
+        $ctx  = new Meprmf_Screen_Context('memberpress-trans', 'tr.user_id');
+        $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists([], $ctx, $this->transactions_core_field_defs());
+
+        $this->assertCount(1, $args);
+        $this->assertStringContainsString('tr.expires_at', $args[0]);
+        $this->assertStringNotContainsString('NOT EXISTS', $args[0]);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function lifetimes_core_field_defs()
+    {
+        $fields = $this->transactions_core_field_defs();
+        $out    = [];
+        foreach ($fields as $field) {
+            if (! empty($field['param']) && is_string($field['param'])) {
+                $field['param'] = 'mpml_' . substr($field['param'], strlen('mpmt_'));
+            }
+            $out[] = $field;
+        }
+
+        return $out;
+    }
+
+    public function test_lifetimes_row_product_and_sub_status()
+    {
+        $_GET['mpml_product']    = '3';
+        $_GET['mpml_sub_status'] = 'cancelled';
+
+        $ctx  = new Meprmf_Screen_Context('memberpress-lifetimes', 'txn.user_id');
+        $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists([], $ctx, $this->lifetimes_core_field_defs());
+
+        $this->assertGreaterThanOrEqual(2, count($args));
+        $combined = implode("\n", $args);
+        $this->assertStringContainsString('txn.product_id', $combined);
+        $this->assertStringContainsString('wp_mepr_subscriptions', $combined);
+        $this->assertStringContainsString("'cancelled'", $combined);
+    }
+
+    public function test_combined_access_and_product_on_members()
+    {
+        $_GET['mpm_product'] = '9';
+        $_GET['mpm_access']  = 'active';
+
+        $ctx  = new Meprmf_Screen_Context('memberpress-members', 'u.ID');
+        $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists([], $ctx, $this->core_field_defs());
+
+        $this->assertCount(1, $args);
+        $this->assertStringContainsString('product_id', $args[0]);
+        $this->assertStringContainsString('9', $args[0]);
     }
 }
