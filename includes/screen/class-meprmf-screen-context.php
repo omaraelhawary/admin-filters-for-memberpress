@@ -118,4 +118,57 @@ class Meprmf_Screen_Context
             || $this->is_lifetimes()
             || $this->is_transactions();
     }
+
+    /**
+     * Whether MemberPress table filters (membership, access, dates) apply on this screen.
+     *
+     * @return bool
+     */
+    public function supports_core_filters()
+    {
+        return $this->supports_meta_filters_list();
+    }
+
+    /**
+     * GET param prefix for core filters on this screen (mpm_, mpmt_, mpms_, mpml_).
+     *
+     * @return string Empty when unsupported.
+     */
+    public function get_core_filter_param_prefix()
+    {
+        if ($this->is_members()) {
+            return 'mpm_';
+        }
+        if ($this->is_transactions()) {
+            return 'mpmt_';
+        }
+        if ($this->is_subscriptions_recurring()) {
+            return 'mpms_';
+        }
+        if ($this->is_lifetimes()) {
+            return 'mpml_';
+        }
+
+        return '';
+    }
+
+    /**
+     * Primary list-table row alias for row-scoped predicates (not Members).
+     *
+     * @return string e.g. tr, sub, txn, or empty on Members.
+     */
+    public function get_primary_row_alias()
+    {
+        if ($this->is_transactions()) {
+            return 'tr';
+        }
+        if ($this->is_subscriptions_recurring()) {
+            return 'sub';
+        }
+        if ($this->is_lifetimes()) {
+            return 'txn';
+        }
+
+        return '';
+    }
 }

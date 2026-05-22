@@ -139,11 +139,9 @@ class Meprmf_Plugin
             $args = Meprmf_Predicate_Builder::append_usermeta_exists($args, $ctx, $meta_valid);
         }
 
-        if ($ctx->is_members()) {
-            $core_valid = Meprmf_Filter_Registry::get_normalized_core_fields_for_members();
-            if (! empty($core_valid)) {
-                $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists($args, $ctx, $core_valid);
-            }
+        $core_valid = Meprmf_Filter_Registry::get_normalized_core_fields_for_context($ctx);
+        if (! empty($core_valid)) {
+            $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists($args, $ctx, $core_valid);
         }
 
         return $args;

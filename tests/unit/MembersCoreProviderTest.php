@@ -8,6 +8,8 @@
 namespace Meprmf\Tests\Unit;
 
 use Meprmf_Members_Core_Provider;
+use Meprmf_Screen;
+use Meprmf_Screen_Context;
 use Meprmf_Util;
 use PHPUnit\Framework\TestCase;
 
@@ -27,6 +29,22 @@ class MembersCoreProviderTest extends TestCase
                     public static $pending_str = "pending";
                     public static $cancelled_str = "cancelled";
                     public static $suspended_str = "suspended";
+                }'
+            );
+        }
+        if (! class_exists('MeprTransaction', false)) {
+            eval(
+                'class MeprTransaction {
+                    public static $payment_str = "payment";
+                    public static $sub_account_str = "sub_account";
+                    public static $woo_txn_str = "wc_transaction";
+                    public static $fallback_str = "fallback";
+                    public static $complete_str = "complete";
+                    public static $subscription_confirmation_str = "subscription_confirmation";
+                    public static $confirmed_str = "confirmed";
+                    public static $pending_str = "pending";
+                    public static $refunded_str = "refunded";
+                    public static $failed_str = "failed";
                 }'
             );
         }
@@ -69,6 +87,64 @@ class MembersCoreProviderTest extends TestCase
         $this->assertIsArray($product);
         $this->assertSame('mepr_transaction', $product['source']);
         $this->assertArrayHasKey(5, $product['options']);
+    }
+
+    public function test_remap_core_field_params_for_transactions()
+    {
+        require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen-context.php';
+        require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen.php';
+        require_once dirname(__DIR__, 2) . '/includes/filters/providers/class-meprmf-members-core-provider.php';
+
+        $ctx    = new Meprmf_Screen_Context(Meprmf_Screen::PAGE_TRANSACTIONS, 'tr.user_id');
+        $fields = Meprmf_Members_Core_Provider::get_core_filter_fields_for_context($ctx);
+        $params = array_column($fields, 'param');
+
+        $this->assertContains('mpmt_product', $params);
+        $this->assertContains('mpmt_txn_status', $params);
+        $this->assertContains('mpmt_created_from', $params);
+        $this->assertNotContains('mpm_product', $params);
+        $this->assertNotContains('mpm_member_status', $params);
+    }
+
+    public function test_transactions_includes_gateway_when_payment_methods_exist()
+    {
+        require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen-context.php';
+        require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen.php';
+        require_once dirname(__DIR__, 2) . '/includes/filters/providers/class-meprmf-members-core-provider.php';
+
+        if (! class_exists('MeprOptions', false)) {
+            eval(
+                'class MeprOptions {
+                    public $custom_fields = [];
+                    public $show_address_fields = false;
+                    public $show_address_on_account = true;
+                    public $address_fields = [];
+                    public static function fetch() { return new self(); }
+                    public function payment_methods() {
+                        return [ "manual" => (object) [ "label" => "Manual", "name" => "Manual" ] ];
+                    }
+                }'
+            );
+        }
+
+        $ctx    = new Meprmf_Screen_Context(Meprmf_Screen::PAGE_TRANSACTIONS, 'tr.user_id');
+        $fields = Meprmf_Members_Core_Provider::get_core_filter_fields_for_context($ctx);
+        $params = array_column($fields, 'param');
+
+        $this->assertContains('mpmt_gateway', $params);
+    }
+
+    public function test_members_includes_member_status_field()
+    {
+        require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen-context.php';
+        require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen.php';
+        require_once dirname(__DIR__, 2) . '/includes/filters/providers/class-meprmf-members-core-provider.php';
+
+        $ctx    = new Meprmf_Screen_Context(Meprmf_Screen::PAGE_MEMBERS, 'u.ID');
+        $fields = Meprmf_Members_Core_Provider::get_core_filter_fields_for_context($ctx);
+        $params = array_column($fields, 'param');
+
+        $this->assertContains('mpm_member_status', $params);
     }
 
     public function test_normalize_core_filter_fields_requires_source()

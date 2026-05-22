@@ -79,6 +79,7 @@ class MeprPredicateBuilderTest extends TestCase
                 'class MeprDb {
                     public $transactions = "wp_mepr_transactions";
                     public $subscriptions = "wp_mepr_subscriptions";
+                    public $members = "wp_mepr_members";
                     public static function fetch() {
                         return new self();
                     }
@@ -119,13 +120,13 @@ class MeprPredicateBuilderTest extends TestCase
     private function core_field_defs()
     {
         return [
-            [ 'param' => 'mpm_product', 'label' => 'Membership', 'type' => 'select', 'source' => 'mepr_transaction', 'options' => [ 1 => 'Plan' ] ],
-            [ 'param' => 'mpm_access', 'label' => 'Access', 'type' => 'select', 'source' => 'mepr_transaction', 'options' => [ 'active' => 'Active' ] ],
-            [ 'param' => 'mpm_sub_status', 'label' => 'Sub', 'type' => 'select', 'source' => 'mepr_subscription', 'options' => [ 'active' => 'Active' ] ],
-            [ 'param' => 'mpm_exp_from', 'label' => 'From', 'type' => 'date', 'source' => 'mepr_transaction' ],
-            [ 'param' => 'mpm_exp_to', 'label' => 'To', 'type' => 'date', 'source' => 'mepr_transaction' ],
-            [ 'param' => 'mpm_member_from', 'label' => 'MF', 'type' => 'date', 'source' => 'mepr_member' ],
-            [ 'param' => 'mpm_member_to', 'label' => 'MT', 'type' => 'date', 'source' => 'mepr_member' ],
+            [ 'param' => 'mpm_product', 'label' => 'Membership', 'type' => 'select', 'source' => 'mepr_transaction', 'predicate' => 'product', 'options' => [ 1 => 'Plan' ] ],
+            [ 'param' => 'mpm_access', 'label' => 'Access', 'type' => 'select', 'source' => 'mepr_transaction', 'predicate' => 'access', 'options' => [ 'active' => 'Active' ] ],
+            [ 'param' => 'mpm_sub_status', 'label' => 'Sub', 'type' => 'select', 'source' => 'mepr_subscription', 'predicate' => 'sub_status', 'options' => [ 'active' => 'Active' ] ],
+            [ 'param' => 'mpm_exp_from', 'label' => 'From', 'type' => 'date', 'source' => 'mepr_transaction', 'predicate' => 'exp_from' ],
+            [ 'param' => 'mpm_exp_to', 'label' => 'To', 'type' => 'date', 'source' => 'mepr_transaction', 'predicate' => 'exp_to' ],
+            [ 'param' => 'mpm_member_from', 'label' => 'MF', 'type' => 'date', 'source' => 'mepr_member', 'predicate' => 'member_from' ],
+            [ 'param' => 'mpm_member_to', 'label' => 'MT', 'type' => 'date', 'source' => 'mepr_member', 'predicate' => 'member_to' ],
         ];
     }
 
@@ -182,13 +183,96 @@ class MeprPredicateBuilderTest extends TestCase
         $this->assertStringContainsString('2026-12-31', $args[1]);
     }
 
-    public function test_skips_on_non_members_context()
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function transactions_core_field_defs()
     {
-        $_GET['mpm_product'] = '1';
+        $fields = $this->core_field_defs();
+        $out    = [];
+        foreach ($fields as $field) {
+            if (! empty($field['param']) && is_string($field['param'])) {
+                $field['param'] = 'mpmt_' . substr($field['param'], strlen('mpm_'));
+            }
+            $out[] = $field;
+        }
 
-        $ctx  = new Meprmf_Screen_Context('memberpress-subscriptions', 'u.ID');
-        $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists([], $ctx, $this->core_field_defs());
+        return $out;
+    }
 
-        $this->assertSame([], $args);
+    public function test_transactions_row_product_filter()
+    {
+        $_GET['mpmt_product'] = '7';
+
+        $ctx  = new Meprmf_Screen_Context('memberpress-trans', 'tr.user_id');
+        $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists([], $ctx, $this->transactions_core_field_defs());
+
+        $this->assertCount(1, $args);
+        $this->assertStringContainsString('tr.product_id', $args[0]);
+        $this->assertStringContainsString('7', $args[0]);
+    }
+
+    public function test_subscriptions_row_status_filter()
+    {
+        $_GET['mpms_sub_status'] = 'active';
+
+        $fields = $this->transactions_core_field_defs();
+        $subs   = [];
+        foreach ($fields as $field) {
+            if (! empty($field['param']) && is_string($field['param'])) {
+                $field['param'] = 'mpms_' . substr($field['param'], strlen('mpmt_'));
+            }
+            $subs[] = $field;
+        }
+
+        $ctx  = new Meprmf_Screen_Context('memberpress-subscriptions', 'sub.user_id');
+        $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists([], $ctx, $subs);
+
+        $this->assertCount(1, $args);
+        $this->assertStringContainsString('sub.status', $args[0]);
+        $this->assertStringContainsString("'active'", $args[0]);
+    }
+
+    public function test_members_member_status_expired_clause()
+    {
+        $_GET['mpm_member_status'] = 'expired';
+
+        $fields = $this->core_field_defs();
+        $fields[] = [
+            'param'     => 'mpm_member_status',
+            'label'     => 'Member status',
+            'type'      => 'select',
+            'source'    => 'mepr_member',
+            'predicate' => 'member_status',
+            'options'   => [ 'expired' => 'Expired' ],
+        ];
+
+        $ctx  = new Meprmf_Screen_Context('memberpress-members', 'u.ID');
+        $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists([], $ctx, $fields);
+
+        $this->assertCount(1, $args);
+        $this->assertStringContainsString('inactive_memberships', $args[0]);
+    }
+
+    public function test_transactions_txn_status_filter()
+    {
+        $_GET['mpmt_txn_status'] = 'complete';
+
+        $fields = $this->transactions_core_field_defs();
+        $fields[] = [
+            'param'     => 'mpmt_txn_status',
+            'label'     => 'Txn status',
+            'type'      => 'select',
+            'source'    => 'mepr_transaction',
+            'predicate' => 'txn_status',
+            'options'   => [ 'complete' => 'Complete' ],
+        ];
+
+        $ctx  = new Meprmf_Screen_Context('memberpress-trans', 'tr.user_id');
+        $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists([], $ctx, $fields);
+
+        $this->assertCount(1, $args);
+        $this->assertStringContainsString('tr.status', $args[0]);
+        $this->assertStringContainsString("'complete'", $args[0]);
     }
 }

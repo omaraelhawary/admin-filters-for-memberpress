@@ -53,12 +53,18 @@
 	}
 
 	/**
-	 * Bookmarked ?mpm_access=expired URLs still filter; rewrite to inactive so the dropdown matches.
+	 * Bookmarked ?*_access=expired URLs still filter; rewrite to inactive so the dropdown matches.
 	 */
 	function canonicalizeLegacyAccessParam() {
 		var u = new URL(window.location.href);
-		if (u.searchParams.get('mpm_access') === 'expired') {
-			u.searchParams.set('mpm_access', 'inactive');
+		var changed = false;
+		[ 'mpm_access', 'mpmt_access', 'mpms_access', 'mpml_access' ].forEach(function (key) {
+			if (u.searchParams.get(key) === 'expired') {
+				u.searchParams.set(key, 'inactive');
+				changed = true;
+			}
+		});
+		if (changed) {
 			history.replaceState(null, '', u.toString());
 		}
 	}

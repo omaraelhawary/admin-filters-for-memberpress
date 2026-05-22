@@ -45,7 +45,26 @@ class Meprmf_Filter_Registry
      */
     public static function get_normalized_core_fields_for_members()
     {
-        return Meprmf_Util::normalize_core_filter_fields(Meprmf_Members_Core_Provider::get_core_filter_fields());
+        return self::get_normalized_core_fields_for_context(
+            new Meprmf_Screen_Context(Meprmf_Screen::PAGE_MEMBERS, 'u.ID')
+        );
+    }
+
+    /**
+     * Normalized core MemberPress table filter fields for a list screen.
+     *
+     * @param Meprmf_Screen_Context $ctx Context.
+     * @return array<int, array<string, mixed>>
+     */
+    public static function get_normalized_core_fields_for_context(Meprmf_Screen_Context $ctx)
+    {
+        if (! $ctx->supports_core_filters()) {
+            return [];
+        }
+
+        return Meprmf_Util::normalize_core_filter_fields(
+            Meprmf_Members_Core_Provider::get_core_filter_fields_for_context($ctx)
+        );
     }
 
     /**
@@ -75,10 +94,7 @@ class Meprmf_Filter_Registry
         }
 
         $meta = self::get_normalized_meta_fields_for_context($ctx);
-        if ($ctx->is_members()) {
-            return array_merge(self::get_normalized_core_fields_for_members(), $meta);
-        }
 
-        return $meta;
+        return array_merge(self::get_normalized_core_fields_for_context($ctx), $meta);
     }
 }

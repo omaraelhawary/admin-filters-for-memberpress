@@ -25,7 +25,7 @@
 | --- | --- |
 | **Contributors** | Omar ElHawary — [WordPress.org profile](https://profiles.wordpress.org/omarelhawary/) |
 | **Requires** | WordPress 5.6+, PHP 8.1+, active [MemberPress](https://memberpress.com/) |
-| **Current release** | 1.8.0 (see plugin header in `admin-filters-for-memberpress.php`) |
+| **Current release** | 1.9.0 (see plugin header in `admin-filters-for-memberpress.php`) |
 | **Text domain** | `admin-filters-for-memberpress` (matches the plugin slug) |
 | **License** | GPLv2 or later |
 
@@ -39,10 +39,13 @@ The plugin lives in **`admin-filters-for-memberpress/`** with bootstrap **`admin
 
 ![MemberPress Members screen with the Filters panel open — address fields, custom fields, and Apply filters](.github/readme-assets/members-table-filters.png)
 
+The same **Filters** panel appears on **Transactions**, **Subscriptions (Recurring)**, and **Non-Recurring (Lifetimes)** with screen-appropriate fields (see table below).
+
 ## Features
 
-- **Members, Subscriptions, Lifetimes, and Transactions** — the same address and **Settings → Fields** meta filters, scoped to each list’s user column via `mepr_list_table_args`.
-- **Members list — MemberPress table filters** (`mpm_*` params): membership (product), **Active / Inactive** access (transaction-based, aligned with MemberPress access logic), subscription status, expires date range, and member-since date range — via `EXISTS` on `mepr_transactions`, `mepr_subscriptions`, and `mepr_members` (not only `wp_usermeta`).
+- **Members, Subscriptions, Lifetimes, and Transactions** — address and **Settings → Fields** meta filters on every supported list, scoped to each list’s user column via `mepr_list_table_args`.
+- **MemberPress table filters on every supported list** — membership (product), **Active / Inactive** access, subscription status, expires date range, and member-since date range. On **Members** (`mpm_*`), predicates use `EXISTS` on `mepr_transactions`, `mepr_subscriptions`, and `mepr_members`. On **Transactions** (`mpmt_*`), **Subscriptions** (`mpms_*`), and **Lifetimes** (`mpml_*`), the same controls apply to the list row (e.g. `tr.product_id`, `sub.status`, `expiring_txn.expires_at`).
+- **Screen-specific filters in the panel** (in addition to MemberPress’s native toolbar): see [Filters by screen](#filters-by-screen). Native toolbar filters (`status`, `membership`, `gateway`, date presets) still work alongside the panel; all active conditions are combined (AND).
 - Filter by the six built-in MemberPress address fields when address capture is enabled for signup/checkout and/or the account page (`meprmf_include_address_filters` to override).
 - Automatically expose every **MemberPress custom field** (MemberPress → Settings → Fields) with control types mapped to exact, contains, or checkbox match behavior.
 - **Floating Filters panel** on supported screens (field visibility in the browser via `localStorage`; resets when filter params change so new fields are not stuck hidden). Filter `meprmf_use_floating_meta_filters_panel` per screen; Members still respects `meprmf_use_floating_members_panel`.
@@ -63,7 +66,22 @@ The plugin lives in **`admin-filters-for-memberpress/`** with bootstrap **`admin
 
 Open **MemberPress → Members** (or **Subscriptions**, **Lifetimes**, or **Transactions**). Use the **Filters** control, set values, then **Apply filters**. MemberPress **Go** still runs the native search; it does not read the plugin panel fields.
 
-On **Members**, the floating panel includes **Membership**, **Access**, **Subscription status**, and date filters (`mpm_*`) in addition to address/custom-field filters (`mpf_*`). MemberPress’s native **Filter by** membership/status dropdowns in the toolbar still work; if you use both native and `mpm_*` filters together, all conditions are combined (AND). For precise “who’s on this plan with active access?” queries, prefer the panel’s `mpm_*` filters alone.
+Use the **Filters** button above the table, choose criteria, then **Apply filters**. For “who has active access on this plan?” style queries on **Members**, prefer **Access** and **Membership** in the panel rather than mixing with MemberPress’s native **status** dropdown (they use different rules).
+
+### Filters by screen
+
+| Filter | Members `mpm_*` | Transactions `mpmt_*` | Subscriptions `mpms_*` | Lifetimes `mpml_*` |
+| --- | :---: | :---: | :---: | :---: |
+| Membership | ✓ | ✓ | ✓ | ✓ |
+| Access (active / inactive) | ✓ (user) | ✓ (row) | ✓ (row) | ✓ (row) |
+| Subscription status | ✓ | ✓ (linked sub) | ✓ (`sub.status`) | ✓ (linked sub) |
+| Expires from / to | ✓ | ✓ | ✓ | ✓ |
+| Member since from / to | ✓ | ✓ | ✓ | ✓ |
+| Member status (active / inactive / expired / non-members) | ✓ | — | — | — |
+| Transaction status | — | ✓ | — | ✓ |
+| Created from / to | — | ✓ | — | ✓ |
+| Gateway | — | ✓ | ✓ | ✓ |
+| Address + custom fields (`mpf_*` / `mpfs_*` / `mpft_*`) | ✓ | ✓ | ✓ | ✓ |
 
 **Access vs subscription status**
 
@@ -74,6 +92,8 @@ On **Members**, the floating panel includes **Membership**, **Access**, **Subscr
 | **Subscription status → Active / Pending** | Members with at least one **recurring subscription** row in that status (optionally for the selected membership). |
 | **Cancelled subscription** | Members with at least one subscription marked **cancelled** in `mepr_subscriptions`. Billing has stopped; they may still have **Active** access until the paid period ends — use **Access** for that. |
 | **Paused subscription** | Members with at least one subscription marked **suspended** in MemberPress (billing paused). Access depends on transactions; check **Access** if you need who can still view content today. |
+
+| **Member status** (Members only) | Aligns with MemberPress **Filter by → status**: active, inactive, expired, or non-members (`mepr_members` aggregates). Optional **Membership** narrows active vs inactive membership lists the same way as core MemberPress. |
 
 To use the previous inline toolbar on Members: `add_filter( 'meprmf_use_floating_members_panel', '__return_false' );`
 
@@ -102,33 +122,38 @@ Each meta field supports `param`, `meta_key`, `label`, `type` (`country`, `text`
 | Subscriptions / Lifetimes | `meprmf_subscriptions_meta_filters_fields` | `mpfs_*` |
 | Transactions | `meprmf_transactions_meta_filters_fields` | `mpft_*` |
 
-Core Members table filters use `meprmf_members_core_filters_fields` (fields need `param`, `label`, `type`, `source` of `mepr_transaction`, `mepr_subscription`, or `mepr_member`).
+**Core table filter hooks** (fields need `param`, `label`, `type`, `source` of `mepr_transaction`, `mepr_subscription`, or `mepr_member`, plus optional `predicate` for built-in SQL):
 
-### Adding custom MemberPress-table predicates (Members list only)
+| Screen | Hook | `param` prefix |
+| --- | --- | --- |
+| Members | `meprmf_members_core_filters_fields` | `mpm_*` |
+| Transactions | `meprmf_transactions_core_filters_fields` | `mpmt_*` |
+| Subscriptions | `meprmf_subscriptions_core_filters_fields` | `mpms_*` |
+| Lifetimes | `meprmf_lifetimes_core_filters_fields` | `mpml_*` |
 
-Use `meprmf_mepr_predicate_fragments` to inject additional WHERE fragments after core-field predicates are built:
+### Adding custom MemberPress-table predicates
+
+Use `meprmf_mepr_predicate_fragments` to inject additional WHERE fragments after core-field predicates are built (any supported list screen):
 
 ```php
 add_filter( 'meprmf_mepr_predicate_fragments', function ( $args, $ctx, $values, $valid ) {
-    if ( ! $ctx->is_members() ) {
+    if ( ! $ctx->is_transactions() || empty( $values['mpmt_custom_thing'] ) ) {
         return $args;
     }
-    if ( ! empty( $values['mpm_custom_thing'] ) ) {
-        global $wpdb;
-        $args[] = $wpdb->prepare( 'EXISTS (SELECT 1 FROM ... WHERE ...)', /* ... */ );
-    }
+    global $wpdb;
+    $args[] = $wpdb->prepare( 'tr.some_column = %s', $values['mpmt_custom_thing'] );
     return $args;
 }, 10, 4 );
 ```
 
-Pair this with `meprmf_members_core_filters_fields` to register the UI field.
+Pair this with the matching `meprmf_*_core_filters_fields` hook for that screen to register the UI field.
 
 **Other hooks:** `meprmf_use_floating_meta_filters_panel`, `meprmf_use_floating_members_panel`, `meprmf_include_address_filters`, `meprmf_compact_filters_threshold` (default `6`).
 
 ## How it works
 
 - `mepr_table_controls_search` — renders filter controls (`Meprmf_Toolbar_Renderer`).
-- `mepr_list_table_args` — appends meta `EXISTS` predicates (`Meprmf_Predicate_Builder`) and, on Members, MemberPress table `EXISTS` predicates (`Meprmf_Mepr_Predicate_Builder`).
+- `mepr_list_table_args` — appends meta `EXISTS` predicates (`Meprmf_Predicate_Builder`) and MemberPress table predicates (`Meprmf_Mepr_Predicate_Builder`: user `EXISTS` on Members, row-scoped on other lists).
 
 Procedural `meprmf_*` functions in `compat/legacy-functions.php` delegate to `includes/` classes.
 
@@ -150,9 +175,17 @@ Uses `tests/bootstrap-unit.php` (no full WordPress test database). CI runs on PH
 
 ## Changelog
 
+### 1.9.0
+
+- **Core table filters on all four lists:** membership, access, subscription status, expires range, and member-since range on **Transactions**, **Subscriptions**, and **Lifetimes** (`mpmt_*`, `mpms_*`, `mpml_*`), with row-scoped SQL on each list’s primary table.
+- **Screen-specific panel filters:** **Members** — member status (active / inactive / expired / non-members); **Transactions & Lifetimes** — transaction status, gateway, created date range; **Subscriptions & Lifetimes** — gateway (from `MeprOptions::payment_methods()`).
+- Hooks `meprmf_transactions_core_filters_fields`, `meprmf_subscriptions_core_filters_fields`, and `meprmf_lifetimes_core_filters_fields` for extensions.
+- `meprmf_mepr_predicate_fragments` applies on every supported list context, not only Members.
+- README: per-screen filter matrix and updated extension docs.
+
 ### 1.8.0
 
-- **Members list — MemberPress table filters:** filter by membership (product), active/expired access (transactions), subscription status, expires date range, and member-since date range via `EXISTS` on `mepr_transactions`, `mepr_subscriptions`, and `mepr_members`.
+- **Members list — MemberPress table filters:** filter by membership (product), active/inactive access (transactions), subscription status, expires date range, and member-since date range via `EXISTS` on `mepr_transactions`, `mepr_subscriptions`, and `mepr_members`.
 - Hook `meprmf_members_core_filters_fields` and `meprmf_mepr_predicate_fragments` for extensions.
 - Debug panel shows both meta and MemberPress table predicate fragments when `WP_DEBUG` is on.
 
@@ -234,6 +267,10 @@ Uses `tests/bootstrap-unit.php` (no full WordPress test database). CI runs on PH
 - Compact collapsible filter layout when many filters are active (threshold filterable in later releases).
 
 ## Upgrade notices
+
+### 1.9.0
+
+Feature release: core MemberPress table filters and screen-specific fields (member status, transaction status, gateway, created dates) on Transactions, Subscriptions, and Lifetimes as well as Members. No database migration; hard-refresh admin or clear **Customize** visibility if new fields do not appear.
 
 ### 1.8.0
 

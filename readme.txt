@@ -4,7 +4,7 @@ Tags: memberpress, members, admin, filters, membership
 Requires at least: 5.6
 Tested up to: 6.9
 Requires PHP: 8.1
-Stable tag: 1.8.0
+Stable tag: 1.9.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -28,7 +28,7 @@ Filtering reads values you or your administrators submit on those admin lists (s
 = What you get =
 
 * Extra filter controls on the **MemberPress -> Members**, **Subscriptions**, **Lifetimes**, and **Transactions** admin lists so you can narrow rows by address, registration fields, and (optionally) other stored member data you wire in with code.
-* On **Members**, additional filters query MemberPress tables (memberships, access, subscriptions, dates) — not only wp_usermeta.
+* On every supported list, additional filters query MemberPress tables (memberships, access, subscriptions, dates) and list-specific fields such as transaction status, gateway, and member status — not only wp_usermeta.
 * Each list still works like MemberPress; this plugin only adds filtering options for administrators.
 
 == Installation ==
@@ -81,9 +81,16 @@ Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-m
 
 == Changelog ==
 
+= 1.9.0 =
+
+* **Core table filters on all four lists:** membership, access, subscription status, expires range, and member-since range on Transactions, Subscriptions, and Lifetimes (mpmt_*, mpms_*, mpml_*), with row-scoped SQL.
+* **Screen-specific panel filters:** Members — member status (active / inactive / expired / non-members); Transactions and Lifetimes — transaction status, gateway, created date range; Subscriptions and Lifetimes — gateway.
+* Hooks meprmf_transactions_core_filters_fields, meprmf_subscriptions_core_filters_fields, and meprmf_lifetimes_core_filters_fields for extensions.
+* meprmf_mepr_predicate_fragments runs on every supported list context.
+
 = 1.8.0 =
 
-* **Members list — MemberPress table filters:** filter by membership (product), active/expired access (transactions), subscription status, expires date range, and member-since date range via EXISTS on mepr_transactions, mepr_subscriptions, and mepr_members.
+* **Members list — MemberPress table filters:** filter by membership (product), active/inactive access (transactions), subscription status, expires date range, and member-since date range via EXISTS on mepr_transactions, mepr_subscriptions, and mepr_members.
 * Hooks meprmf_members_core_filters_fields and meprmf_mepr_predicate_fragments for extensions.
 * Debug panel shows both meta and MemberPress table predicate fragments when WP_DEBUG is on.
 
@@ -166,6 +173,10 @@ Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-m
 * Compact collapsible filter layout when many filters are active (threshold filterable in later releases).
 
 == Upgrade Notice ==
+
+= 1.9.0 =
+
+Feature release: core table filters and screen-specific fields (member status, transaction status, gateway, created dates) on Transactions, Subscriptions, and Lifetimes as well as Members. No database migration.
 
 = 1.8.0 =
 
