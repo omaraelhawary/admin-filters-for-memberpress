@@ -44,6 +44,7 @@ add_action(
             return;
         }
 
+        Meprmf_Settings::init();
         Meprmf_Plugin::init();
     },
     20

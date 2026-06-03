@@ -61,11 +61,18 @@ class Meprmf_Debug_Panel
             }
         }
 
-        echo "\n<!-- Meprmf Debug: predicates=" . (int) count($all) . " -->\n";
+        echo "\n<!-- Admin Filters for MemberPress debug: predicates=" . (int) count($all) . " -->\n";
         if (! empty($all)) {
-            echo '<div class="notice notice-info meprmf-debug" style="margin:12px;"><p><strong>Meprmf (WP_DEBUG)</strong></p><pre style="white-space:pre-wrap;max-height:240px;overflow:auto;">';
+            echo '<div class="notice notice-info meprmf-debug" style="margin:12px;">';
+            echo '<p><strong>' . esc_html__('Admin Filters for MemberPress — debug (WP_DEBUG)', 'admin-filters-for-memberpress') . '</strong></p>';
+            echo '<p class="description">' . esc_html__('SQL predicate fragments applied to this MemberPress list table.', 'admin-filters-for-memberpress') . '</p>';
+            echo '<pre style="white-space:pre-wrap;max-height:240px;overflow:auto;">';
             foreach ($all as $i => $sql) {
-                echo esc_html((string) ( $i + 1 )) . '. ' . esc_html($sql) . "\n";
+                $line = trim((string) $sql);
+                if ('' === $line) {
+                    $line = esc_html__('(empty — $wpdb->prepare failed; check date filter SQL)', 'admin-filters-for-memberpress');
+                }
+                echo esc_html((string) ( $i + 1 )) . '. ' . esc_html($line) . "\n";
             }
             echo '</pre></div>';
         }

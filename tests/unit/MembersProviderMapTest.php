@@ -42,6 +42,43 @@ class MembersProviderMapTest extends TestCase
         $this->assertArrayHasKey('val1', $mapped['options']);
     }
 
+    public function test_date_maps_to_date_exact()
+    {
+        require_once dirname(__DIR__, 2) . '/includes/filters/providers/class-meprmf-members-provider.php';
+
+        $cf             = new \stdClass();
+        $cf->field_key  = 'birthday';
+        $cf->field_name = 'Birthday';
+        $cf->field_type = 'date';
+
+        $mapped = Meprmf_Members_Provider::map_mepr_custom_field_to_filter($cf);
+        $this->assertIsArray($mapped);
+        $this->assertSame('date', $mapped['type']);
+        $this->assertSame('exact', $mapped['match']);
+    }
+
+    public function test_date_maps_to_date_range_when_filter_enabled()
+    {
+        require_once dirname(__DIR__, 2) . '/includes/filters/providers/class-meprmf-members-provider.php';
+
+        \add_filter(
+            'meprmf_custom_date_fields_use_range',
+            static function () {
+                return true;
+            }
+        );
+
+        $cf             = new \stdClass();
+        $cf->field_key  = 'birthday';
+        $cf->field_name = 'Birthday';
+        $cf->field_type = 'date';
+
+        $mapped = Meprmf_Members_Provider::map_mepr_custom_field_to_filter($cf);
+        $this->assertIsArray($mapped);
+        $this->assertSame('date_range', $mapped['type']);
+        $this->assertArrayNotHasKey('match', $mapped);
+    }
+
     public function test_multiselect_maps_to_contains()
     {
         require_once dirname(__DIR__, 2) . '/includes/filters/providers/class-meprmf-members-provider.php';

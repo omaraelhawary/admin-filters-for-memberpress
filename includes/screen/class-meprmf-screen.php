@@ -80,6 +80,89 @@ class Meprmf_Screen
     }
 
     /**
+     * Screen context for the MemberPress list-table call currently inside MeprDb::list_table().
+     *
+     * Uses the immediate caller of MeprDb::list_table() so predicates are not applied to
+     * unrelated list_table() queries (e.g. upgrade queries) or the wrong model on the same request.
+     *
+     * @return Meprmf_Screen_Context|null
+     */
+    public static function detect_list_table_context()
+    {
+        $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 20);
+        foreach ($trace as $frame) {
+            if (empty($frame['class']) || empty($frame['function'])) {
+                continue;
+            }
+            $ctx = self::context_for_list_table_caller((string) $frame['class'], (string) $frame['function']);
+            if (null !== $ctx) {
+                return $ctx;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Map a MemberPress list_table() caller to a screen context.
+     *
+     * @param string $class    Class name from debug_backtrace.
+     * @param string $function Method name from debug_backtrace.
+     * @return Meprmf_Screen_Context|null
+     */
+    public static function context_for_list_table_caller($class, $function)
+    {
+        $key = $class . '::' . $function;
+
+        $ctx = null;
+
+        switch ($key) {
+            case 'MeprUser::list_table':
+                $ctx = new Meprmf_Screen_Context(self::PAGE_MEMBERS, 'u.ID');
+                break;
+            case 'MeprTransaction::list_table':
+                $ctx = new Meprmf_Screen_Context(self::PAGE_TRANSACTIONS, 'tr.user_id');
+                break;
+            case 'MeprSubscription::subscr_table':
+                $ctx = new Meprmf_Screen_Context(self::PAGE_SUBSCRIPTIONS, 'sub.user_id');
+                break;
+            case 'MeprSubscription::lifetime_subscr_table':
+                $ctx = new Meprmf_Screen_Context(self::PAGE_LIFETIMES, 'txn.user_id');
+                break;
+        }
+
+        if (null !== $ctx) {
+            return $ctx;
+        }
+
+        /**
+         * Map a custom MemberPress list_table() caller to screen context.
+         *
+         * @since 1.9.0
+         * @param Meprmf_Screen_Context|null $ctx     Null when the built-in map has no match.
+         * @param string                     $class   Class from debug_backtrace.
+         * @param string                     $function Method from debug_backtrace.
+         */
+        return apply_filters('meprmf_list_table_caller_context', null, $class, $function);
+    }
+
+    /**
+     * Whether predicates may run for this admin list (list-table caller, page slug, and WP_Screen).
+     *
+     * @param Meprmf_Screen_Context $ctx Context from {@see detect()} (admin page slug).
+     * @return bool
+     */
+    public static function should_apply_list_table_predicates(Meprmf_Screen_Context $ctx)
+    {
+        $list_ctx = self::detect_list_table_context();
+        if (null === $list_ctx || $list_ctx->get_page() !== $ctx->get_page()) {
+            return false;
+        }
+
+        return self::current_wp_screen_matches_context($ctx);
+    }
+
+    /**
      * When WP_Screen is available and identified, ensure it matches the list table
      * for this context (avoids applying predicates to unrelated MeprDb::list_table calls).
      *
@@ -89,12 +172,14 @@ class Meprmf_Screen
     public static function current_wp_screen_matches_context(Meprmf_Screen_Context $ctx)
     {
         if (! function_exists('get_current_screen')) {
-            return true;
+            return false;
         }
         $screen = get_current_screen();
-        if ($screen && ! empty($screen->id)) {
-            return $screen->id === $ctx->get_wp_screen_id();
+        if (! $screen || empty($screen->id)) {
+            // Caller + admin page slug already matched; screen id may be unset early in admin.
+            return true;
         }
-        return true;
+
+        return $screen->id === $ctx->get_wp_screen_id();
     }
 }

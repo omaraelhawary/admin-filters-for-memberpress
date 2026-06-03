@@ -114,16 +114,12 @@ class Meprmf_Mepr_Predicate_Builder
             }
         }
 
-        if (null !== $member_from) {
-            $sql                    = $wpdb->prepare('m.created_at >= %s', $member_from . ' 00:00:00');
-            $args[]                 = $sql;
-            self::$last_fragments[] = $sql;
-        }
-
-        if (null !== $member_to) {
-            $sql                    = $wpdb->prepare('m.created_at <= %s', $member_to . ' 23:59:59');
-            $args[]                 = $sql;
-            self::$last_fragments[] = $sql;
+        if (null !== $member_from || null !== $member_to) {
+            $sql = self::build_member_since_exists($mepr_db->members, $uid, $member_from, $member_to);
+            if ('' !== $sql) {
+                $args[]                 = $sql;
+                self::$last_fragments[] = $sql;
+            }
         }
 
         if (null !== $exp_from || null !== $exp_to) {
@@ -394,6 +390,7 @@ class Meprmf_Mepr_Predicate_Builder
             [
                 MeprTransaction::$pending_str,
                 MeprTransaction::$complete_str,
+                MeprTransaction::$confirmed_str,
                 MeprTransaction::$refunded_str,
                 MeprTransaction::$failed_str,
             ],
@@ -555,6 +552,8 @@ class Meprmf_Mepr_Predicate_Builder
 
     /**
      * Inactive access: had qualifying transactions but none currently grant access.
+     *
+     * Embeds a NOT EXISTS(active) subquery; can be heavy on large transaction tables.
      *
      * @param string $table      Transactions table name.
      * @param string $uid        User id SQL expression.

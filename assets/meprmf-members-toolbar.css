@@ -274,6 +274,40 @@
 	box-sizing: border-box;
 }
 
+.meprmf-date-range {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 8px;
+	width: 100%;
+}
+
+.meprmf-date-range__bound {
+	flex: 1 1 7rem;
+	min-width: 0;
+}
+
+.meprmf-date-range__sep {
+	flex: 0 0 auto;
+	color: #50575e;
+	font-size: 12px;
+	line-height: 1;
+}
+
+.meprmf-filter-panel__customize-option {
+	margin: 12px 0 0;
+	padding-top: 10px;
+	border-top: 1px solid #dcdcde;
+	font-size: 13px;
+}
+
+.meprmf-filter-panel__customize-option label {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	cursor: pointer;
+}
+
 .meprmf-filter-panel__empty {
 	margin: 0 0 8px;
 	font-size: 13px;

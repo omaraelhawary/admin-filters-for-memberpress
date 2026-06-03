@@ -88,7 +88,7 @@ Use the **Filters** button above the table, choose criteria, then **Apply filter
 | Filter | What it shows |
 | --- | --- |
 | **Access → Active** | Members who currently have access to the selected membership (or any membership), based on **transactions** — same rules MemberPress uses for content access (`expires_at` in the future, or lifetime). |
-| **Access → Inactive** | Members who **used to** have access (complete transactions for that product) but **do not** have active access now. |
+| **Access → Inactive** | **Members:** who **used to** have access but **do not** now (user-level `EXISTS`). **Other lists:** label shows **(this row)** — the row’s transaction/subscription access period is expired, not the member’s overall access. |
 | **Subscription status → Active / Pending** | Members with at least one **recurring subscription** row in that status (optionally for the selected membership). |
 | **Cancelled subscription** | Members with at least one subscription marked **cancelled** in `mepr_subscriptions`. Billing has stopped; they may still have **Active** access until the paid period ends — use **Access** for that. |
 | **Paused subscription** | Members with at least one subscription marked **suspended** in MemberPress (billing paused). Access depends on transactions; check **Access** if you need who can still view content today. |
@@ -148,12 +148,14 @@ add_filter( 'meprmf_mepr_predicate_fragments', function ( $args, $ctx, $values, 
 
 Pair this with the matching `meprmf_*_core_filters_fields` hook for that screen to register the UI field.
 
+**Security:** Only append SQL you prepare yourself (`$wpdb->prepare()`). Do not concatenate raw request data into fragments.
+
 **Other hooks:** `meprmf_use_floating_meta_filters_panel`, `meprmf_use_floating_members_panel`, `meprmf_include_address_filters`, `meprmf_compact_filters_threshold` (default `6`).
 
 ## How it works
 
 - `mepr_table_controls_search` — renders filter controls (`Meprmf_Toolbar_Renderer`).
-- `mepr_list_table_args` — appends meta `EXISTS` predicates (`Meprmf_Predicate_Builder`) and MemberPress table predicates (`Meprmf_Mepr_Predicate_Builder`: user `EXISTS` on Members, row-scoped on other lists).
+- `mepr_list_table_args` — appends meta `EXISTS` predicates (`Meprmf_Predicate_Builder`) and MemberPress table predicates (`Meprmf_Mepr_Predicate_Builder`: user `EXISTS` on Members, row-scoped on other lists). Predicates run only when the active `MeprDb::list_table()` caller matches the admin screen (Members / Transactions / Subscriptions / Lifetimes) and `WP_Screen` matches.
 
 Procedural `meprmf_*` functions in `compat/legacy-functions.php` delegate to `includes/` classes.
 
@@ -177,6 +179,11 @@ Uses `tests/bootstrap-unit.php` (no full WordPress test database). CI runs on PH
 
 ### 1.9.0
 
+- **Safer list-table scoping:** predicates apply only when `MeprDb::list_table()` is called from the matching MemberPress model method and `WP_Screen` matches (fail closed if the screen is unknown).
+- **Members “Member since”** uses `EXISTS` on `mepr_members` (same pattern as other lists).
+- **Transaction status** filter includes **Confirmed**.
+- **Row-scoped Access** labels on Transactions, Subscriptions, and Lifetimes clarify “this row” semantics.
+- README: extension SQL security note; expanded Access documentation.
 - **Core table filters on all four lists:** membership, access, subscription status, expires range, and member-since range on **Transactions**, **Subscriptions**, and **Lifetimes** (`mpmt_*`, `mpms_*`, `mpml_*`), with row-scoped SQL on each list’s primary table.
 - **Screen-specific panel filters:** **Members** — member status (active / inactive / expired / non-members); **Transactions & Lifetimes** — transaction status, gateway, created date range; **Subscriptions & Lifetimes** — gateway (from `MeprOptions::payment_methods()`).
 - Hooks `meprmf_transactions_core_filters_fields`, `meprmf_subscriptions_core_filters_fields`, and `meprmf_lifetimes_core_filters_fields` for extensions.
