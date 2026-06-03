@@ -114,18 +114,36 @@ class Meprmf_Screen
     {
         $key = $class . '::' . $function;
 
+        $ctx = null;
+
         switch ($key) {
             case 'MeprUser::list_table':
-                return new Meprmf_Screen_Context(self::PAGE_MEMBERS, 'u.ID');
+                $ctx = new Meprmf_Screen_Context(self::PAGE_MEMBERS, 'u.ID');
+                break;
             case 'MeprTransaction::list_table':
-                return new Meprmf_Screen_Context(self::PAGE_TRANSACTIONS, 'tr.user_id');
+                $ctx = new Meprmf_Screen_Context(self::PAGE_TRANSACTIONS, 'tr.user_id');
+                break;
             case 'MeprSubscription::subscr_table':
-                return new Meprmf_Screen_Context(self::PAGE_SUBSCRIPTIONS, 'sub.user_id');
+                $ctx = new Meprmf_Screen_Context(self::PAGE_SUBSCRIPTIONS, 'sub.user_id');
+                break;
             case 'MeprSubscription::lifetime_subscr_table':
-                return new Meprmf_Screen_Context(self::PAGE_LIFETIMES, 'txn.user_id');
+                $ctx = new Meprmf_Screen_Context(self::PAGE_LIFETIMES, 'txn.user_id');
+                break;
         }
 
-        return null;
+        if (null !== $ctx) {
+            return $ctx;
+        }
+
+        /**
+         * Map a custom MemberPress list_table() caller to screen context.
+         *
+         * @since 1.9.0
+         * @param Meprmf_Screen_Context|null $ctx     Null when the built-in map has no match.
+         * @param string                     $class   Class from debug_backtrace.
+         * @param string                     $function Method from debug_backtrace.
+         */
+        return apply_filters('meprmf_list_table_caller_context', null, $class, $function);
     }
 
     /**
@@ -158,7 +176,8 @@ class Meprmf_Screen
         }
         $screen = get_current_screen();
         if (! $screen || empty($screen->id)) {
-            return false;
+            // Caller + admin page slug already matched; screen id may be unset early in admin.
+            return true;
         }
 
         return $screen->id === $ctx->get_wp_screen_id();

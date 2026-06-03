@@ -351,6 +351,24 @@ class Meprmf_Members_Provider
     }
 
     /**
+     * Whether this screen exposes at least one MemberPress date custom field filter.
+     *
+     * @param Meprmf_Screen_Context $ctx Screen context.
+     * @return bool
+     */
+    public static function context_has_date_custom_fields(Meprmf_Screen_Context $ctx)
+    {
+        foreach (self::get_filter_fields_for_context($ctx) as $field) {
+            $type = isset($field['type']) ? (string) $field['type'] : '';
+            if ('date' === $type || 'date_range' === $type) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * All filter field definitions for Members (cached per request).
      *
      * @return array<int, array<string, mixed>>

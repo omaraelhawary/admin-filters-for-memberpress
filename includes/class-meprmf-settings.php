@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin settings (stored in wp_options).
+ * Plugin settings (per-admin user meta; site-wide constant override).
  *
  * @package MemberPress_Members_Meta_Filters
  */
@@ -15,8 +15,8 @@ if (! defined('ABSPATH')) {
 class Meprmf_Settings
 {
 
-    /** @var string */
-    const OPTION_DATE_CUSTOM_FIELDS_USE_RANGE = 'meprmf_date_custom_fields_use_range';
+    /** @var string Per-user preference (1 = from/to range, 0 = single exact date). */
+    const USER_META_DATE_CUSTOM_FIELDS_USE_RANGE = 'meprmf_date_custom_fields_use_range';
 
     /**
      * Register hooks.
@@ -30,7 +30,7 @@ class Meprmf_Settings
     }
 
     /**
-     * When no snippet/filter overrides, use the stored option (default: on).
+     * When no snippet/filter overrides, use the stored per-user preference (default: on).
      *
      * @param bool        $use_range Current value.
      * @param object|null $cf        MemberPress custom field object or stub.
@@ -48,26 +48,53 @@ class Meprmf_Settings
     /**
      * Whether date custom fields use from / to pickers instead of one exact date.
      *
+     * @param int|null $user_id WordPress user id; defaults to current user.
      * @return bool
      */
-    public static function is_date_custom_fields_use_range_enabled()
+    public static function is_date_custom_fields_use_range_enabled($user_id = null)
     {
         if (defined('MEPRMF_DATE_CUSTOM_FIELDS_USE_RANGE')) {
             return (bool) MEPRMF_DATE_CUSTOM_FIELDS_USE_RANGE;
         }
 
-        return '1' === get_option(self::OPTION_DATE_CUSTOM_FIELDS_USE_RANGE, '1');
+        if (null === $user_id) {
+            $user_id = function_exists('get_current_user_id') ? (int) get_current_user_id() : 0;
+        }
+
+        if ($user_id <= 0) {
+            return true;
+        }
+
+        if (! function_exists('get_user_meta')) {
+            return true;
+        }
+
+        $stored = get_user_meta($user_id, self::USER_META_DATE_CUSTOM_FIELDS_USE_RANGE, true);
+        if (false === $stored || '' === $stored) {
+            return true;
+        }
+
+        return '1' === (string) $stored;
     }
 
     /**
-     * Persist date-range preference.
+     * Persist date-range preference for one admin user.
      *
-     * @param bool $enabled Enabled state.
+     * @param bool     $enabled Enabled state.
+     * @param int|null $user_id WordPress user id; defaults to current user.
      * @return void
      */
-    public static function set_date_custom_fields_use_range_enabled($enabled)
+    public static function set_date_custom_fields_use_range_enabled($enabled, $user_id = null)
     {
-        update_option(self::OPTION_DATE_CUSTOM_FIELDS_USE_RANGE, $enabled ? '1' : '0', false);
+        if (null === $user_id) {
+            $user_id = function_exists('get_current_user_id') ? (int) get_current_user_id() : 0;
+        }
+
+        if ($user_id <= 0 || ! function_exists('update_user_meta')) {
+            return;
+        }
+
+        update_user_meta($user_id, self::USER_META_DATE_CUSTOM_FIELDS_USE_RANGE, $enabled ? '1' : '0');
         Meprmf_Members_Provider::clear_filter_fields_cache();
     }
 
@@ -84,9 +111,14 @@ class Meprmf_Settings
 
         check_ajax_referer('meprmf_date_range_pref', 'nonce');
 
+        $user_id = function_exists('get_current_user_id') ? (int) get_current_user_id() : 0;
+        if ($user_id <= 0) {
+            wp_send_json_error([ 'message' => 'not_logged_in' ], 401);
+        }
+
         // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified above.
         $enabled = ! empty($_POST['enabled']);
-        self::set_date_custom_fields_use_range_enabled($enabled);
+        self::set_date_custom_fields_use_range_enabled($enabled, $user_id);
 
         wp_send_json_success([ 'enabled' => $enabled ]);
     }

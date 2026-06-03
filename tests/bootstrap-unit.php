@@ -146,6 +146,115 @@ if (! function_exists('esc_sql')) {
     }
 }
 
+if (! isset($GLOBALS['meprmf_test_user_meta'])) {
+    $GLOBALS['meprmf_test_user_meta'] = [];
+}
+
+if (! isset($GLOBALS['meprmf_test_current_user_id'])) {
+    $GLOBALS['meprmf_test_current_user_id'] = 0;
+}
+
+if (! function_exists('get_current_user_id')) {
+    /**
+     * @return int
+     */
+    function get_current_user_id()
+    {
+        return (int) $GLOBALS['meprmf_test_current_user_id'];
+    }
+}
+
+if (! function_exists('get_user_meta')) {
+    /**
+     * @param int    $user_id User id.
+     * @param string $key     Meta key.
+     * @param bool   $single  Single value.
+     * @return mixed
+     */
+    function get_user_meta($user_id, $key, $single = false)
+    {
+        $user_id = (int) $user_id;
+        $bucket  = $GLOBALS['meprmf_test_user_meta'][ $user_id ] ?? [];
+        if (! isset($bucket[ $key ])) {
+            return $single ? '' : [];
+        }
+        $val = $bucket[ $key ];
+        return $single ? $val : [ $val ];
+    }
+}
+
+if (! function_exists('update_user_meta')) {
+    /**
+     * @param int    $user_id User id.
+     * @param string $key     Meta key.
+     * @param mixed  $value   Value.
+     * @return true
+     */
+    function update_user_meta($user_id, $key, $value)
+    {
+        $user_id = (int) $user_id;
+        if (! isset($GLOBALS['meprmf_test_user_meta'][ $user_id ])) {
+            $GLOBALS['meprmf_test_user_meta'][ $user_id ] = [];
+        }
+        $GLOBALS['meprmf_test_user_meta'][ $user_id ][ $key ] = $value;
+        return true;
+    }
+}
+
+if (! function_exists('get_current_screen')) {
+    /**
+     * @return object|null
+     */
+    function get_current_screen()
+    {
+        return $GLOBALS['meprmf_test_current_screen'] ?? null;
+    }
+}
+
+if (! class_exists('MeprTransaction', false)) {
+    /**
+     * Minimal MemberPress transaction stub for unit tests.
+     */
+    class MeprTransaction
+    {
+        public static $payment_str = 'payment';
+
+        public static $sub_account_str = 'sub_account';
+
+        public static $woo_txn_str = 'wc_transaction';
+
+        public static $fallback_str = 'fallback';
+
+        public static $complete_str = 'complete';
+
+        public static $subscription_confirmation_str = 'subscription_confirmation';
+
+        public static $confirmed_str = 'confirmed';
+
+        public static $pending_str = 'pending';
+
+        public static $refunded_str = 'refunded';
+
+        public static $failed_str = 'failed';
+    }
+}
+
+if (! class_exists('MeprSubscription', false)) {
+    /**
+     * Minimal MemberPress subscription stub for unit tests.
+     */
+    class MeprSubscription
+    {
+        public static $active_str = 'active';
+
+        public static $pending_str = 'pending';
+
+        public static $cancelled_str = 'cancelled';
+
+        public static $suspended_str = 'suspended';
+    }
+}
+
 require_once dirname(__DIR__) . '/includes/class-meprmf-util.php';
 require_once dirname(__DIR__) . '/includes/screen/class-meprmf-screen-context.php';
 require_once dirname(__DIR__) . '/includes/screen/class-meprmf-screen.php';

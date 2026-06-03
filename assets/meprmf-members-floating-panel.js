@@ -325,12 +325,19 @@
 				body: body.toString()
 			})
 				.then(function (res) {
+					if (!res.ok) {
+						throw new Error('HTTP ' + res.status);
+					}
 					return res.json();
 				})
-				.then(function () {
+				.then(function (data) {
+					if (!data || !data.success) {
+						throw new Error('save_failed');
+					}
 					window.location.reload();
 				})
 				.catch(function () {
+					window.alert('Could not save the date range preference. Please try again.');
 					done();
 				});
 		}

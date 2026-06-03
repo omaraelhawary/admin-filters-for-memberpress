@@ -19,38 +19,6 @@ use PHPUnit\Framework\TestCase;
 class MembersCoreProviderTest extends TestCase
 {
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-        if (! class_exists('MeprSubscription', false)) {
-            eval(
-                'class MeprSubscription {
-                    public static $active_str = "active";
-                    public static $pending_str = "pending";
-                    public static $cancelled_str = "cancelled";
-                    public static $suspended_str = "suspended";
-                }'
-            );
-        }
-        if (! class_exists('MeprTransaction', false)) {
-            eval(
-                'class MeprTransaction {
-                    public static $payment_str = "payment";
-                    public static $sub_account_str = "sub_account";
-                    public static $woo_txn_str = "wc_transaction";
-                    public static $fallback_str = "fallback";
-                    public static $complete_str = "complete";
-                    public static $subscription_confirmation_str = "subscription_confirmation";
-                    public static $confirmed_str = "confirmed";
-                    public static $pending_str = "pending";
-                    public static $refunded_str = "refunded";
-                    public static $failed_str = "failed";
-                    public static $confirmed_str = "confirmed";
-                }'
-            );
-        }
-    }
-
     public function test_build_core_filter_fields_includes_expected_params()
     {
         require_once dirname(__DIR__, 2) . '/includes/filters/providers/class-meprmf-members-core-provider.php';

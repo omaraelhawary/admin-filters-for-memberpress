@@ -40,31 +40,6 @@ class MeprPredicateBuilderTest extends TestCase
         require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen-context.php';
         require_once dirname(__DIR__, 2) . '/includes/sql/class-meprmf-mepr-predicate-builder.php';
 
-        if (! class_exists('MeprTransaction', false)) {
-            eval(
-                'class MeprTransaction {
-                    public static $payment_str = "payment";
-                    public static $sub_account_str = "sub_account";
-                    public static $woo_txn_str = "wc_transaction";
-                    public static $fallback_str = "fallback";
-                    public static $complete_str = "complete";
-                    public static $subscription_confirmation_str = "subscription_confirmation";
-                    public static $confirmed_str = "confirmed";
-                }'
-            );
-        }
-
-        if (! class_exists('MeprSubscription', false)) {
-            eval(
-                'class MeprSubscription {
-                    public static $active_str = "active";
-                    public static $pending_str = "pending";
-                    public static $cancelled_str = "cancelled";
-                    public static $suspended_str = "suspended";
-                }'
-            );
-        }
-
         if (! class_exists('MeprUtils', false)) {
             eval(
                 'class MeprUtils {

@@ -313,12 +313,14 @@ class Meprmf_Toolbar_Renderer
             echo esc_html($label) . '</label></li>';
         }
         echo '</ul>';
-        echo '<p class="meprmf-filter-panel__customize-option">';
-        echo '<label><input type="checkbox" class="meprmf-filter-panel__date-range-cb" ';
-        checked(Meprmf_Settings::is_date_custom_fields_use_range_enabled());
-        echo ' /> ';
-        echo esc_html__('Date custom fields: use from / to range', 'admin-filters-for-memberpress');
-        echo '</label></p>';
+        if (Meprmf_Members_Provider::context_has_date_custom_fields($ctx)) {
+            echo '<p class="meprmf-filter-panel__customize-option">';
+            echo '<label><input type="checkbox" class="meprmf-filter-panel__date-range-cb" ';
+            checked(Meprmf_Settings::is_date_custom_fields_use_range_enabled());
+            echo ' /> ';
+            echo esc_html__('Date custom fields: use from / to range', 'admin-filters-for-memberpress');
+            echo '</label></p>';
+        }
         printf(
             '<p class="meprmf-filter-panel__done-wrap"><button type="button" class="button meprmf-filter-panel__done">%s</button></p>',
             esc_html__('Done', 'admin-filters-for-memberpress')

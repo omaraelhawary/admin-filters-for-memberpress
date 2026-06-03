@@ -153,6 +153,18 @@ class UtilTest extends TestCase
         $this->assertNull(Meprmf_Util::parse_date_param('06/03/2024'));
     }
 
+    public function test_date_range_param_names_reserve_suffix_length()
+    {
+        $long_base = 'mpf_' . str_repeat('x', 40);
+        $range     = Meprmf_Util::date_range_param_names($long_base);
+
+        $this->assertLessThanOrEqual(Meprmf_Util::PARAM_MAX_LENGTH, strlen($range['from']));
+        $this->assertLessThanOrEqual(Meprmf_Util::PARAM_MAX_LENGTH, strlen($range['to']));
+        $this->assertNotSame($range['from'], $range['to']);
+        $this->assertStringEndsWith('_from', $range['from']);
+        $this->assertStringEndsWith('_to', $range['to']);
+    }
+
     public function test_get_field_match_mode_respects_explicit_contains()
     {
         $this->assertSame(

@@ -18,6 +18,9 @@ class Meprmf_Util
     /** Maximum length for a sanitized filter param (usermeta alias is mpf_um_ + param, MySQL limit 64). */
     const PARAM_MAX_LENGTH = 32;
 
+    /** Longest date-range suffix appended to a base param (`_from`). */
+    const DATE_RANGE_SUFFIX_LENGTH = 5;
+
     /**
      * Sanitize a HTML id / $_GET key to [a-z0-9_], capped at {@see PARAM_MAX_LENGTH}. Null-safe.
      *
@@ -118,12 +121,21 @@ class Meprmf_Util
             'M' => '%b',
             'l' => '%W',
             'D' => '%a',
+            'S' => '',
             'd' => '%d',
             'j' => '%e',
             'm' => '%m',
             'n' => '%c',
             'Y' => '%Y',
             'y' => '%y',
+            'g' => '%l',
+            'G' => '%k',
+            'h' => '%h',
+            'H' => '%H',
+            'i' => '%i',
+            's' => '%s',
+            'a' => '%p',
+            'A' => '%p',
         ];
 
         $out    = '';
@@ -296,6 +308,11 @@ class Meprmf_Util
                 'from' => '',
                 'to'   => '',
             ];
+        }
+
+        $max_base = self::PARAM_MAX_LENGTH - self::DATE_RANGE_SUFFIX_LENGTH;
+        if (strlen($base) > $max_base) {
+            $base = substr($base, 0, $max_base);
         }
 
         return [
