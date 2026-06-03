@@ -25,7 +25,7 @@
 | --- | --- |
 | **Contributors** | Omar ElHawary — [WordPress.org profile](https://profiles.wordpress.org/omarelhawary/) |
 | **Requires** | WordPress 5.6+, PHP 8.1+, active [MemberPress](https://memberpress.com/) |
-| **Current release** | 1.9.0 (see plugin header in `admin-filters-for-memberpress.php`) |
+| **Current release** | 1.9.1 (see plugin header in `admin-filters-for-memberpress.php`) |
 | **Text domain** | `admin-filters-for-memberpress` (matches the plugin slug) |
 | **License** | GPLv2 or later |
 
@@ -177,13 +177,17 @@ Uses `tests/bootstrap-unit.php` (no full WordPress test database). CI runs on PH
 
 ## Changelog
 
-### 1.9.0
+### 1.9.1
 
 - **Safer list-table scoping:** predicates apply only when `MeprDb::list_table()` is called from the matching MemberPress model method and `WP_Screen` matches (fail closed if the screen is unknown).
 - **Members “Member since”** uses `EXISTS` on `mepr_members` (same pattern as other lists).
 - **Transaction status** filter includes **Confirmed**.
 - **Row-scoped Access** labels on Transactions, Subscriptions, and Lifetimes clarify “this row” semantics.
+- **Date custom fields** (Settings → Fields): from/to range instead of a single exact date; per-admin toggle in the Filters panel customize UI (`meprmf_date_custom_fields_use_range`, default on). Filter `meprmf_custom_date_fields_use_range`; constant `MEPRMF_DATE_CUSTOM_FIELDS_USE_RANGE` for site-wide override.
 - README: extension SQL security note; expanded Access documentation.
+
+### 1.9.0
+
 - **Core table filters on all four lists:** membership, access, subscription status, expires range, and member-since range on **Transactions**, **Subscriptions**, and **Lifetimes** (`mpmt_*`, `mpms_*`, `mpml_*`), with row-scoped SQL on each list’s primary table.
 - **Screen-specific panel filters:** **Members** — member status (active / inactive / expired / non-members); **Transactions & Lifetimes** — transaction status, gateway, created date range; **Subscriptions & Lifetimes** — gateway (from `MeprOptions::payment_methods()`).
 - Hooks `meprmf_transactions_core_filters_fields`, `meprmf_subscriptions_core_filters_fields`, and `meprmf_lifetimes_core_filters_fields` for extensions.
@@ -274,6 +278,10 @@ Uses `tests/bootstrap-unit.php` (no full WordPress test database). CI runs on PH
 - Compact collapsible filter layout when many filters are active (threshold filterable in later releases).
 
 ## Upgrade notices
+
+### 1.9.1
+
+Patch release: safer list-table scoping, custom date from/to ranges, Confirmed transaction status, and clearer row-scoped Access labels.
 
 ### 1.9.0
 

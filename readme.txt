@@ -4,7 +4,7 @@ Tags: memberpress, members, admin, filters, membership
 Requires at least: 5.6
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 1.9.0
+Stable tag: 1.9.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,11 +81,14 @@ Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-m
 
 == Changelog ==
 
-= 1.9.0 =
+= 1.9.1 =
 
 * Safer list-table scoping: predicates only when the matching MemberPress list_table() caller and WP_Screen align.
 * Members member-since uses EXISTS on mepr_members; transaction status includes Confirmed; row-scoped Access labels on non-Members lists.
-* Date custom fields (Settings -> Fields): filter by from/to date range instead of one exact date; per-admin toggle in the Filters panel customize UI (user meta meprmf_date_custom_fields_use_range, default on).
+* Date custom fields (Settings -> Fields): filter by from/to date range instead of one exact date; per-admin toggle in the Filters panel customize UI (user meta meprmf_date_custom_fields_use_range, default on). Filter hook meprmf_custom_date_fields_use_range; constant MEPRMF_DATE_CUSTOM_FIELDS_USE_RANGE for site-wide override.
+
+= 1.9.0 =
+
 * **Core table filters on all four lists:** membership, access, subscription status, expires range, and member-since range on Transactions, Subscriptions, and Lifetimes (mpmt_*, mpms_*, mpml_*), with row-scoped SQL.
 * **Screen-specific panel filters:** Members — member status (active / inactive / expired / non-members); Transactions and Lifetimes — transaction status, gateway, created date range; Subscriptions and Lifetimes — gateway.
 * Hooks meprmf_transactions_core_filters_fields, meprmf_subscriptions_core_filters_fields, and meprmf_lifetimes_core_filters_fields for extensions.
@@ -176,6 +179,10 @@ Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-m
 * Compact collapsible filter layout when many filters are active (threshold filterable in later releases).
 
 == Upgrade Notice ==
+
+= 1.9.1 =
+
+Patch release: safer list-table scoping, custom date from/to ranges, Confirmed transaction status, and clearer row-scoped Access labels. No database migration.
 
 = 1.9.0 =
 
