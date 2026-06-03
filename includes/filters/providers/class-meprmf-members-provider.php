@@ -105,7 +105,34 @@ class Meprmf_Members_Provider
             ];
         }
 
-        if (in_array($ftype, [ 'text', 'email', 'url', 'tel', 'date', 'textarea', 'file' ], true)) {
+        if ('date' === $ftype) {
+            /**
+             * Use from/to date pickers instead of a single exact date for MemberPress date custom fields.
+             *
+             * @since 1.1.0
+             * @param bool   $use_range Default false (single exact date).
+             * @param object $cf        MemberPress custom field object.
+             */
+            $use_range = (bool) apply_filters('meprmf_custom_date_fields_use_range', false, $cf);
+            if ($use_range) {
+                return [
+                    'param'    => $param,
+                    'meta_key' => $field_key,
+                    'label'    => $label,
+                    'type'     => 'date_range',
+                ];
+            }
+
+            return [
+                'param'    => $param,
+                'meta_key' => $field_key,
+                'label'    => $label,
+                'type'     => 'date',
+                'match'    => 'exact',
+            ];
+        }
+
+        if (in_array($ftype, [ 'text', 'email', 'url', 'tel', 'textarea', 'file' ], true)) {
             return [
                 'param'    => $param,
                 'meta_key' => $field_key,

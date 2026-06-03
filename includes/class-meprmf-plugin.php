@@ -202,9 +202,10 @@ class Meprmf_Plugin
             );
             $known = [];
             foreach (Meprmf_Filter_Registry::get_normalized_fields_for_context($ctx) as $field) {
-                $p = Meprmf_Util::sanitize_param(isset($field['param']) ? $field['param'] : '');
-                if ('' !== $p) {
-                    $known[] = $p;
+                foreach (Meprmf_Util::collect_field_request_params($field) as $p) {
+                    if ('' !== $p) {
+                        $known[] = $p;
+                    }
                 }
             }
             sort($known, SORT_STRING);
@@ -215,6 +216,9 @@ class Meprmf_Plugin
                     'knownParams'          => $known,
                     'knownParamsSignature' => md5(implode('|', $known)),
                     'storageId'            => $ctx->get_storage_id(),
+                    'dateRangeEnabled'     => Meprmf_Settings::is_date_custom_fields_use_range_enabled(),
+                    'dateRangeNonce'       => wp_create_nonce('meprmf_date_range_pref'),
+                    'ajaxUrl'              => admin_url('admin-ajax.php'),
                 ]
             );
         }

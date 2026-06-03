@@ -108,6 +108,44 @@ if (! function_exists('wp_unslash')) {
     }
 }
 
+if (! function_exists('get_option')) {
+    /**
+     * @param string $option  Option name.
+     * @param mixed  $default Default.
+     * @return mixed
+     */
+    function get_option($option, $default = false)
+    {
+        if ('date_format' === $option) {
+            return 'F j, Y';
+        }
+        return $default;
+    }
+}
+
+if (! function_exists('wp_date')) {
+    /**
+     * @param string $format    Format.
+     * @param int    $timestamp Timestamp.
+     * @return string
+     */
+    function wp_date($format, $timestamp)
+    {
+        return gmdate($format, $timestamp);
+    }
+}
+
+if (! function_exists('esc_sql')) {
+    /**
+     * @param string $data Data.
+     * @return string
+     */
+    function esc_sql($data)
+    {
+        return addslashes((string) $data);
+    }
+}
+
 require_once dirname(__DIR__) . '/includes/class-meprmf-util.php';
 require_once dirname(__DIR__) . '/includes/screen/class-meprmf-screen-context.php';
 require_once dirname(__DIR__) . '/includes/screen/class-meprmf-screen.php';

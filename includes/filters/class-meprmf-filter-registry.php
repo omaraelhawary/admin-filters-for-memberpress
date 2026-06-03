@@ -22,7 +22,11 @@ class Meprmf_Filter_Registry
      */
     public static function get_normalized_meta_fields_for_members()
     {
-        return Meprmf_Util::normalize_filter_fields(Meprmf_Members_Provider::get_filter_fields());
+        return Meprmf_Util::normalize_filter_fields(
+            Meprmf_Util::finalize_meta_filter_fields(
+                Meprmf_Members_Provider::get_filter_fields()
+            )
+        );
     }
 
     /**
@@ -78,7 +82,11 @@ class Meprmf_Filter_Registry
         if (! $ctx->supports_meta_filters_list()) {
             return [];
         }
-        return Meprmf_Util::normalize_filter_fields(Meprmf_Members_Provider::get_filter_fields_for_context($ctx));
+        return Meprmf_Util::normalize_filter_fields(
+            Meprmf_Util::finalize_meta_filter_fields(
+                Meprmf_Members_Provider::get_filter_fields_for_context($ctx)
+            )
+        );
     }
 
     /**

@@ -93,19 +93,7 @@ class Meprmf_Toolbar_Renderer
             }
             echo '</select>';
         } elseif ('date' === $field['type']) {
-            if ($omit_name) {
-                printf(
-                    '<input type="date" class="mepr_filter_field meprmf-filter-date" id="%1$s" data-meprmf-param="%1$s" value="%2$s" />',
-                    esc_attr($param),
-                    esc_attr($current)
-                );
-            } else {
-                printf(
-                    '<input type="date" class="mepr_filter_field meprmf-filter-date" id="%1$s" name="%1$s" value="%2$s" />',
-                    esc_attr($param),
-                    esc_attr($current)
-                );
-            }
+            self::render_date_input($param, $current, $omit_name);
         } else {
             $placeholder = $compact
                 ? __('Contains…', 'admin-filters-for-memberpress')
@@ -130,6 +118,32 @@ class Meprmf_Toolbar_Renderer
         if ($compact) {
             echo '</div>';
         }
+    }
+
+    /**
+     * Output one HTML5 date input.
+     *
+     * @param string $param     GET param name.
+     * @param string $current   Current value.
+     * @param bool   $omit_name Floating panel mode.
+     * @return void
+     */
+    private static function render_date_input($param, $current, $omit_name)
+    {
+        if ($omit_name) {
+            printf(
+                '<input type="date" class="mepr_filter_field meprmf-filter-date" id="%1$s" data-meprmf-param="%1$s" value="%2$s" />',
+                esc_attr($param),
+                esc_attr($current)
+            );
+            return;
+        }
+
+        printf(
+            '<input type="date" class="mepr_filter_field meprmf-filter-date" id="%1$s" name="%1$s" value="%2$s" />',
+            esc_attr($param),
+            esc_attr($current)
+        );
     }
 
     /**
@@ -203,9 +217,10 @@ class Meprmf_Toolbar_Renderer
     {
         $known_params = [];
         foreach ($valid as $field) {
-            $p = Meprmf_Util::sanitize_param(isset($field['param']) ? $field['param'] : '');
-            if ('' !== $p) {
-                $known_params[] = $p;
+            foreach (Meprmf_Util::collect_field_request_params($field) as $p) {
+                if ('' !== $p) {
+                    $known_params[] = $p;
+                }
             }
         }
 
@@ -298,6 +313,12 @@ class Meprmf_Toolbar_Renderer
             echo esc_html($label) . '</label></li>';
         }
         echo '</ul>';
+        echo '<p class="meprmf-filter-panel__customize-option">';
+        echo '<label><input type="checkbox" class="meprmf-filter-panel__date-range-cb" ';
+        checked(Meprmf_Settings::is_date_custom_fields_use_range_enabled());
+        echo ' /> ';
+        echo esc_html__('Date custom fields: use from / to range', 'admin-filters-for-memberpress');
+        echo '</label></p>';
         printf(
             '<p class="meprmf-filter-panel__done-wrap"><button type="button" class="button meprmf-filter-panel__done">%s</button></p>',
             esc_html__('Done', 'admin-filters-for-memberpress')

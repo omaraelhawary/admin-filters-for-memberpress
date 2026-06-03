@@ -66,15 +66,13 @@ class UsermetaPredicateBuilderTest extends TestCase
                 if (empty($args)) {
                     return $query;
                 }
-                return vsprintf(
-                    preg_replace('/%[dfs]/', '%s', $query),
-                    array_map(
-                        static function ($arg) {
-                            return is_numeric($arg) ? (string) $arg : "'" . str_replace("'", "''", (string) $arg) . "'";
-                        },
-                        $args
-                    )
-                );
+                foreach ($args as $arg) {
+                    $replacement = is_numeric($arg)
+                        ? (string) $arg
+                        : "'" . str_replace("'", "''", (string) $arg) . "'";
+                    $query       = preg_replace('/%[sdf]/', $replacement, $query, 1);
+                }
+                return preg_replace('/%%/', '%', $query);
             }
         };
     }
@@ -160,6 +158,136 @@ class UsermetaPredicateBuilderTest extends TestCase
         $_GET['mpf_country'] = '';
         $ctx                 = new Meprmf_Screen_Context('memberpress-members', 'u.ID');
         $out                 = Meprmf_Predicate_Builder::append_usermeta_exists([], $ctx, $this->country_field());
+
+        $this->assertCount(0, $out);
+    }
+
+    public function test_date_field_uses_exact_match()
+    {
+        $_GET['mpf_birthday'] = '2024-06-03';
+        $ctx                  = new Meprmf_Screen_Context('memberpress-members', 'u.ID');
+        $fields               = [
+            [
+                'param'    => 'mpf_birthday',
+                'meta_key' => 'birthday',
+                'label'    => 'Birthday',
+                'type'     => 'date',
+                'match'    => 'exact',
+            ],
+        ];
+        $out                  = Meprmf_Predicate_Builder::append_usermeta_exists([], $ctx, $fields);
+
+        $this->assertCount(1, $out);
+        $this->assertStringContainsString('meta_value IN', $out[0]);
+        $this->assertStringContainsString("'2024-06-03'", $out[0]);
+        $this->assertStringContainsString("'June 3, 2024'", $out[0]);
+        $this->assertStringNotContainsString('meta_value LIKE', $out[0]);
+    }
+
+    public function test_invalid_date_skips_predicate()
+    {
+        $_GET['mpf_birthday'] = '06/03/2024';
+        $ctx                  = new Meprmf_Screen_Context('memberpress-members', 'u.ID');
+        $fields               = [
+            [
+                'param'    => 'mpf_birthday',
+                'meta_key' => 'birthday',
+                'label'    => 'Birthday',
+                'type'     => 'date',
+                'match'    => 'exact',
+            ],
+        ];
+        $out                  = Meprmf_Predicate_Builder::append_usermeta_exists([], $ctx, $fields);
+
+        $this->assertCount(0, $out);
+    }
+
+    public function test_date_range_from_and_to()
+    {
+        $_GET['mpf_birthday_from'] = '2024-01-01';
+        $_GET['mpf_birthday_to']   = '2024-12-31';
+        $ctx                       = new Meprmf_Screen_Context('memberpress-members', 'u.ID');
+        $fields                    = [
+            [
+                'param'           => 'mpf_birthday_from',
+                'meta_key'        => 'birthday',
+                'label'           => 'Birthday (from)',
+                'type'            => 'date',
+                'date_range_of'   => 'mpf_birthday',
+                'date_range_part' => 'from',
+            ],
+            [
+                'param'           => 'mpf_birthday_to',
+                'meta_key'        => 'birthday',
+                'label'           => 'Birthday (to)',
+                'type'            => 'date',
+                'date_range_of'   => 'mpf_birthday',
+                'date_range_part' => 'to',
+            ],
+        ];
+        $out                       = Meprmf_Predicate_Builder::append_usermeta_exists([], $ctx, $fields);
+
+        $this->assertCount(1, $out);
+        $this->assertStringContainsString('STR_TO_DATE', $out[0]);
+        $this->assertStringContainsString("'2024-01-01'", $out[0]);
+        $this->assertStringContainsString("'2024-12-31'", $out[0]);
+        $this->assertStringContainsString('%M %e, %Y', $out[0]);
+        $this->assertStringNotContainsString("meta_value >= '2024-01-01'", $out[0]);
+    }
+
+    public function test_date_range_from_only()
+    {
+        $_GET['mpf_birthday_from'] = '2024-06-01';
+        $ctx                       = new Meprmf_Screen_Context('memberpress-members', 'u.ID');
+        $fields                    = [
+            [
+                'param'           => 'mpf_birthday_from',
+                'meta_key'        => 'birthday',
+                'label'           => 'Birthday (from)',
+                'type'            => 'date',
+                'date_range_of'   => 'mpf_birthday',
+                'date_range_part' => 'from',
+            ],
+            [
+                'param'           => 'mpf_birthday_to',
+                'meta_key'        => 'birthday',
+                'label'           => 'Birthday (to)',
+                'type'            => 'date',
+                'date_range_of'   => 'mpf_birthday',
+                'date_range_part' => 'to',
+            ],
+        ];
+        $out                       = Meprmf_Predicate_Builder::append_usermeta_exists([], $ctx, $fields);
+
+        $this->assertCount(1, $out);
+        $this->assertStringContainsString('STR_TO_DATE', $out[0]);
+        $this->assertStringContainsString("'2024-06-01'", $out[0]);
+        $this->assertStringNotContainsString("'2024-12-31'", $out[0]);
+    }
+
+    public function test_date_range_invalid_bounds_skipped()
+    {
+        $_GET['mpf_birthday_from'] = 'not-a-date';
+        $ctx                       = new Meprmf_Screen_Context('memberpress-members', 'u.ID');
+        $fields                    = [
+            [
+                'param'           => 'mpf_birthday_from',
+                'meta_key'        => 'birthday',
+                'label'           => 'Birthday (from)',
+                'type'            => 'date',
+                'date_range_of'   => 'mpf_birthday',
+                'date_range_part' => 'from',
+            ],
+            [
+                'param'           => 'mpf_birthday_to',
+                'meta_key'        => 'birthday',
+                'label'           => 'Birthday (to)',
+                'type'            => 'date',
+                'date_range_of'   => 'mpf_birthday',
+                'date_range_part' => 'to',
+            ],
+        ];
+        $out                       = Meprmf_Predicate_Builder::append_usermeta_exists([], $ctx, $fields);
 
         $this->assertCount(0, $out);
     }

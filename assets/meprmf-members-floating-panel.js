@@ -261,18 +261,20 @@
 				stripKnownParams(u);
 				var vis = effectiveVisibleMap();
 				root.querySelectorAll('.meprmf-filter-panel__item').forEach(function (item) {
-					var param = item.getAttribute('data-meprmf-param');
-					if (!param || !vis[param]) {
+					var panelParam = item.getAttribute('data-meprmf-param');
+					if (!panelParam || !vis[panelParam]) {
 						return;
 					}
-					var el = item.querySelector('.mepr_filter_field');
-					if (!el) {
-						return;
-					}
-					var val = (el.value || '').trim();
-					if (val !== '') {
-						u.searchParams.set(param, val);
-					}
+					item.querySelectorAll('.mepr_filter_field').forEach(function (el) {
+						var p = el.getAttribute('data-meprmf-param') || el.getAttribute('name') || panelParam;
+						if (!p) {
+							return;
+						}
+						var val = (el.value || '').trim();
+						if (val !== '') {
+							u.searchParams.set(p, val);
+						}
+					});
 				});
 				safeSet(k.open, 'false');
 				window.location.assign(u.toString());
@@ -298,9 +300,46 @@
 
 		var backBtn = root.querySelector('.meprmf-filter-panel__back');
 		var doneBtn = root.querySelector('.meprmf-filter-panel__done');
+		var dateRangeCb = root.querySelector('.meprmf-filter-panel__date-range-cb');
+		var floatingCfg = window.meprmfMembersFloating || {};
+		var initialDateRangeEnabled = !!floatingCfg.dateRangeEnabled;
+
+		function saveDateRangePrefIfChanged(done) {
+			if (!dateRangeCb || !floatingCfg.ajaxUrl || !floatingCfg.dateRangeNonce) {
+				done();
+				return;
+			}
+			var enabled = !!dateRangeCb.checked;
+			if (enabled === initialDateRangeEnabled) {
+				done();
+				return;
+			}
+			var body = new URLSearchParams();
+			body.set('action', 'meprmf_save_date_range_pref');
+			body.set('nonce', floatingCfg.dateRangeNonce);
+			body.set('enabled', enabled ? '1' : '0');
+			fetch(floatingCfg.ajaxUrl, {
+				method: 'POST',
+				credentials: 'same-origin',
+				headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+				body: body.toString()
+			})
+				.then(function (res) {
+					return res.json();
+				})
+				.then(function () {
+					window.location.reload();
+				})
+				.catch(function () {
+					done();
+				});
+		}
+
 		function leaveCustomize() {
-			setCustomizeMode(false);
-			applyItemVisibility();
+			saveDateRangePrefIfChanged(function () {
+				setCustomizeMode(false);
+				applyItemVisibility();
+			});
 		}
 		if (backBtn) {
 			backBtn.addEventListener('click', leaveCustomize);
