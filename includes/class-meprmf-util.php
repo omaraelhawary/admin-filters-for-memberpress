@@ -486,4 +486,41 @@ class Meprmf_Util
 
         return $valid;
     }
+
+    /**
+     * Validate passthrough (native GET) filter field definitions.
+     *
+     * @param array<int, array<string, mixed>> $fields Raw field definitions.
+     * @return array<int, array<string, mixed>>
+     */
+    public static function normalize_passthrough_filter_fields(array $fields)
+    {
+        $valid = [];
+        $seen  = [];
+
+        foreach ($fields as $field) {
+            if (empty($field['param']) || empty($field['label']) || empty($field['type']) || empty($field['source'])) {
+                continue;
+            }
+
+            if ('native' !== (string) $field['source']) {
+                continue;
+            }
+
+            $param = self::sanitize_param($field['param']);
+            if ('' === $param || isset($seen[ $param ])) {
+                continue;
+            }
+
+            if ('select' === $field['type'] && ( empty($field['options']) || ! is_array($field['options']) )) {
+                continue;
+            }
+
+            $seen[ $param ] = true;
+            $field['param'] = $param;
+            $valid[]        = $field;
+        }
+
+        return $valid;
+    }
 }
