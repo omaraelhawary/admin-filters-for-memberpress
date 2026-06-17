@@ -147,6 +147,39 @@ class Meprmf_Screen
     }
 
     /**
+     * Screen context for a stable storage id (localStorage / presets bucket).
+     *
+     * @param string $storage_id Value from {@see Meprmf_Screen_Context::get_storage_id()}.
+     * @return Meprmf_Screen_Context|null
+     */
+    public static function context_for_storage_id($storage_id)
+    {
+        $storage_id = strtolower(trim((string) $storage_id));
+        foreach (self::supported_page_contexts() as $ctx) {
+            if ($ctx->get_storage_id() === $storage_id) {
+                return $ctx;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * All supported list-table screen contexts.
+     *
+     * @return array<int, Meprmf_Screen_Context>
+     */
+    public static function supported_page_contexts()
+    {
+        return [
+            new Meprmf_Screen_Context(self::PAGE_MEMBERS, 'u.ID'),
+            new Meprmf_Screen_Context(self::PAGE_SUBSCRIPTIONS, 'sub.user_id'),
+            new Meprmf_Screen_Context(self::PAGE_LIFETIMES, 'txn.user_id'),
+            new Meprmf_Screen_Context(self::PAGE_TRANSACTIONS, 'tr.user_id'),
+        ];
+    }
+
+    /**
      * Whether predicates may run for this admin list (list-table caller, page slug, and WP_Screen).
      *
      * @param Meprmf_Screen_Context $ctx Context from {@see detect()} (admin page slug).
@@ -172,7 +205,8 @@ class Meprmf_Screen
     public static function current_wp_screen_matches_context(Meprmf_Screen_Context $ctx)
     {
         if (! function_exists('get_current_screen')) {
-            return false;
+            // Caller + admin page slug already matched; custom admin bootstraps may omit WP_Screen.
+            return true;
         }
         $screen = get_current_screen();
         if (! $screen || empty($screen->id)) {

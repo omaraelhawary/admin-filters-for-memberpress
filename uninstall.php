@@ -12,3 +12,6 @@ if (! defined('WP_UNINSTALL_PLUGIN')) {
 // Legacy option from older releases; harmless if already absent.
 delete_option('meprmf_additional_filters');
 delete_option('meprmf_filter_presets');
+
+// Per-admin date-range UI preference (Settings → customize in the floating panel).
+delete_metadata('user', 0, 'meprmf_date_custom_fields_use_range', '', true);

@@ -246,6 +246,40 @@ if (! function_exists('get_current_screen')) {
     }
 }
 
+if (! function_exists('delete_metadata')) {
+    /**
+     * @param string $meta_type   Meta type.
+     * @param int    $object_id   Object id.
+     * @param string $meta_key    Meta key.
+     * @param mixed  $meta_value  Meta value.
+     * @param bool   $delete_all  Delete all matching rows.
+     * @return bool
+     */
+    function delete_metadata($meta_type, $object_id, $meta_key, $meta_value = '', $delete_all = false)
+    {
+        unset($meta_value);
+        if ('user' !== $meta_type || ! $delete_all || '' === $meta_key) {
+            return false;
+        }
+        foreach (array_keys($GLOBALS['meprmf_test_user_meta']) as $user_id) {
+            unset($GLOBALS['meprmf_test_user_meta'][ $user_id ][ $meta_key ]);
+        }
+        return true;
+    }
+}
+
+if (! function_exists('delete_option')) {
+    /**
+     * @param string $option Option name.
+     * @return bool
+     */
+    function delete_option($option)
+    {
+        unset($GLOBALS['meprmf_test_options'][ $option ]);
+        return true;
+    }
+}
+
 if (! class_exists('MeprTransaction', false)) {
     /**
      * Minimal MemberPress transaction stub for unit tests.

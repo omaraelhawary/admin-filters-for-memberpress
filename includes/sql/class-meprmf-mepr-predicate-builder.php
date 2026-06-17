@@ -138,10 +138,24 @@ class Meprmf_Mepr_Predicate_Builder
             }
         } elseif (in_array($access, [ 'inactive', 'expired' ], true)) {
             // `expired` kept for bookmarked URLs from earlier releases.
-            $sql = self::build_inactive_access_exists($mepr_db->transactions, $uid, $product_id);
-            if ('' !== $sql) {
-                $args[]                 = $sql;
-                self::$last_fragments[] = $sql;
+            /**
+             * Whether to apply the inactive/expired access predicate on the Members list.
+             *
+             * The default predicate uses EXISTS + NOT EXISTS on mepr_transactions and can be
+             * slow on large sites. Return false to skip it (e.g. hide the filter in UI instead).
+             *
+             * @since 2.0.0
+             * @param bool                  $use         Default true.
+             * @param Meprmf_Screen_Context $ctx         Screen context.
+             * @param int                   $product_id  Selected membership product id or 0.
+             */
+            $use_inactive = apply_filters('meprmf_use_inactive_access_predicate', true, $ctx, $product_id);
+            if ($use_inactive) {
+                $sql = self::build_inactive_access_exists($mepr_db->transactions, $uid, $product_id);
+                if ('' !== $sql) {
+                    $args[]                 = $sql;
+                    self::$last_fragments[] = $sql;
+                }
             }
         } elseif ($product_id > 0) {
             $sql = self::build_product_exists($mepr_db->transactions, $uid, $product_id);

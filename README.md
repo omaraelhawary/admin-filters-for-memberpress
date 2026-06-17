@@ -80,6 +80,8 @@ In the floating **Filters** panel, the **Saved presets** bar appears above the f
 
 Presets are stored per screen (Members, Transactions, Subscriptions, Lifetimes) in `wp_options` (`meprmf_filter_presets`). They include plugin panel params only (`mpf_*`, `mpm_*`, `mpmt_*`, `mpfs_*`, `mpml_*`). MemberPress’s native toolbar filters are not part of presets.
 
+Presets are **site-wide**: any admin who can filter the list may save, load, or delete them for everyone on that screen. Saving the same name again updates that preset; concurrent saves from multiple admins are last-write-wins.
+
 ### Filters by screen
 
 | Filter | Members `mpm_*` | Transactions `mpmt_*` | Subscriptions `mpms_*` | Lifetimes `mpml_*` |
@@ -162,7 +164,13 @@ Pair this with the matching `meprmf_*_core_filters_fields` hook for that screen 
 
 **Security:** Only append SQL you prepare yourself (`$wpdb->prepare()`). Do not concatenate raw request data into fragments.
 
-**Other hooks:** `meprmf_use_floating_meta_filters_panel`, `meprmf_use_floating_members_panel`, `meprmf_include_address_filters`, `meprmf_compact_filters_threshold` (default `6`), `meprmf_filter_presets`, `meprmf_max_filter_presets_per_screen` (default `25`).
+**Other hooks:** `meprmf_use_floating_meta_filters_panel`, `meprmf_use_floating_members_panel`, `meprmf_include_address_filters`, `meprmf_compact_filters_threshold` (default `6`), `meprmf_filter_presets`, `meprmf_max_filter_presets_per_screen` (default `25`), `meprmf_use_inactive_access_predicate` (Members list inactive/expired access SQL; default `true`).
+
+### Performance notes
+
+- **Inactive / expired access (Members):** uses `EXISTS` plus `NOT EXISTS` on `mepr_transactions` — two correlated subqueries per row. On large transaction tables this can slow the Members list. Return `false` from `meprmf_use_inactive_access_predicate` to skip that predicate, or avoid the filter on very large sites.
+- **Custom field filters:** each active meta filter adds a correlated `EXISTS` on `wp_usermeta`. Many simultaneous custom-field filters increase query cost; date-range groups for one field are merged into a single `EXISTS`.
+- **Debug SQL:** with `WP_DEBUG` on, predicate fragments print in the admin footer for administrators — keep `WP_DEBUG` off in production.
 
 ## How it works
 
@@ -191,7 +199,10 @@ Uses `tests/bootstrap-unit.php` (no full WordPress test database). CI runs on PH
 
 ### Unreleased
 
-- **Saved filter presets:** site-wide named presets in the floating Filters panel on Members, Transactions, Subscriptions, and Lifetimes. Stored in `wp_options` (`meprmf_filter_presets`); removed on uninstall. Plugin filter params only (not MemberPress native toolbar filters).
+- **Saved filter presets:** site-wide named presets in the floating Filters panel on Members, Transactions, Subscriptions, and Lifetimes. Stored in `wp_options` (`meprmf_filter_presets`); removed on uninstall along with per-admin date-range user meta. Plugin filter params only (not MemberPress native toolbar filters). Preset param keys are validated server-side from the filter registry.
+- **Floating panel:** Apply preserves active filters on hidden fields; badge reflects visible panel edits; focus trap while the panel is open.
+- **Performance:** document inactive-access and multi-meta filter query cost; filter hook `meprmf_use_inactive_access_predicate` to skip the heaviest Members inactive-access predicate.
+- **List-table scoping:** predicates still apply when `get_current_screen()` is unavailable (custom admin bootstraps).
 - Hooks `meprmf_filter_presets` and `meprmf_max_filter_presets_per_screen` (default 25 per screen).
 
 ### 1.9.1

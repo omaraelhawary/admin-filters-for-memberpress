@@ -2,6 +2,8 @@
 /**
  * Admin footer debug output when WP_DEBUG is on.
  *
+ * Renders predicate SQL for administrators only. Keep WP_DEBUG off in production.
+ *
  * @package MemberPress_Members_Meta_Filters
  */
 

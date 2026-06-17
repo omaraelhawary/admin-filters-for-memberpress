@@ -211,6 +211,39 @@ class Meprmf_Presets
     }
 
     /**
+     * Allowed filter param keys for one list screen (from the filter registry).
+     *
+     * @param string $storage_id Screen storage id.
+     * @return array<int, string>
+     */
+    public static function get_known_params_for_storage_id($storage_id)
+    {
+        $storage_id = self::sanitize_storage_id($storage_id);
+        if ('' === $storage_id) {
+            return [];
+        }
+
+        $ctx = Meprmf_Screen::context_for_storage_id($storage_id);
+        if (null === $ctx) {
+            return [];
+        }
+
+        $fields = Meprmf_Filter_Registry::get_normalized_fields_for_context($ctx);
+        $params = [];
+        foreach ($fields as $field) {
+            if (empty($field['param'])) {
+                continue;
+            }
+            $param = Meprmf_Util::sanitize_param((string) $field['param']);
+            if ('' !== $param) {
+                $params[] = $param;
+            }
+        }
+
+        return array_values(array_unique($params));
+    }
+
+    /**
      * Whitelist and sanitize preset param map.
      *
      * @param array<string, mixed> $params       Raw params.
@@ -266,18 +299,15 @@ class Meprmf_Presets
         // phpcs:ignore WordPress.Security.NonceVerification.Missing
         $params_raw = isset($_POST['params']) ? wp_unslash($_POST['params']) : '';
 
-        $known = [];
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing
-        if (! empty($_POST['known_params']) && is_string($_POST['known_params'])) {
-            // phpcs:ignore WordPress.Security.NonceVerification.Missing
-            $decoded_known = json_decode(wp_unslash($_POST['known_params']), true);
-            if (is_array($decoded_known)) {
-                foreach ($decoded_known as $p) {
-                    if (is_string($p) && '' !== $p) {
-                        $known[] = $p;
-                    }
-                }
-            }
+        $known = self::get_known_params_for_storage_id($storage_id);
+        if (empty($known)) {
+            wp_send_json_error(
+                [
+                    'message' => self::error_message_for_code('invalid_screen'),
+                    'code'    => 'invalid_screen',
+                ],
+                400
+            );
         }
 
         $params = [];
@@ -419,7 +449,15 @@ class Meprmf_Presets
     {
         $storage_id = strtolower(trim((string) $storage_id));
         $storage_id = preg_replace('/[^a-z0-9_]/', '', $storage_id);
-        return is_string($storage_id) ? $storage_id : '';
+        if (! is_string($storage_id) || '' === $storage_id) {
+            return '';
+        }
+
+        if (null === Meprmf_Screen::context_for_storage_id($storage_id)) {
+            return '';
+        }
+
+        return $storage_id;
     }
 
     /**

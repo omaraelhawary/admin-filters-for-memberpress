@@ -135,8 +135,28 @@
 		return out;
 	}
 
-	function countActiveParamsFromUrl() {
-		return Object.keys(collectActiveParamsFromUrl()).length;
+	/**
+	 * Active filter params: visible fields from the panel, hidden fields preserved from the URL.
+	 */
+	function collectEffectiveActiveParams(root, visibleMap) {
+		var fromUrl = collectActiveParamsFromUrl();
+		var fromPanel = collectActiveParamsFromPanel(root);
+		var vis = visibleMap || null;
+		var out = {};
+
+		Object.keys(fromUrl).forEach(function (key) {
+			if (vis && !vis[key]) {
+				out[key] = fromUrl[key];
+			}
+		});
+
+		Object.keys(fromPanel).forEach(function (key) {
+			if (!vis || vis[key]) {
+				out[key] = fromPanel[key];
+			}
+		});
+
+		return out;
 	}
 
 	/**
@@ -237,7 +257,7 @@
 			if (!badge) {
 				return;
 			}
-			var n = countActiveParamsFromUrl();
+			var n = Object.keys(collectEffectiveActiveParams(root, effectiveVisibleMap())).length;
 			badge.textContent = String(n);
 			if (n > 0) {
 				badge.removeAttribute('hidden');
@@ -245,6 +265,48 @@
 			} else {
 				badge.setAttribute('hidden', 'hidden');
 				badge.setAttribute('aria-hidden', 'true');
+			}
+		}
+
+		function getFocusableInPanel() {
+			if (!panel) {
+				return [];
+			}
+			var selector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+			return Array.prototype.slice.call(panel.querySelectorAll(selector)).filter(function (el) {
+				return !el.hidden && el.offsetParent !== null;
+			});
+		}
+
+		var focusTrapHandler = null;
+
+		function enableFocusTrap() {
+			disableFocusTrap();
+			focusTrapHandler = function (ev) {
+				if (ev.key !== 'Tab' || panel.hasAttribute('hidden')) {
+					return;
+				}
+				var focusable = getFocusableInPanel();
+				if (focusable.length === 0) {
+					return;
+				}
+				var first = focusable[0];
+				var last = focusable[focusable.length - 1];
+				if (ev.shiftKey && document.activeElement === first) {
+					ev.preventDefault();
+					last.focus();
+				} else if (!ev.shiftKey && document.activeElement === last) {
+					ev.preventDefault();
+					first.focus();
+				}
+			};
+			document.addEventListener('keydown', focusTrapHandler);
+		}
+
+		function disableFocusTrap() {
+			if (focusTrapHandler) {
+				document.removeEventListener('keydown', focusTrapHandler);
+				focusTrapHandler = null;
 			}
 		}
 
@@ -277,11 +339,16 @@
 			if (open) {
 				panel.removeAttribute('hidden');
 				panel.classList.add('meprmf-filter-panel--open');
-				var firstField = panel.querySelector('.mepr_filter_field');
+				enableFocusTrap();
+				var firstField = panel.querySelector('.mepr_filter_field:not([hidden])');
+				if (!firstField) {
+					firstField = panel.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+				}
 				if (firstField) {
 					firstField.focus();
 				}
 			} else {
+				disableFocusTrap();
 				panel.setAttribute('hidden', 'hidden');
 				panel.classList.remove('meprmf-filter-panel--open');
 				modeCustomize.hidden = true;
@@ -308,9 +375,11 @@
 			toggle.setAttribute('aria-expanded', 'true');
 			panel.removeAttribute('hidden');
 			panel.classList.add('meprmf-filter-panel--open');
+			enableFocusTrap();
 		}
 
 		applyItemVisibility();
+		updateBadge();
 
 		toggle.addEventListener('click', function () {
 			var open = toggle.getAttribute('aria-expanded') === 'true';
@@ -333,22 +402,9 @@
 				applyBtn.classList.add('is-busy');
 				var u = new URL(window.location.href);
 				stripKnownParams(u);
-				var vis = effectiveVisibleMap();
-				root.querySelectorAll('.meprmf-filter-panel__item').forEach(function (item) {
-					var panelParam = item.getAttribute('data-meprmf-param');
-					if (!panelParam || !vis[panelParam]) {
-						return;
-					}
-					item.querySelectorAll('.mepr_filter_field').forEach(function (el) {
-						var p = el.getAttribute('data-meprmf-param') || el.getAttribute('name') || panelParam;
-						if (!p) {
-							return;
-						}
-						var val = (el.value || '').trim();
-						if (val !== '') {
-							u.searchParams.set(p, val);
-						}
-					});
+				var active = collectEffectiveActiveParams(root, effectiveVisibleMap());
+				Object.keys(active).forEach(function (p) {
+					u.searchParams.set(p, active[p]);
 				});
 				safeSet(k.open, 'false');
 				window.location.assign(u.toString());
@@ -454,7 +510,7 @@
 			});
 		});
 
-		initPresetsBar(root, panel);
+		initPresetsBar(root, panel, effectiveVisibleMap);
 	}
 
 	function getPresetsFromConfig() {
@@ -615,7 +671,7 @@
 		window.location.assign(u.toString());
 	}
 
-	function initPresetsBar(root, panel) {
+	function initPresetsBar(root, panel, getVisibleMap) {
 		var cfg = window.meprmfMembersFloating || {};
 		var i18n = cfg.i18n || {};
 		var selectEl = panel.querySelector('.meprmf-filter-panel__preset-select');
@@ -645,10 +701,8 @@
 		});
 
 		saveBtn.addEventListener('click', function () {
-			var active = filterParamsToKnownKeys(collectActiveParamsFromPanel(root));
-			if (Object.keys(active).length === 0) {
-				active = collectActiveParamsFromUrl();
-			}
+			var visMap = typeof getVisibleMap === 'function' ? getVisibleMap() : null;
+			var active = filterParamsToKnownKeys(collectEffectiveActiveParams(root, visMap));
 			if (Object.keys(active).length === 0) {
 				window.alert(i18n.noActiveFilters || 'Apply at least one filter before saving a preset.');
 				return;
@@ -675,7 +729,6 @@
 			body.set('screen', cfg.storageId || storageNs());
 			body.set('name', name);
 			body.set('params', JSON.stringify(active));
-			body.set('known_params', JSON.stringify(getKnownKeys()));
 
 			fetch(cfg.ajaxUrl, {
 				method: 'POST',

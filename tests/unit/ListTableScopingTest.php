@@ -177,6 +177,18 @@ class ListTableScopingTest extends TestCase
         unset($_GET['page'], $GLOBALS['meprmf_test_current_screen']);
     }
 
+    public function test_context_for_storage_id_maps_supported_screens()
+    {
+        require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen-context.php';
+        require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen.php';
+
+        $members = Meprmf_Screen::context_for_storage_id('memberpress_members');
+        $this->assertNotNull($members);
+        $this->assertTrue($members->is_members());
+
+        $this->assertNull(Meprmf_Screen::context_for_storage_id('unknown_bucket'));
+    }
+
     public function test_list_table_caller_context_filter()
     {
         require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen-context.php';

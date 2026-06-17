@@ -29,6 +29,8 @@ class PresetsTest extends TestCase
         $GLOBALS['meprmf_preset_id_counter']  = 0;
 
         require_once dirname(__DIR__, 2) . '/includes/class-meprmf-util.php';
+        require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen-context.php';
+        require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen.php';
         require_once dirname(__DIR__, 2) . '/includes/class-meprmf-presets.php';
     }
 
@@ -151,6 +153,19 @@ class PresetsTest extends TestCase
 
         $this->assertFalse($third['success']);
         $this->assertSame('limit_reached', $third['code']);
+    }
+
+    public function test_rejects_invalid_storage_id()
+    {
+        $result = Meprmf_Presets::save_preset(
+            'not_a_real_screen',
+            'Bad screen',
+            [ 'mpm_access' => 'active' ],
+            $this->known
+        );
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('invalid_screen', $result['code']);
     }
 
     public function test_sanitize_preset_name_truncates()

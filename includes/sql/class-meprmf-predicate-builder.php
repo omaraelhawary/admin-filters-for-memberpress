@@ -39,6 +39,10 @@ class Meprmf_Predicate_Builder
     /**
      * Append EXISTS subqueries for active user-meta filters.
      *
+     * Each active meta filter adds a correlated EXISTS on wp_usermeta. Sites with many
+     * custom fields and several active filters may see higher query cost; date-range
+     * groups are merged into a single EXISTS per field.
+     *
      * @param array<int, string>           $args  Existing WHERE fragments.
      * @param Meprmf_Screen_Context        $ctx   Screen context.
      * @param array<int, array<string, mixed>> $valid Normalized field definitions.
