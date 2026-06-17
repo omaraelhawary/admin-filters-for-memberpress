@@ -175,6 +175,22 @@ class Meprmf_Members_Core_Provider
                     'none'     => __('Non-members', 'admin-filters-for-memberpress'),
                 ],
             ];
+
+            if (class_exists('MPCA_Corporate_Account')) {
+                $fields[] = [
+                    'param'     => $prefix . 'corp_type',
+                    'label'     => __('Corporate type', 'admin-filters-for-memberpress'),
+                    'type'      => 'select',
+                    'source'    => 'mepr_member',
+                    'predicate' => 'corp_type',
+                    'options'   => [
+                        'owner'       => __('Corp account owner', 'admin-filters-for-memberpress'),
+                        'sub_account' => __('Sub account', 'admin-filters-for-memberpress'),
+                        'none'        => __('Not corporate', 'admin-filters-for-memberpress'),
+                    ],
+                ];
+            }
+
             return $fields;
         }
 
@@ -219,7 +235,57 @@ class Meprmf_Members_Core_Provider
             ];
         }
 
+        if ($ctx->is_lifetimes()) {
+            $coupons = self::fetch_coupon_options();
+            if (! empty($coupons)) {
+                $fields[] = [
+                    'param'     => $prefix . 'coupon',
+                    'label'     => __('Coupon', 'admin-filters-for-memberpress'),
+                    'type'      => 'select',
+                    'source'    => 'mepr_transaction',
+                    'predicate' => 'coupon',
+                    'options'   => $coupons,
+                ];
+            }
+        }
+
         return $fields;
+    }
+
+    /**
+     * Coupon id => title for lifetime transaction filters.
+     *
+     * @return array<int, string>
+     */
+    private static function fetch_coupon_options()
+    {
+        $options = [];
+
+        if (! class_exists('MeprCptModel')) {
+            return $options;
+        }
+
+        $coupons = MeprCptModel::all(
+            'MeprCoupon',
+            false,
+            [
+                'orderby' => 'title',
+                'order'   => 'ASC',
+            ]
+        );
+
+        if (! is_array($coupons)) {
+            return $options;
+        }
+
+        foreach ($coupons as $coupon) {
+            if (empty($coupon->ID) || ! isset($coupon->post_title)) {
+                continue;
+            }
+            $options[ (int) $coupon->ID ] = (string) $coupon->post_title;
+        }
+
+        return $options;
     }
 
     /**
