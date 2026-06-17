@@ -84,13 +84,15 @@ Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-m
 
 = 2.0.0 =
 
-* **Saved filter presets** on the floating Filters panel for Members, Transactions, Subscriptions, and Lifetimes. Presets are site-wide (stored in wp_options meprmf_filter_presets), per screen, and include plugin filter params plus native MemberPress toolbar params (status, membership, gateway, transaction date fields, gifting type when applicable).
-* **Add-on passthrough filters:** Course, Circle, Directory on Members; Coupon and Gift type on Transactions when the corresponding add-ons are active.
+* **Saved filter presets** (floating panel): site-wide named presets on all four list screens; presets now include native MemberPress toolbar params (status, membership, gateway, transaction date fields, gifting type) in addition to plugin panel params. Stored in wp_options meprmf_filter_presets, per screen. Load, save (upsert by name), and delete from the panel. Filter hooks meprmf_filter_presets and meprmf_max_filter_presets_per_screen (default 25 per screen).
+* **Add-on passthrough filters:** Course, Circle, Directory (Members); Coupon and Gift type (Transactions) when the corresponding add-ons are active.
 * **Members activity filters:** registered date range, last login range, total spent min/max, on trial.
 * **Corporate type** filter on Members when MemberPress Corporate is active.
 * **Coupon** filter on Lifetimes (mpml_coupon).
 * Hooks: meprmf_members_addon_filters_fields, meprmf_members_activity_filters_fields, meprmf_native_toolbar_params, meprmf_corporate_type_predicate.
-* Load, save (upsert by name), and delete presets from the panel. Filter hooks meprmf_filter_presets and meprmf_max_filter_presets_per_screen (default 25 per screen).
+* **Floating panel:** Apply preserves active filters on hidden fields; badge reflects visible panel edits; focus trap while the panel is open.
+* **Performance:** filter hook meprmf_use_inactive_access_predicate to skip the heaviest Members inactive-access predicate.
+* **List-table scoping:** predicates still apply when get_current_screen() is unavailable (custom admin bootstraps).
 
 = 1.9.1 =
 
@@ -193,7 +195,7 @@ Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-m
 
 = 2.0.0 =
 
-Major release: saved filter presets (including native toolbar params), add-on passthrough filters, Members activity filters, Corporate type, and Lifetimes coupon. Hard-refresh admin or reset Customize visibility if new fields do not appear.
+Major release: saved filter presets (including native toolbar params), add-on passthrough filters, Members activity filters, Corporate type, Lifetimes coupon, floating-panel UX fixes, and inactive-access performance hook. Hard-refresh admin or reset Customize visibility if new fields do not appear.
 
 = 1.9.1 =
 
