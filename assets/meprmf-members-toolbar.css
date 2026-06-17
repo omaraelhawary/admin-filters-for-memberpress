@@ -225,6 +225,51 @@
 	overflow: visible;
 }
 
+.meprmf-filter-panel__presets {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: 8px 12px;
+	margin-bottom: 12px;
+	padding-bottom: 10px;
+	border-bottom: 1px solid #dcdcde;
+}
+
+.meprmf-filter-panel__presets-label {
+	flex: 0 0 100%;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+	color: #50575e;
+	line-height: 1.25;
+}
+
+.meprmf-filter-panel__presets-controls {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.meprmf-filter-panel__preset-select {
+	flex: 1 1 12rem;
+	min-width: 10rem;
+	max-width: 100%;
+	min-height: 30px;
+}
+
+.meprmf-filter-panel__preset-load.button,
+.meprmf-filter-panel__preset-save.button {
+	flex: 0 0 auto;
+}
+
+.meprmf-filter-panel__preset-delete {
+	flex: 0 0 auto;
+}
+
 .meprmf-filter-panel__grid {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));

@@ -262,6 +262,7 @@ class Meprmf_Toolbar_Renderer
         );
 
         echo '<div class="meprmf-filter-panel__mode meprmf-filter-panel__mode--filter">';
+        self::echo_presets_bar($ctx);
         echo '<p class="meprmf-filter-panel__empty" hidden>';
         echo esc_html__('No filters visible. Click Customize to add some.', 'admin-filters-for-memberpress');
         echo '</p>';
@@ -327,6 +328,48 @@ class Meprmf_Toolbar_Renderer
         );
         echo '</div>';
 
+        echo '</div>';
+    }
+
+    /**
+     * Saved presets bar (load / save / delete) above the filter grid.
+     *
+     * @param Meprmf_Screen_Context $ctx Screen context.
+     * @return void
+     */
+    private static function echo_presets_bar(Meprmf_Screen_Context $ctx)
+    {
+        $presets = Meprmf_Presets::get_presets_for_screen($ctx->get_storage_id());
+
+        echo '<div class="meprmf-filter-panel__presets">';
+        echo '<span class="meprmf-filter-panel__presets-label">' . esc_html__('Saved presets', 'admin-filters-for-memberpress') . '</span>';
+        echo '<div class="meprmf-filter-panel__presets-controls">';
+        echo '<select class="meprmf-filter-panel__preset-select" aria-label="' . esc_attr__('Saved presets', 'admin-filters-for-memberpress') . '">';
+        echo '<option value="">' . esc_html__('— Choose a preset —', 'admin-filters-for-memberpress') . '</option>';
+        foreach ($presets as $preset) {
+            if (empty($preset['id']) || empty($preset['name'])) {
+                continue;
+            }
+            printf(
+                '<option value="%1$s">%2$s</option>',
+                esc_attr((string) $preset['id']),
+                esc_html((string) $preset['name'])
+            );
+        }
+        echo '</select>';
+        printf(
+            '<button type="button" class="button meprmf-filter-panel__preset-load" disabled>%s</button> ',
+            esc_html__('Load', 'admin-filters-for-memberpress')
+        );
+        printf(
+            '<button type="button" class="button meprmf-filter-panel__preset-save">%s</button> ',
+            esc_html__('Save current…', 'admin-filters-for-memberpress')
+        );
+        printf(
+            '<button type="button" class="button-link meprmf-filter-panel__preset-delete" disabled>%s</button>',
+            esc_html__('Delete', 'admin-filters-for-memberpress')
+        );
+        echo '</div>';
         echo '</div>';
     }
 

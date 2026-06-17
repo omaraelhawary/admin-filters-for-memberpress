@@ -30,6 +30,7 @@ Filtering reads values you or your administrators submit on those admin lists (s
 * Extra filter controls on the **MemberPress -> Members**, **Subscriptions**, **Lifetimes**, and **Transactions** admin lists so you can narrow rows by address, registration fields, and (optionally) other stored member data you wire in with code.
 * On every supported list, additional filters query MemberPress tables (memberships, access, subscriptions, dates) and list-specific fields such as transaction status, gateway, and member status — not only wp_usermeta.
 * Each list still works like MemberPress; this plugin only adds filtering options for administrators.
+* **Saved presets** (floating Filters panel): name and reload common filter combinations site-wide on each list screen. Presets store plugin filter params only, not MemberPress native toolbar filters.
 
 == Installation ==
 
@@ -49,7 +50,7 @@ No. You must purchase and install MemberPress separately. This plugin only adds 
 
 = Where do I use the filters? =
 
-In the WordPress admin, open **MemberPress -> Members** (or **Subscriptions**, **Lifetimes**, or **Transactions**). Use the **Filters** area above the table to choose criteria, then apply them to refresh the list.
+In the WordPress admin, open **MemberPress -> Members** (or **Subscriptions**, **Lifetimes**, or **Transactions**). Use the **Filters** area above the table to choose criteria, then apply them to refresh the list. In the floating **Filters** panel, use **Saved presets** to load, save, or delete named filter combinations shared by all admins on that screen.
 
 = What can I filter members by? =
 
@@ -80,6 +81,11 @@ Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-m
 * Source and issues: see **Plugin URI** and **GitHub URI** in the main plugin file header (`admin-filters-for-memberpress.php`).
 
 == Changelog ==
+
+= Unreleased =
+
+* **Saved filter presets** on the floating Filters panel for Members, Transactions, Subscriptions, and Lifetimes. Presets are site-wide (stored in wp_options meprmf_filter_presets), per screen, and include plugin filter params only (not MemberPress native toolbar filters such as status or membership).
+* Load, save (upsert by name), and delete presets from the panel. Filter hooks meprmf_filter_presets and meprmf_max_filter_presets_per_screen (default 25 per screen).
 
 = 1.9.1 =
 

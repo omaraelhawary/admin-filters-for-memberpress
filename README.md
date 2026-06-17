@@ -49,6 +49,7 @@ The same **Filters** panel appears on **Transactions**, **Subscriptions (Recurri
 - Filter by the six built-in MemberPress address fields when address capture is enabled for signup/checkout and/or the account page (`meprmf_include_address_filters` to override).
 - Automatically expose every **MemberPress custom field** (MemberPress → Settings → Fields) with control types mapped to exact, contains, or checkbox match behavior.
 - **Floating Filters panel** on supported screens (field visibility in the browser via `localStorage`; resets when filter params change so new fields are not stuck hidden). Filter `meprmf_use_floating_meta_filters_panel` per screen; Members still respects `meprmf_use_floating_members_panel`.
+- **Saved filter presets** (floating panel): name and reload common filter combinations **site-wide** on each list screen. Presets store plugin filter params only — not MemberPress native toolbar filters (`status`, `membership`, etc.). Any admin who can filter may save or delete presets.
 - Meta filtering uses `EXISTS` subqueries on `wp_usermeta`, scoped to the list query’s user alias.
 - With `WP_DEBUG` enabled, predicate SQL fragments can be echoed for administrators on supported list screens (`includes/ui/class-meprmf-debug-panel.php`).
 
@@ -67,6 +68,17 @@ The same **Filters** panel appears on **Transactions**, **Subscriptions (Recurri
 Open **MemberPress → Members** (or **Subscriptions**, **Lifetimes**, or **Transactions**). Use the **Filters** control, set values, then **Apply filters**. MemberPress **Go** still runs the native search; it does not read the plugin panel fields.
 
 Use the **Filters** button above the table, choose criteria, then **Apply filters**. For “who has active access on this plan?” style queries on **Members**, prefer **Access** and **Membership** in the panel rather than mixing with MemberPress’s native **status** dropdown (they use different rules).
+
+### Saved presets
+
+In the floating **Filters** panel, the **Saved presets** bar appears above the filter fields:
+
+1. Apply filters and click **Apply filters** so the URL reflects your criteria.
+2. Click **Save current…**, enter a name, and save. Saving the same name again updates that preset.
+3. Choose a preset from the dropdown and click **Load** to apply it (same as bookmarking the filter URL).
+4. Select a preset and click **Delete** to remove it for all admins.
+
+Presets are stored per screen (Members, Transactions, Subscriptions, Lifetimes) in `wp_options` (`meprmf_filter_presets`). They include plugin panel params only (`mpf_*`, `mpm_*`, `mpmt_*`, `mpfs_*`, `mpml_*`). MemberPress’s native toolbar filters are not part of presets.
 
 ### Filters by screen
 
@@ -150,7 +162,7 @@ Pair this with the matching `meprmf_*_core_filters_fields` hook for that screen 
 
 **Security:** Only append SQL you prepare yourself (`$wpdb->prepare()`). Do not concatenate raw request data into fragments.
 
-**Other hooks:** `meprmf_use_floating_meta_filters_panel`, `meprmf_use_floating_members_panel`, `meprmf_include_address_filters`, `meprmf_compact_filters_threshold` (default `6`).
+**Other hooks:** `meprmf_use_floating_meta_filters_panel`, `meprmf_use_floating_members_panel`, `meprmf_include_address_filters`, `meprmf_compact_filters_threshold` (default `6`), `meprmf_filter_presets`, `meprmf_max_filter_presets_per_screen` (default `25`).
 
 ## How it works
 
@@ -176,6 +188,11 @@ vendor/bin/phpunit
 Uses `tests/bootstrap-unit.php` (no full WordPress test database). CI runs on PHP 8.1–8.3 via `.github/workflows/phpunit.yml`.
 
 ## Changelog
+
+### Unreleased
+
+- **Saved filter presets:** site-wide named presets in the floating Filters panel on Members, Transactions, Subscriptions, and Lifetimes. Stored in `wp_options` (`meprmf_filter_presets`); removed on uninstall. Plugin filter params only (not MemberPress native toolbar filters).
+- Hooks `meprmf_filter_presets` and `meprmf_max_filter_presets_per_screen` (default 25 per screen).
 
 ### 1.9.1
 

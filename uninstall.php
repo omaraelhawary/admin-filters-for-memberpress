@@ -11,3 +11,4 @@ if (! defined('WP_UNINSTALL_PLUGIN')) {
 
 // Legacy option from older releases; harmless if already absent.
 delete_option('meprmf_additional_filters');
+delete_option('meprmf_filter_presets');

@@ -108,6 +108,10 @@ if (! function_exists('wp_unslash')) {
     }
 }
 
+if (! isset($GLOBALS['meprmf_test_options'])) {
+    $GLOBALS['meprmf_test_options'] = [];
+}
+
 if (! function_exists('get_option')) {
     /**
      * @param string $option  Option name.
@@ -119,7 +123,38 @@ if (! function_exists('get_option')) {
         if ('date_format' === $option) {
             return 'F j, Y';
         }
+        if (array_key_exists($option, $GLOBALS['meprmf_test_options'])) {
+            return $GLOBALS['meprmf_test_options'][ $option ];
+        }
         return $default;
+    }
+}
+
+if (! function_exists('update_option')) {
+    /**
+     * @param string $option Option name.
+     * @param mixed  $value  Value.
+     * @return true
+     */
+    function update_option($option, $value)
+    {
+        $GLOBALS['meprmf_test_options'][ $option ] = $value;
+        return true;
+    }
+}
+
+if (! function_exists('wp_generate_password')) {
+    /**
+     * @param int  $length              Length.
+     * @param bool $special_chars       Special chars.
+     * @param bool $extra_special_chars Extra special.
+     * @return string
+     */
+    function wp_generate_password($length = 12, $special_chars = true, $extra_special_chars = false)
+    {
+        unset($special_chars, $extra_special_chars);
+        $GLOBALS['meprmf_preset_id_counter'] = (int) ( $GLOBALS['meprmf_preset_id_counter'] ?? 0 ) + 1;
+        return 'test' . str_pad((string) $GLOBALS['meprmf_preset_id_counter'], max(1, $length - 4), '0', STR_PAD_LEFT);
     }
 }
 
