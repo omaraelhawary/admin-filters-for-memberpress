@@ -21,4 +21,5 @@ require_once __DIR__ . '/sql/class-meprmf-mepr-predicate-builder.php';
 require_once __DIR__ . '/ui/class-meprmf-toolbar-renderer.php';
 require_once __DIR__ . '/ui/class-meprmf-debug-panel.php';
 require_once __DIR__ . '/class-meprmf-settings.php';
+require_once __DIR__ . '/class-meprmf-presets.php';
 require_once __DIR__ . '/class-meprmf-plugin.php';

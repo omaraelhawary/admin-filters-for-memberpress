@@ -218,7 +218,21 @@ class Meprmf_Plugin
                     'storageId'            => $ctx->get_storage_id(),
                     'dateRangeEnabled'     => Meprmf_Settings::is_date_custom_fields_use_range_enabled(),
                     'dateRangeNonce'       => wp_create_nonce('meprmf_date_range_pref'),
+                    'presets'              => Meprmf_Presets::get_presets_for_screen($ctx->get_storage_id()),
+                    'presetsNonce'         => wp_create_nonce('meprmf_filter_presets'),
                     'ajaxUrl'              => admin_url('admin-ajax.php'),
+                    'i18n'                 => [
+                        'presetsLabel'       => __('Saved presets', 'admin-filters-for-memberpress'),
+                        'presetsPlaceholder' => __('— Choose a preset —', 'admin-filters-for-memberpress'),
+                        'loadPreset'         => __('Load', 'admin-filters-for-memberpress'),
+                        'savePreset'         => __('Save current…', 'admin-filters-for-memberpress'),
+                        'deletePreset'       => __('Delete', 'admin-filters-for-memberpress'),
+                        'savePrompt'         => __('Preset name', 'admin-filters-for-memberpress'),
+                        'deleteConfirm'      => __('Delete this saved preset for all admins?', 'admin-filters-for-memberpress'),
+                        'saveError'          => __('Could not save the preset. Please try again.', 'admin-filters-for-memberpress'),
+                        'deleteError'        => __('Could not delete the preset. Please try again.', 'admin-filters-for-memberpress'),
+                        'noActiveFilters'    => __('Apply at least one filter before saving a preset.', 'admin-filters-for-memberpress'),
+                    ],
                 ]
             );
         }

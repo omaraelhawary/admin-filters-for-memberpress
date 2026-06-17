@@ -52,6 +52,92 @@
 		}
 	}
 
+	function stripKnownParams(u) {
+		getKnownKeys().forEach(function (key) {
+			u.searchParams.delete(key);
+		});
+	}
+
+	function normalizePresetsList(presets) {
+		if (Array.isArray(presets)) {
+			return presets;
+		}
+		if (presets && typeof presets === 'object') {
+			return Object.keys(presets).map(function (key) {
+				return presets[key];
+			});
+		}
+		return [];
+	}
+
+	function mergePresetsList(existing, incoming, savedPreset) {
+		var list = normalizePresetsList(incoming);
+		if (list.length === 0) {
+			list = normalizePresetsList(existing);
+		}
+		if (savedPreset && savedPreset.id) {
+			list = list.filter(function (p) {
+				return !p || String(p.id) !== String(savedPreset.id);
+			});
+			list.push(savedPreset);
+		}
+		return list;
+	}
+
+	function collectActiveParamsFromPanel(root) {
+		var out = {};
+		if (!root) {
+			return out;
+		}
+		root.querySelectorAll('.meprmf-filter-panel__item').forEach(function (item) {
+			item.querySelectorAll('.mepr_filter_field').forEach(function (el) {
+				var p = el.getAttribute('data-meprmf-param') || el.getAttribute('name');
+				if (!p) {
+					return;
+				}
+				var val = (el.value || '').trim();
+				if (val !== '') {
+					out[String(p)] = val;
+				}
+			});
+		});
+		return out;
+	}
+
+	function filterParamsToKnownKeys(params) {
+		var known = {};
+		getKnownKeys().forEach(function (key) {
+			known[key] = true;
+		});
+		var out = {};
+		Object.keys(params || {}).forEach(function (key) {
+			if (!known[key]) {
+				return;
+			}
+			var val = String(params[key] || '').trim();
+			if (val !== '') {
+				out[key] = val;
+			}
+		});
+		return out;
+	}
+
+	function collectActiveParamsFromUrl() {
+		var u = new URL(window.location.href);
+		var out = {};
+		getKnownKeys().forEach(function (key) {
+			var v = u.searchParams.get(key);
+			if (v !== null && String(v) !== '') {
+				out[key] = String(v);
+			}
+		});
+		return out;
+	}
+
+	function countActiveParamsFromUrl() {
+		return Object.keys(collectActiveParamsFromUrl()).length;
+	}
+
 	/**
 	 * Bookmarked ?*_access=expired URLs still filter; rewrite to inactive so the dropdown matches.
 	 */
@@ -145,25 +231,12 @@
 			});
 		}
 
-		function stripKnownParams(u) {
-			getKnownKeys().forEach(function (key) {
-				u.searchParams.delete(key);
-			});
-		}
-
 		function updateBadge() {
 			var badge = root.querySelector('.meprmf-toggle-btn__badge');
 			if (!badge) {
 				return;
 			}
-			var u = new URL(window.location.href);
-			var n = 0;
-			getKnownKeys().forEach(function (key) {
-				var v = u.searchParams.get(key);
-				if (v !== null && String(v) !== '') {
-					n++;
-				}
-			});
+			var n = countActiveParamsFromUrl();
 			badge.textContent = String(n);
 			if (n > 0) {
 				badge.removeAttribute('hidden');
@@ -378,6 +451,311 @@
 					applyBtn.click();
 				}
 			});
+		});
+
+		initPresetsBar(root, panel);
+	}
+
+	function getPresetsFromConfig() {
+		var cfg = window.meprmfMembersFloating || {};
+		return normalizePresetsList(cfg.presets);
+	}
+
+	function findPresetById(id) {
+		var target = String(id || '');
+		if (target === '') {
+			return null;
+		}
+		var list = getPresetsFromConfig();
+		for (var i = 0; i < list.length; i++) {
+			if (String(list[i].id) === target) {
+				return list[i];
+			}
+		}
+		return null;
+	}
+
+	function normalizePresetParams(params) {
+		var out = {};
+		if (!params || typeof params !== 'object') {
+			return out;
+		}
+		var known = {};
+		getKnownKeys().forEach(function (key) {
+			known[key] = true;
+		});
+		Object.keys(params).forEach(function (key) {
+			if (!known[key]) {
+				return;
+			}
+			var val = String(params[key] || '').trim();
+			if (val !== '') {
+				out[key] = val;
+			}
+		});
+		return out;
+	}
+
+	function paramsMatchActiveUrl(presetParams) {
+		var active = collectActiveParamsFromUrl();
+		var preset = normalizePresetParams(presetParams);
+		var activeKeys = Object.keys(active);
+		var presetKeys = Object.keys(preset);
+		if (activeKeys.length === 0 || presetKeys.length === 0 || activeKeys.length !== presetKeys.length) {
+			return false;
+		}
+		for (var i = 0; i < presetKeys.length; i++) {
+			var key = presetKeys[i];
+			if (active[key] !== preset[key]) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	function findMatchingPresetId() {
+		var list = getPresetsFromConfig();
+		for (var i = 0; i < list.length; i++) {
+			if (list[i] && list[i].id && paramsMatchActiveUrl(list[i].params)) {
+				return String(list[i].id);
+			}
+		}
+		return '';
+	}
+
+	function syncPresetSelectToActiveUrl(selectEl, loadBtn, deleteBtn) {
+		if (!selectEl) {
+			return;
+		}
+		var matchedId = findMatchingPresetId();
+		selectEl.value = matchedId;
+		syncPresetActionButtons(selectEl, loadBtn, deleteBtn);
+	}
+
+	function rebuildPresetSelect(selectEl, presets, selectedId, ensurePreset) {
+		if (!selectEl) {
+			return;
+		}
+		var cfg = window.meprmfMembersFloating || {};
+		var i18n = cfg.i18n || {};
+		var placeholder = i18n.presetsPlaceholder || '— Choose a preset —';
+		var list = normalizePresetsList(presets);
+
+		while (selectEl.firstChild) {
+			selectEl.removeChild(selectEl.firstChild);
+		}
+
+		var emptyOpt = document.createElement('option');
+		emptyOpt.value = '';
+		emptyOpt.textContent = placeholder;
+		selectEl.appendChild(emptyOpt);
+
+		list.forEach(function (preset) {
+			if (!preset || !preset.id || !preset.name) {
+				return;
+			}
+			var opt = document.createElement('option');
+			opt.value = String(preset.id);
+			opt.textContent = String(preset.name);
+			selectEl.appendChild(opt);
+		});
+
+		if (selectedId) {
+			var sid = String(selectedId);
+			selectEl.value = sid;
+			if (selectEl.value !== sid && ensurePreset && String(ensurePreset.id) === sid && ensurePreset.name) {
+				var fallbackOpt = document.createElement('option');
+				fallbackOpt.value = sid;
+				fallbackOpt.textContent = String(ensurePreset.name);
+				selectEl.appendChild(fallbackOpt);
+				selectEl.value = sid;
+			}
+			if (selectEl.value !== sid) {
+				selectEl.value = '';
+			}
+		}
+	}
+
+	function setConfigPresets(presets) {
+		if (!window.meprmfMembersFloating) {
+			window.meprmfMembersFloating = {};
+		}
+		window.meprmfMembersFloating.presets = normalizePresetsList(presets);
+	}
+
+	function syncPresetActionButtons(selectEl, loadBtn, deleteBtn) {
+		var hasSelection = !!(selectEl && selectEl.value);
+		if (loadBtn) {
+			loadBtn.disabled = !hasSelection;
+		}
+		if (deleteBtn) {
+			deleteBtn.disabled = !hasSelection;
+		}
+	}
+
+	function applyPresetParams(params) {
+		var u = new URL(window.location.href);
+		stripKnownParams(u);
+		if (params && typeof params === 'object') {
+			var known = {};
+			getKnownKeys().forEach(function (key) {
+				known[key] = true;
+			});
+			Object.keys(params).forEach(function (key) {
+				if (!known[key]) {
+					return;
+				}
+				var val = String(params[key] || '').trim();
+				if (val !== '') {
+					u.searchParams.set(key, val);
+				}
+			});
+		}
+		window.location.assign(u.toString());
+	}
+
+	function initPresetsBar(root, panel) {
+		var cfg = window.meprmfMembersFloating || {};
+		var i18n = cfg.i18n || {};
+		var selectEl = panel.querySelector('.meprmf-filter-panel__preset-select');
+		var loadBtn = panel.querySelector('.meprmf-filter-panel__preset-load');
+		var saveBtn = panel.querySelector('.meprmf-filter-panel__preset-save');
+		var deleteBtn = panel.querySelector('.meprmf-filter-panel__preset-delete');
+
+		if (!selectEl || !loadBtn || !saveBtn || !deleteBtn) {
+			return;
+		}
+
+		syncPresetSelectToActiveUrl(selectEl, loadBtn, deleteBtn);
+
+		selectEl.addEventListener('change', function () {
+			syncPresetActionButtons(selectEl, loadBtn, deleteBtn);
+		});
+
+		loadBtn.addEventListener('click', function () {
+			if (loadBtn.disabled || !selectEl.value) {
+				return;
+			}
+			var preset = findPresetById(selectEl.value);
+			if (!preset || !preset.params) {
+				return;
+			}
+			applyPresetParams(preset.params);
+		});
+
+		saveBtn.addEventListener('click', function () {
+			var active = filterParamsToKnownKeys(collectActiveParamsFromPanel(root));
+			if (Object.keys(active).length === 0) {
+				active = collectActiveParamsFromUrl();
+			}
+			if (Object.keys(active).length === 0) {
+				window.alert(i18n.noActiveFilters || 'Apply at least one filter before saving a preset.');
+				return;
+			}
+			if (!cfg.ajaxUrl || !cfg.presetsNonce) {
+				window.alert(i18n.saveError || 'Could not save the preset. Please try again.');
+				return;
+			}
+
+			var name = window.prompt(i18n.savePrompt || 'Preset name', '');
+			if (name === null) {
+				return;
+			}
+			name = String(name).trim();
+			if (name === '') {
+				return;
+			}
+
+			saveBtn.disabled = true;
+
+			var body = new URLSearchParams();
+			body.set('action', 'meprmf_save_filter_preset');
+			body.set('nonce', cfg.presetsNonce);
+			body.set('screen', cfg.storageId || storageNs());
+			body.set('name', name);
+			body.set('params', JSON.stringify(active));
+			body.set('known_params', JSON.stringify(getKnownKeys()));
+
+			fetch(cfg.ajaxUrl, {
+				method: 'POST',
+				credentials: 'same-origin',
+				headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+				body: body.toString()
+			})
+				.then(function (res) {
+					return res.json().then(function (data) {
+						return { ok: res.ok, data: data };
+					});
+				})
+				.then(function (result) {
+					var data = result.data;
+					if (!result.ok || !data || !data.success) {
+						var msg = (data && data.data && data.data.message) ? data.data.message : (i18n.saveError || 'Could not save the preset. Please try again.');
+						throw new Error(msg);
+					}
+					var savedPreset = data.data && data.data.preset ? data.data.preset : null;
+					var presets = mergePresetsList(cfg.presets, data.data ? data.data.presets : null, savedPreset);
+					setConfigPresets(presets);
+					var selectedId = savedPreset && savedPreset.id ? savedPreset.id : '';
+					rebuildPresetSelect(selectEl, presets, selectedId, savedPreset);
+					syncPresetActionButtons(selectEl, loadBtn, deleteBtn);
+				})
+				.catch(function (err) {
+					window.alert(err && err.message ? err.message : (i18n.saveError || 'Could not save the preset. Please try again.'));
+				})
+				.finally(function () {
+					saveBtn.disabled = false;
+				});
+		});
+
+		deleteBtn.addEventListener('click', function () {
+			if (deleteBtn.disabled || !selectEl.value) {
+				return;
+			}
+			if (!window.confirm(i18n.deleteConfirm || 'Delete this saved preset for all admins?')) {
+				return;
+			}
+			if (!cfg.ajaxUrl || !cfg.presetsNonce) {
+				window.alert(i18n.deleteError || 'Could not delete the preset. Please try again.');
+				return;
+			}
+
+			deleteBtn.disabled = true;
+
+			var body = new URLSearchParams();
+			body.set('action', 'meprmf_delete_filter_preset');
+			body.set('nonce', cfg.presetsNonce);
+			body.set('screen', cfg.storageId || storageNs());
+			body.set('id', selectEl.value);
+
+			fetch(cfg.ajaxUrl, {
+				method: 'POST',
+				credentials: 'same-origin',
+				headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+				body: body.toString()
+			})
+				.then(function (res) {
+					return res.json().then(function (data) {
+						return { ok: res.ok, data: data };
+					});
+				})
+				.then(function (result) {
+					var data = result.data;
+					if (!result.ok || !data || !data.success) {
+						var msg = (data && data.data && data.data.message) ? data.data.message : (i18n.deleteError || 'Could not delete the preset. Please try again.');
+						throw new Error(msg);
+					}
+					var presets = normalizePresetsList(data.data ? data.data.presets : null);
+					setConfigPresets(presets);
+					rebuildPresetSelect(selectEl, presets, '');
+					syncPresetActionButtons(selectEl, loadBtn, deleteBtn);
+				})
+				.catch(function (err) {
+					window.alert(err && err.message ? err.message : (i18n.deleteError || 'Could not delete the preset. Please try again.'));
+				})
+				.finally(function () {
+					syncPresetActionButtons(selectEl, loadBtn, deleteBtn);
+				});
 		});
 	}
 
