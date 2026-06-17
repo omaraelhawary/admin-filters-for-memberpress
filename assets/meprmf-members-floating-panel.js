@@ -76,8 +76,9 @@
 			list = normalizePresetsList(existing);
 		}
 		if (savedPreset && savedPreset.id) {
+			var savedId = String(savedPreset.id).toLowerCase();
 			list = list.filter(function (p) {
-				return !p || String(p.id) !== String(savedPreset.id);
+				return !p || String(p.id).toLowerCase() !== savedId;
 			});
 			list.push(savedPreset);
 		}

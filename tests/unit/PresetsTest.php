@@ -180,4 +180,49 @@ class PresetsTest extends TestCase
 
         $this->assertSame([ 'mpm_access' => 'active' ], $clean);
     }
+
+    public function test_save_preset_return_id_matches_get_presets_list_id()
+    {
+        $save = Meprmf_Presets::save_preset(
+            self::SCREEN,
+            'ID sync',
+            [ 'mpm_access' => 'active' ],
+            $this->known
+        );
+
+        $this->assertTrue($save['success']);
+        $this->assertSame(strtolower($save['preset']['id']), $save['preset']['id']);
+
+        $list = Meprmf_Presets::get_presets_for_screen(self::SCREEN);
+        $this->assertCount(1, $list);
+        $this->assertSame($list[0]['id'], $save['preset']['id']);
+    }
+
+    public function test_upsert_normalizes_legacy_mixed_case_preset_id()
+    {
+        $GLOBALS['meprmf_test_options'][ Meprmf_Presets::OPTION_KEY ] = [
+            self::SCREEN => [
+                [
+                    'id'      => 'p_AbCdEfGhIjKl',
+                    'name'    => 'Legacy',
+                    'params'  => [ 'mpm_access' => 'active' ],
+                    'updated' => 1,
+                ],
+            ],
+        ];
+
+        $save = Meprmf_Presets::save_preset(
+            self::SCREEN,
+            'Legacy',
+            [ 'mpm_access' => 'inactive' ],
+            $this->known
+        );
+
+        $this->assertTrue($save['success']);
+        $this->assertSame('p_abcdefghijkl', $save['preset']['id']);
+
+        $list = Meprmf_Presets::get_presets_for_screen(self::SCREEN);
+        $this->assertCount(1, $list);
+        $this->assertSame($save['preset']['id'], $list[0]['id']);
+    }
 }

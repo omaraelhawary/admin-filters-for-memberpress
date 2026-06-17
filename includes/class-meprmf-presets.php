@@ -155,6 +155,13 @@ class Meprmf_Presets
         $all[ $storage_id ] = array_values($slice);
         self::update_all_presets($all);
 
+        if (null !== $saved) {
+            $normalized = self::normalize_preset_row($saved);
+            if (null !== $normalized) {
+                $saved = $normalized;
+            }
+        }
+
         return [
             'success' => true,
             'preset'  => $saved,
@@ -449,10 +456,10 @@ class Meprmf_Presets
     private static function generate_preset_id()
     {
         if (function_exists('wp_generate_password')) {
-            return 'p_' . wp_generate_password(12, false, false);
+            return self::sanitize_preset_id('p_' . wp_generate_password(12, false, false));
         }
 
-        return 'p_' . bin2hex(random_bytes(6));
+        return self::sanitize_preset_id('p_' . bin2hex(random_bytes(6)));
     }
 
     /**
