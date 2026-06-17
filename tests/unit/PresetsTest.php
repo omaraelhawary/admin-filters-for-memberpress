@@ -67,6 +67,23 @@ class PresetsTest extends TestCase
         $this->assertSame([], Meprmf_Presets::get_presets_for_screen(self::SCREEN));
     }
 
+    public function test_accepts_native_toolbar_params_when_whitelisted()
+    {
+        $known = array_merge($this->known, [ 'status', 'membership' ]);
+        $save  = Meprmf_Presets::save_preset(
+            self::SCREEN,
+            'Native mix',
+            [ 'status' => 'active', 'mpm_access' => 'active' ],
+            $known
+        );
+
+        $this->assertTrue($save['success']);
+        $this->assertSame(
+            [ 'status' => 'active', 'mpm_access' => 'active' ],
+            $save['preset']['params']
+        );
+    }
+
     public function test_rejects_unknown_param_keys()
     {
         $save = Meprmf_Presets::save_preset(

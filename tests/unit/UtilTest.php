@@ -172,4 +172,30 @@ class UtilTest extends TestCase
             Meprmf_Util::get_field_match_mode([ 'type' => 'select', 'match' => 'contains' ])
         );
     }
+
+    public function test_normalize_passthrough_filter_fields_accepts_native_source()
+    {
+        $valid = Meprmf_Util::normalize_passthrough_filter_fields(
+            [
+                [
+                    'param'   => 'course',
+                    'label'   => 'Course',
+                    'type'    => 'select',
+                    'source'  => 'native',
+                    'options' => [ 1 => 'Intro' ],
+                ],
+                [
+                    'param'  => 'bad',
+                    'label'  => 'Bad',
+                    'type'   => 'select',
+                    'source' => 'mepr_member',
+                    'options' => [ 1 => 'X' ],
+                ],
+            ]
+        );
+
+        $this->assertCount(1, $valid);
+        $this->assertSame('course', $valid[0]['param']);
+        $this->assertSame('native', $valid[0]['source']);
+    }
 }
