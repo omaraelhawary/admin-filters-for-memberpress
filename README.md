@@ -25,7 +25,7 @@
 | --- | --- |
 | **Contributors** | Omar ElHawary — [WordPress.org profile](https://profiles.wordpress.org/omarelhawary/) |
 | **Requires** | WordPress 5.6+, PHP 8.1+, active [MemberPress](https://memberpress.com/) |
-| **Current release** | 1.9.1 (see plugin header in `admin-filters-for-memberpress.php`) |
+| **Current release** | 2.0.0 (see plugin header in `admin-filters-for-memberpress.php`) |
 | **Text domain** | `admin-filters-for-memberpress` (matches the plugin slug) |
 | **License** | GPLv2 or later |
 
@@ -49,7 +49,11 @@ The same **Filters** panel appears on **Transactions**, **Subscriptions (Recurri
 - Filter by the six built-in MemberPress address fields when address capture is enabled for signup/checkout and/or the account page (`meprmf_include_address_filters` to override).
 - Automatically expose every **MemberPress custom field** (MemberPress → Settings → Fields) with control types mapped to exact, contains, or checkbox match behavior.
 - **Floating Filters panel** on supported screens (field visibility in the browser via `localStorage`; resets when filter params change so new fields are not stuck hidden). Filter `meprmf_use_floating_meta_filters_panel` per screen; Members still respects `meprmf_use_floating_members_panel`.
-- **Saved filter presets** (floating panel): name and reload common filter combinations **site-wide** on each list screen. Presets store plugin filter params only — not MemberPress native toolbar filters (`status`, `membership`, etc.). Any admin who can filter may save or delete presets.
+- **Saved filter presets** (floating panel): name and reload common filter combinations **site-wide** on each list screen. Presets include plugin panel params **and** MemberPress native toolbar filters (`status`, `membership`, `gateway`, transaction date presets, gifting `type` when applicable). Any admin who can filter may save or delete presets.
+- **Add-on aware passthrough filters** (when the add-on is active): **Course**, **Circle**, and **Directory** on **Members**; **Coupon** and **Gift type** on **Transactions** — these use the same GET params MemberPress add-ons already understand (`course`, `circle_id`, `directory`, `coupon_id`, `type`).
+- **Members activity filters:** registered date range, last login range, total spent min/max, and **On trial** (`mepr_members` / user aggregates).
+- **Corporate type** on **Members** when MemberPress Corporate is active (corp account owner, sub account, not corporate).
+- **Coupon** on **Lifetimes** (`mpml_coupon`) via transaction row predicate.
 - Meta filtering uses `EXISTS` subqueries on `wp_usermeta`, scoped to the list query’s user alias.
 - With `WP_DEBUG` enabled, predicate SQL fragments can be echoed for administrators on supported list screens (`includes/ui/class-meprmf-debug-panel.php`).
 
@@ -78,7 +82,7 @@ In the floating **Filters** panel, the **Saved presets** bar appears above the f
 3. Choose a preset from the dropdown and click **Load** to apply it (same as bookmarking the filter URL).
 4. Select a preset and click **Delete** to remove it for all admins.
 
-Presets are stored per screen (Members, Transactions, Subscriptions, Lifetimes) in `wp_options` (`meprmf_filter_presets`). They include plugin panel params only (`mpf_*`, `mpm_*`, `mpmt_*`, `mpfs_*`, `mpml_*`). MemberPress’s native toolbar filters are not part of presets.
+Presets are stored per screen (Members, Transactions, Subscriptions, Lifetimes) in `wp_options` (`meprmf_filter_presets`). They include plugin panel params (`mpf_*`, `mpm_*`, `mpmt_*`, `mpfs_*`, `mpml_*`) **and** native toolbar params for that screen (`status`, `membership`, `gateway`, transaction date fields, etc.).
 
 Presets are **site-wide**: any admin who can filter the list may save, load, or delete them for everyone on that screen. Saving the same name again updates that preset; concurrent saves from multiple admins are last-write-wins.
 
@@ -95,6 +99,11 @@ Presets are **site-wide**: any admin who can filter the list may save, load, or 
 | Transaction status | — | ✓ | — | ✓ |
 | Created from / to | — | ✓ | — | ✓ |
 | Gateway | — | ✓ | ✓ | ✓ |
+| Course / Circle / Directory (add-on) | ✓ | — | — | — |
+| Corporate type (Corporate add-on) | ✓ | — | — | — |
+| Registered / last login / spent / trial | ✓ | — | — | — |
+| Coupon (`coupon_id` / `mpml_coupon`) | — | ✓ (`coupon_id`) | — | ✓ |
+| Gift type (Gifting add-on) | — | ✓ | — | — |
 | Address + custom fields (`mpf_*` / `mpfs_*` / `mpft_*`) | ✓ | ✓ | ✓ | ✓ |
 
 **Access vs subscription status**
@@ -164,7 +173,7 @@ Pair this with the matching `meprmf_*_core_filters_fields` hook for that screen 
 
 **Security:** Only append SQL you prepare yourself (`$wpdb->prepare()`). Do not concatenate raw request data into fragments.
 
-**Other hooks:** `meprmf_use_floating_meta_filters_panel`, `meprmf_use_floating_members_panel`, `meprmf_include_address_filters`, `meprmf_compact_filters_threshold` (default `6`), `meprmf_filter_presets`, `meprmf_max_filter_presets_per_screen` (default `25`), `meprmf_use_inactive_access_predicate` (Members list inactive/expired access SQL; default `true`).
+**Other hooks:** `meprmf_use_floating_meta_filters_panel`, `meprmf_use_floating_members_panel`, `meprmf_include_address_filters`, `meprmf_compact_filters_threshold` (default `6`), `meprmf_filter_presets`, `meprmf_max_filter_presets_per_screen` (default `25`), `meprmf_use_inactive_access_predicate` (Members list inactive/expired access SQL; default `true`), `meprmf_members_addon_filters_fields`, `meprmf_members_activity_filters_fields`, `meprmf_native_toolbar_params`, `meprmf_corporate_type_predicate`.
 
 ### Performance notes
 
@@ -197,13 +206,17 @@ Uses `tests/bootstrap-unit.php` (no full WordPress test database). CI runs on PH
 
 ## Changelog
 
-### Unreleased
+### 2.0.0
 
-- **Saved filter presets:** site-wide named presets in the floating Filters panel on Members, Transactions, Subscriptions, and Lifetimes. Stored in `wp_options` (`meprmf_filter_presets`); removed on uninstall along with per-admin date-range user meta. Plugin filter params only (not MemberPress native toolbar filters). Preset param keys are validated server-side from the filter registry.
+- **Saved filter presets** (floating panel): site-wide named presets on all four list screens; presets now include **native MemberPress toolbar** params (`status`, `membership`, `gateway`, transaction date fields, gifting `type`) in addition to plugin panel params.
+- **Add-on passthrough filters:** Course, Circle, Directory (Members); Coupon and Gift type (Transactions) when the corresponding add-ons are active.
+- **Members activity filters:** registered date range, last login range, total spent min/max, on trial.
+- **Corporate type** filter on Members when MemberPress Corporate is active.
+- **Coupon** filter on Lifetimes (`mpml_coupon`).
+- Hooks: `meprmf_members_addon_filters_fields`, `meprmf_members_activity_filters_fields`, `meprmf_native_toolbar_params`, `meprmf_corporate_type_predicate`.
 - **Floating panel:** Apply preserves active filters on hidden fields; badge reflects visible panel edits; focus trap while the panel is open.
-- **Performance:** document inactive-access and multi-meta filter query cost; filter hook `meprmf_use_inactive_access_predicate` to skip the heaviest Members inactive-access predicate.
+- **Performance:** filter hook `meprmf_use_inactive_access_predicate` to skip the heaviest Members inactive-access predicate.
 - **List-table scoping:** predicates still apply when `get_current_screen()` is unavailable (custom admin bootstraps).
-- Hooks `meprmf_filter_presets` and `meprmf_max_filter_presets_per_screen` (default 25 per screen).
 
 ### 1.9.1
 
@@ -306,6 +319,10 @@ Uses `tests/bootstrap-unit.php` (no full WordPress test database). CI runs on PH
 - Compact collapsible filter layout when many filters are active (threshold filterable in later releases).
 
 ## Upgrade notices
+
+### 2.0.0
+
+Major release: saved filter presets (including native toolbar params), add-on passthrough filters, Members activity filters, Corporate type, and Lifetimes coupon. The `knownParamsSignature` in localStorage may change — hard-refresh admin or reset **Customize** visibility if new fields do not appear.
 
 ### 1.9.1
 

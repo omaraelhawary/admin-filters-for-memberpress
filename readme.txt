@@ -4,7 +4,7 @@ Tags: memberpress, members, admin, filters, membership
 Requires at least: 5.6
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 1.9.1
+Stable tag: 2.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -30,7 +30,7 @@ Filtering reads values you or your administrators submit on those admin lists (s
 * Extra filter controls on the **MemberPress -> Members**, **Subscriptions**, **Lifetimes**, and **Transactions** admin lists so you can narrow rows by address, registration fields, and (optionally) other stored member data you wire in with code.
 * On every supported list, additional filters query MemberPress tables (memberships, access, subscriptions, dates) and list-specific fields such as transaction status, gateway, and member status — not only wp_usermeta.
 * Each list still works like MemberPress; this plugin only adds filtering options for administrators.
-* **Saved presets** (floating Filters panel): name and reload common filter combinations site-wide on each list screen. Presets store plugin filter params only, not MemberPress native toolbar filters.
+* **Saved presets** (floating Filters panel): name and reload common filter combinations site-wide on each list screen. Presets include plugin panel params and native MemberPress toolbar params (`status`, `membership`, `gateway`, transaction date fields, gifting `type` when applicable).
 
 == Installation ==
 
@@ -82,9 +82,14 @@ Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-m
 
 == Changelog ==
 
-= Unreleased =
+= 2.0.0 =
 
-* **Saved filter presets** on the floating Filters panel for Members, Transactions, Subscriptions, and Lifetimes. Presets are site-wide (stored in wp_options meprmf_filter_presets), per screen, and include plugin filter params only (not MemberPress native toolbar filters such as status or membership).
+* **Saved filter presets** on the floating Filters panel for Members, Transactions, Subscriptions, and Lifetimes. Presets are site-wide (stored in wp_options meprmf_filter_presets), per screen, and include plugin filter params plus native MemberPress toolbar params (status, membership, gateway, transaction date fields, gifting type when applicable).
+* **Add-on passthrough filters:** Course, Circle, Directory on Members; Coupon and Gift type on Transactions when the corresponding add-ons are active.
+* **Members activity filters:** registered date range, last login range, total spent min/max, on trial.
+* **Corporate type** filter on Members when MemberPress Corporate is active.
+* **Coupon** filter on Lifetimes (mpml_coupon).
+* Hooks: meprmf_members_addon_filters_fields, meprmf_members_activity_filters_fields, meprmf_native_toolbar_params, meprmf_corporate_type_predicate.
 * Load, save (upsert by name), and delete presets from the panel. Filter hooks meprmf_filter_presets and meprmf_max_filter_presets_per_screen (default 25 per screen).
 
 = 1.9.1 =
@@ -185,6 +190,10 @@ Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-m
 * Compact collapsible filter layout when many filters are active (threshold filterable in later releases).
 
 == Upgrade Notice ==
+
+= 2.0.0 =
+
+Major release: saved filter presets (including native toolbar params), add-on passthrough filters, Members activity filters, Corporate type, and Lifetimes coupon. Hard-refresh admin or reset Customize visibility if new fields do not appear.
 
 = 1.9.1 =
 
