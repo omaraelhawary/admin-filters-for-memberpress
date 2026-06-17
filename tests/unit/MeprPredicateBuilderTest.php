@@ -38,6 +38,7 @@ class MeprPredicateBuilderTest extends TestCase
     {
         require_once dirname(__DIR__, 2) . '/includes/class-meprmf-util.php';
         require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen-context.php';
+        require_once dirname(__DIR__, 2) . '/includes/sql/class-meprmf-corporate-predicates.php';
         require_once dirname(__DIR__, 2) . '/includes/sql/class-meprmf-mepr-predicate-builder.php';
 
         if (! class_exists('MeprUtils', false)) {
@@ -65,6 +66,8 @@ class MeprPredicateBuilderTest extends TestCase
         global $wpdb;
         $wpdb = new class() {
             public $prefix = 'wp_';
+
+            public $usermeta = 'wp_usermeta';
 
             /**
              * @param string $query Query.
@@ -391,5 +394,120 @@ class MeprPredicateBuilderTest extends TestCase
         $this->assertCount(1, $args);
         $this->assertStringContainsString('product_id', $args[0]);
         $this->assertStringContainsString('9', $args[0]);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function activity_field_defs()
+    {
+        return [
+            [
+                'param'     => 'mpm_registered_from',
+                'label'     => 'Registered from',
+                'type'      => 'date',
+                'source'    => 'mepr_member',
+                'predicate' => 'registered_from',
+            ],
+            [
+                'param'     => 'mpm_registered_to',
+                'label'     => 'Registered to',
+                'type'      => 'date',
+                'source'    => 'mepr_member',
+                'predicate' => 'registered_to',
+            ],
+            [
+                'param'     => 'mpm_last_login_from',
+                'label'     => 'Last login from',
+                'type'      => 'date',
+                'source'    => 'mepr_member',
+                'predicate' => 'last_login_from',
+            ],
+            [
+                'param'     => 'mpm_spent_min',
+                'label'     => 'Spent min',
+                'type'      => 'text',
+                'source'    => 'mepr_member',
+                'predicate' => 'spent_min',
+            ],
+            [
+                'param'     => 'mpm_trial',
+                'label'     => 'Trial',
+                'type'      => 'checkbox',
+                'source'    => 'mepr_member',
+                'predicate' => 'trial',
+            ],
+        ];
+    }
+
+    public function test_members_activity_registered_and_trial_predicates()
+    {
+        $_GET['mpm_registered_from'] = '2025-01-01';
+        $_GET['mpm_registered_to']   = '2025-12-31';
+        $_GET['mpm_trial']           = '1';
+
+        $ctx  = new Meprmf_Screen_Context('memberpress-members', 'u.ID');
+        $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists([], $ctx, $this->activity_field_defs());
+
+        $this->assertGreaterThanOrEqual(3, count($args));
+        $combined = implode("\n", $args);
+        $this->assertStringContainsString('u.user_registered', $combined);
+        $this->assertStringContainsString('trial_txn_count', $combined);
+    }
+
+    public function test_members_corp_type_sub_account_predicate()
+    {
+        if (! class_exists('MPCA_Db', false)) {
+            eval(
+                'class MPCA_Db {
+                    public $corporate_accounts = "wp_mepr_corporate_accounts";
+                    public static function fetch() { return new self(); }
+                }'
+            );
+        }
+
+        $_GET['mpm_corp_type'] = 'sub_account';
+
+        $fields = $this->core_field_defs();
+        $fields[] = [
+            'param'     => 'mpm_corp_type',
+            'label'     => 'Corporate type',
+            'type'      => 'select',
+            'source'    => 'mepr_member',
+            'predicate' => 'corp_type',
+            'options'   => [ 'sub_account' => 'Sub account' ],
+        ];
+
+        $ctx  = new Meprmf_Screen_Context('memberpress-members', 'u.ID');
+        $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists([], $ctx, $fields);
+
+        $this->assertCount(1, $args);
+        $this->assertStringContainsString('mpca_corporate_account_id', $args[0]);
+    }
+
+    public function test_lifetimes_coupon_predicate()
+    {
+        $GLOBALS['meprmf_test_posts'] = [
+            5 => (object) [ 'post_type' => 'memberpresscoupon' ],
+        ];
+
+        $_GET['mpml_coupon'] = '5';
+
+        $fields = $this->lifetimes_core_field_defs();
+        $fields[] = [
+            'param'     => 'mpml_coupon',
+            'label'     => 'Coupon',
+            'type'      => 'select',
+            'source'    => 'mepr_transaction',
+            'predicate' => 'coupon',
+            'options'   => [ 5 => 'Save10' ],
+        ];
+
+        $ctx  = new Meprmf_Screen_Context('memberpress-lifetimes', 'txn.user_id');
+        $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists([], $ctx, $fields);
+
+        $this->assertCount(1, $args);
+        $this->assertStringContainsString('txn.coupon_id', $args[0]);
+        $this->assertStringContainsString('5', $args[0]);
     }
 }

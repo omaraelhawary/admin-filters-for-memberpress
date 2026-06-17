@@ -36,8 +36,12 @@ class Meprmf_Filter_Registry
      */
     public static function get_normalized_fields_for_members()
     {
+        $ctx = new Meprmf_Screen_Context(Meprmf_Screen::PAGE_MEMBERS, 'u.ID');
+
         return array_merge(
             self::get_normalized_core_fields_for_members(),
+            self::get_normalized_passthrough_fields_for_context($ctx),
+            self::get_normalized_activity_fields_for_context($ctx),
             self::get_normalized_meta_fields_for_members()
         );
     }
@@ -101,8 +105,59 @@ class Meprmf_Filter_Registry
             return [];
         }
 
-        $meta = self::get_normalized_meta_fields_for_context($ctx);
+        return array_merge(
+            self::get_normalized_core_fields_for_context($ctx),
+            self::get_normalized_passthrough_fields_for_context($ctx),
+            self::get_normalized_activity_fields_for_context($ctx),
+            self::get_normalized_meta_fields_for_context($ctx)
+        );
+    }
 
-        return array_merge(self::get_normalized_core_fields_for_context($ctx), $meta);
+    /**
+     * Normalized passthrough (native GET) fields for a list screen.
+     *
+     * @param Meprmf_Screen_Context $ctx Context.
+     * @return array<int, array<string, mixed>>
+     */
+    public static function get_normalized_passthrough_fields_for_context(Meprmf_Screen_Context $ctx)
+    {
+        if (! $ctx->supports_meta_filters_list()) {
+            return [];
+        }
+
+        return Meprmf_Util::normalize_passthrough_filter_fields(
+            Meprmf_Addon_Provider::get_passthrough_fields_for_context($ctx)
+        );
+    }
+
+    /**
+     * Normalized Members activity / aggregate fields.
+     *
+     * @param Meprmf_Screen_Context $ctx Context.
+     * @return array<int, array<string, mixed>>
+     */
+    public static function get_normalized_activity_fields_for_context(Meprmf_Screen_Context $ctx)
+    {
+        if (! $ctx->is_members()) {
+            return [];
+        }
+
+        return Meprmf_Util::normalize_core_filter_fields(
+            Meprmf_Members_Activity_Provider::get_activity_fields_for_context($ctx)
+        );
+    }
+
+    /**
+     * Core + activity fields for MemberPress table predicates.
+     *
+     * @param Meprmf_Screen_Context $ctx Context.
+     * @return array<int, array<string, mixed>>
+     */
+    public static function get_normalized_mepr_predicate_fields_for_context(Meprmf_Screen_Context $ctx)
+    {
+        return array_merge(
+            self::get_normalized_core_fields_for_context($ctx),
+            self::get_normalized_activity_fields_for_context($ctx)
+        );
     }
 }

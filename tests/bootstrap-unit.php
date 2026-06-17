@@ -324,6 +324,59 @@ if (! class_exists('MeprSubscription', false)) {
     }
 }
 
+if (! isset($GLOBALS['meprmf_test_posts'])) {
+    $GLOBALS['meprmf_test_posts'] = [];
+}
+
+if (! function_exists('get_post')) {
+    /**
+     * @param int $post_id Post id.
+     * @return object|null
+     */
+    function get_post($post_id)
+    {
+        $post_id = (int) $post_id;
+        return $GLOBALS['meprmf_test_posts'][ $post_id ] ?? null;
+    }
+}
+
+if (! class_exists('MeprCoupon', false)) {
+    /**
+     * Minimal coupon stub for unit tests.
+     */
+    class MeprCoupon
+    {
+        public static $cpt = 'memberpresscoupon';
+    }
+}
+
+if (! isset($GLOBALS['meprmf_test_post_types'])) {
+    $GLOBALS['meprmf_test_post_types'] = [];
+}
+
+if (! function_exists('post_type_exists')) {
+    /**
+     * @param string $post_type Post type.
+     * @return bool
+     */
+    function post_type_exists($post_type)
+    {
+        return in_array((string) $post_type, $GLOBALS['meprmf_test_post_types'] ?? [], true);
+    }
+}
+
+if (! function_exists('get_posts')) {
+    /**
+     * @param array<string, mixed> $args Query args.
+     * @return array<int, object>
+     */
+    function get_posts($args = [])
+    {
+        unset($args);
+        return $GLOBALS['meprmf_test_posts'] ?? [];
+    }
+}
+
 require_once dirname(__DIR__) . '/includes/class-meprmf-util.php';
 require_once dirname(__DIR__) . '/includes/screen/class-meprmf-screen-context.php';
 require_once dirname(__DIR__) . '/includes/screen/class-meprmf-screen.php';

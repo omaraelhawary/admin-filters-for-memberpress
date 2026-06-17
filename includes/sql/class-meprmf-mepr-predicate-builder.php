@@ -105,6 +105,61 @@ class Meprmf_Mepr_Predicate_Builder
         $member_from   = self::date_param($values, self::param_for_predicate($valid, 'member_from'));
         $member_to     = self::date_param($values, self::param_for_predicate($valid, 'member_to'));
         $member_status = self::string_param($values, self::param_for_predicate($valid, 'member_status'));
+        $corp_type     = self::string_param($values, self::param_for_predicate($valid, 'corp_type'));
+        $registered_from = self::date_param($values, self::param_for_predicate($valid, 'registered_from'));
+        $registered_to   = self::date_param($values, self::param_for_predicate($valid, 'registered_to'));
+        $last_login_from = self::date_param($values, self::param_for_predicate($valid, 'last_login_from'));
+        $last_login_to   = self::date_param($values, self::param_for_predicate($valid, 'last_login_to'));
+        $spent_min       = self::float_param($values, self::param_for_predicate($valid, 'spent_min'));
+        $spent_max       = self::float_param($values, self::param_for_predicate($valid, 'spent_max'));
+        $trial           = self::string_param($values, self::param_for_predicate($valid, 'trial'));
+
+        if ('' !== $corp_type && in_array($corp_type, [ 'owner', 'sub_account', 'none' ], true)) {
+            $sql = Meprmf_Corporate_Predicates::clause_for_type($corp_type, $uid, $ctx);
+            if ('' !== $sql) {
+                $args[]                 = $sql;
+                self::$last_fragments[] = $sql;
+            }
+        }
+
+        if (null !== $registered_from) {
+            $sql                    = $wpdb->prepare('u.user_registered >= %s', $registered_from . ' 00:00:00');
+            $args[]                 = $sql;
+            self::$last_fragments[] = $sql;
+        }
+        if (null !== $registered_to) {
+            $sql                    = $wpdb->prepare('u.user_registered <= %s', $registered_to . ' 23:59:59');
+            $args[]                 = $sql;
+            self::$last_fragments[] = $sql;
+        }
+
+        if (null !== $last_login_from) {
+            $sql                    = $wpdb->prepare('last_login.created_at >= %s', $last_login_from . ' 00:00:00');
+            $args[]                 = $sql;
+            self::$last_fragments[] = $sql;
+        }
+        if (null !== $last_login_to) {
+            $sql                    = $wpdb->prepare('last_login.created_at <= %s', $last_login_to . ' 23:59:59');
+            $args[]                 = $sql;
+            self::$last_fragments[] = $sql;
+        }
+
+        if (null !== $spent_min) {
+            $sql                    = $wpdb->prepare('m.total_spent >= %f', $spent_min);
+            $args[]                 = $sql;
+            self::$last_fragments[] = $sql;
+        }
+        if (null !== $spent_max) {
+            $sql                    = $wpdb->prepare('m.total_spent <= %f', $spent_max);
+            $args[]                 = $sql;
+            self::$last_fragments[] = $sql;
+        }
+
+        if ('1' === $trial) {
+            $sql                    = 'm.trial_txn_count > 0';
+            $args[]                 = $sql;
+            self::$last_fragments[] = $sql;
+        }
 
         if ('' !== $member_status && self::is_allowed_member_status($member_status)) {
             $sql = self::build_member_status_clause($member_status, $product_id);
@@ -202,11 +257,18 @@ class Meprmf_Mepr_Predicate_Builder
         $created_to    = self::date_param($values, self::param_for_predicate($valid, 'created_to'));
         $txn_status    = self::string_param($values, self::param_for_predicate($valid, 'txn_status'));
         $gateway       = self::string_param($values, self::param_for_predicate($valid, 'gateway'));
+        $coupon_id     = self::int_param($values, self::param_for_predicate($valid, 'coupon'));
         $uid           = $ctx->get_user_id_column_sql();
         $expires_alias = $ctx->is_subscriptions_recurring() ? 'expiring_txn' : $row_alias;
 
         if ('' !== $gateway && self::is_allowed_gateway($gateway)) {
             $sql = $wpdb->prepare("{$row_alias}.gateway = %s", $gateway);
+            $args[]                 = $sql;
+            self::$last_fragments[] = $sql;
+        }
+
+        if ($coupon_id > 0 && self::is_allowed_coupon($coupon_id)) {
+            $sql                    = $wpdb->prepare("{$row_alias}.coupon_id = %d", $coupon_id);
             $args[]                 = $sql;
             self::$last_fragments[] = $sql;
         }
@@ -364,6 +426,47 @@ class Meprmf_Mepr_Predicate_Builder
             return null;
         }
         return $raw;
+    }
+
+    /**
+     * @param array<string, string> $values Values map.
+     * @param string                $key    Param key.
+     * @return float|null
+     */
+    private static function float_param(array $values, $key)
+    {
+        if ('' === $key || ! isset($values[ $key ])) {
+            return null;
+        }
+
+        $raw = (string) $values[ $key ];
+        if (! is_numeric($raw)) {
+            return null;
+        }
+
+        return max(0.0, (float) $raw);
+    }
+
+    /**
+     * @param int $coupon_id Coupon post ID.
+     * @return bool
+     */
+    private static function is_allowed_coupon($coupon_id)
+    {
+        if ($coupon_id <= 0 || ! class_exists('MeprCoupon')) {
+            return false;
+        }
+
+        if (! function_exists('get_post')) {
+            return false;
+        }
+
+        $post = get_post($coupon_id);
+        if (! $post || ! isset($post->post_type)) {
+            return false;
+        }
+
+        return MeprCoupon::$cpt === $post->post_type;
     }
 
     /**

@@ -135,12 +135,38 @@
 		return out;
 	}
 
+	function getNativeToolbarKeys() {
+		if (typeof window.meprmfMembersFloating === 'undefined' || !window.meprmfMembersFloating.nativeParams) {
+			return [];
+		}
+		return window.meprmfMembersFloating.nativeParams;
+	}
+
+	function collectNativeToolbarParams() {
+		var out = {};
+		var skipValues = { all: true, '': true };
+
+		getNativeToolbarKeys().forEach(function (key) {
+			var el = document.getElementById(String(key));
+			if (!el) {
+				return;
+			}
+			var val = (el.value || '').trim();
+			if (val !== '' && !skipValues[val]) {
+				out[String(key)] = val;
+			}
+		});
+
+		return out;
+	}
+
 	/**
 	 * Active filter params: visible fields from the panel, hidden fields preserved from the URL.
 	 */
 	function collectEffectiveActiveParams(root, visibleMap) {
 		var fromUrl = collectActiveParamsFromUrl();
 		var fromPanel = collectActiveParamsFromPanel(root);
+		var fromNative = collectNativeToolbarParams();
 		var vis = visibleMap || null;
 		var out = {};
 
@@ -154,6 +180,10 @@
 			if (!vis || vis[key]) {
 				out[key] = fromPanel[key];
 			}
+		});
+
+		Object.keys(fromNative).forEach(function (key) {
+			out[key] = fromNative[key];
 		});
 
 		return out;

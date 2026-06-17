@@ -180,4 +180,48 @@ class MembersCoreProviderTest extends TestCase
         );
         $this->assertEmpty($invalid);
     }
+
+    public function test_members_includes_corp_type_when_corporate_active()
+    {
+        if (! class_exists('MPCA_Corporate_Account', false)) {
+            eval('class MPCA_Corporate_Account {}');
+        }
+
+        require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen-context.php';
+        require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen.php';
+        require_once dirname(__DIR__, 2) . '/includes/filters/providers/class-meprmf-members-core-provider.php';
+
+        $ctx    = new Meprmf_Screen_Context(Meprmf_Screen::PAGE_MEMBERS, 'u.ID');
+        $fields = Meprmf_Members_Core_Provider::get_core_filter_fields_for_context($ctx);
+        $params = array_column($fields, 'param');
+
+        $this->assertContains('mpm_corp_type', $params);
+    }
+
+    public function test_lifetimes_includes_coupon_when_mepr_coupon_available()
+    {
+        require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen-context.php';
+        require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen.php';
+        require_once dirname(__DIR__, 2) . '/includes/filters/providers/class-meprmf-members-core-provider.php';
+
+        if (! class_exists('MeprCptModel', false)) {
+            eval(
+                'class MeprCptModel {
+                    public static function all($model, $unused, $args) {
+                        unset($unused, $args);
+                        if ("MeprCoupon" === $model) {
+                            return [ (object) [ "ID" => 3, "post_title" => "SAVE" ] ];
+                        }
+                        return [];
+                    }
+                }'
+            );
+        }
+
+        $ctx    = new Meprmf_Screen_Context(Meprmf_Screen::PAGE_LIFETIMES, 'txn.user_id');
+        $fields = Meprmf_Members_Core_Provider::get_core_filter_fields_for_context($ctx);
+        $params = array_column($fields, 'param');
+
+        $this->assertContains('mpml_coupon', $params);
+    }
 }

@@ -139,7 +139,7 @@ class Meprmf_Plugin
             $args = Meprmf_Predicate_Builder::append_usermeta_exists($args, $ctx, $meta_valid);
         }
 
-        $core_valid = Meprmf_Filter_Registry::get_normalized_core_fields_for_context($ctx);
+        $core_valid = Meprmf_Filter_Registry::get_normalized_mepr_predicate_fields_for_context($ctx);
         if (! empty($core_valid)) {
             $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists($args, $ctx, $core_valid);
         }
@@ -208,12 +208,21 @@ class Meprmf_Plugin
                     }
                 }
             }
+            foreach (Meprmf_Native_Params::for_context($ctx) as $p) {
+                $p = Meprmf_Util::sanitize_param((string) $p);
+                if ('' !== $p) {
+                    $known[] = $p;
+                }
+            }
+            $known = array_values(array_unique($known));
             sort($known, SORT_STRING);
+            $native = Meprmf_Native_Params::for_context($ctx);
             wp_localize_script(
                 'meprmf-members-floating-panel',
                 'meprmfMembersFloating',
                 [
                     'knownParams'          => $known,
+                    'nativeParams'         => $native,
                     'knownParamsSignature' => md5(implode('|', $known)),
                     'storageId'            => $ctx->get_storage_id(),
                     'dateRangeEnabled'     => Meprmf_Settings::is_date_custom_fields_use_range_enabled(),
