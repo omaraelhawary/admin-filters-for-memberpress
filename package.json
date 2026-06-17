@@ -5,6 +5,6 @@
     "build": "esbuild assets/meprmf-members-floating-panel.js --minify --outfile=assets/meprmf-members-floating-panel.min.js && esbuild assets/meprmf-members-toolbar.css --minify --outfile=assets/meprmf-members-toolbar.min.css"
   },
   "devDependencies": {
-    "esbuild": "^0.25.0"
+    "esbuild": "^0.28.1"
   }
 }
