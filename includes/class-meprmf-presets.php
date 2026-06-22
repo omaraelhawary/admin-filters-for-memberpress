@@ -294,9 +294,9 @@ class Meprmf_Presets
 
         // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified above.
         $storage_id = isset($_POST['screen']) ? sanitize_text_field(wp_unslash((string) $_POST['screen'])) : '';
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Sanitized in save_preset().
         $name = isset($_POST['name']) ? (string) wp_unslash($_POST['name']) : '';
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Sanitized in save_preset().
         $params_raw = isset($_POST['params']) ? wp_unslash($_POST['params']) : '';
 
         $known = self::get_known_params_for_storage_id($storage_id);

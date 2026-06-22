@@ -261,6 +261,7 @@ class Meprmf_Mepr_Predicate_Builder
         $uid           = $ctx->get_user_id_column_sql();
         $expires_alias = $ctx->is_subscriptions_recurring() ? 'expiring_txn' : $row_alias;
 
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Row alias and uid are fixed SQL fragments from screen context; values use placeholders.
         if ('' !== $gateway && self::is_allowed_gateway($gateway)) {
             $sql = $wpdb->prepare("{$row_alias}.gateway = %s", $gateway);
             $args[]                 = $sql;
@@ -344,6 +345,7 @@ class Meprmf_Mepr_Predicate_Builder
                 }
             }
         }
+        // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
         return $args;
     }
@@ -581,12 +583,14 @@ class Meprmf_Mepr_Predicate_Builder
 
         $bits = [];
 
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table alias is a fixed SQL fragment from screen context.
         if (null !== $from) {
             $bits[] = $wpdb->prepare("{$alias}.created_at >= %s", $from . ' 00:00:00');
         }
         if (null !== $to) {
             $bits[] = $wpdb->prepare("{$alias}.created_at <= %s", $to . ' 23:59:59');
         }
+        // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
         if (empty($bits)) {
             return '';
@@ -609,6 +613,7 @@ class Meprmf_Mepr_Predicate_Builder
 
         global $wpdb;
 
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table alias is a fixed internal SQL fragment.
         self::$txn_types_cache[ $alias ] = $wpdb->prepare(
             "( ( {$alias}.txn_type IN (%s,%s,%s,%s) AND {$alias}.status = %s )
                OR ( {$alias}.txn_type = %s AND {$alias}.status = %s ) )",
@@ -620,6 +625,7 @@ class Meprmf_Mepr_Predicate_Builder
             MeprTransaction::$subscription_confirmation_str,
             MeprTransaction::$confirmed_str
         );
+        // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
         return self::$txn_types_cache[ $alias ];
     }
@@ -634,11 +640,15 @@ class Meprmf_Mepr_Predicate_Builder
     {
         global $wpdb;
 
-        return $wpdb->prepare(
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table alias is a fixed internal SQL fragment.
+        $sql = $wpdb->prepare(
             "( {$alias}.expires_at > %s OR {$alias}.expires_at = %s OR {$alias}.expires_at IS NULL )",
             MeprUtils::db_now(),
             MeprUtils::db_lifetime()
         );
+        // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+        return $sql;
     }
 
     /**
@@ -654,10 +664,11 @@ class Meprmf_Mepr_Predicate_Builder
         $alias    = 'mpmf_t_active';
         $types    = self::txn_complete_types_sql($alias);
         $expires  = self::txn_active_expires_sql($alias);
+
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Alias and uid are fixed SQL fragments; values use placeholders.
         $product  = $product_id > 0 ? $wpdb->prepare("AND {$alias}.product_id = %d", $product_id) : '';
 
-        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-        return "EXISTS (
+        $sql = "EXISTS (
             SELECT 1 FROM {$table} AS {$alias}
             WHERE {$alias}.user_id = {$uid}
               {$product}
@@ -665,6 +676,8 @@ class Meprmf_Mepr_Predicate_Builder
               AND {$expires}
         )";
         // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+        return $sql;
     }
 
     /**
@@ -683,10 +696,12 @@ class Meprmf_Mepr_Predicate_Builder
 
         $alias   = 'mpmf_t_exp';
         $types   = self::txn_complete_types_sql($alias);
-        $product = $product_id > 0 ? $wpdb->prepare("AND {$alias}.product_id = %d", $product_id) : '';
 
         $lifetime = MeprUtils::db_lifetime();
         $now      = MeprUtils::db_now();
+
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Alias and uid are fixed SQL fragments; values use placeholders.
+        $product = $product_id > 0 ? $wpdb->prepare("AND {$alias}.product_id = %d", $product_id) : '';
 
         $expired_dates = $wpdb->prepare(
             "{$alias}.expires_at <> %s AND {$alias}.expires_at IS NOT NULL AND {$alias}.expires_at <= %s",
@@ -694,7 +709,6 @@ class Meprmf_Mepr_Predicate_Builder
             $now
         );
 
-        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
         $had_access = "EXISTS (
             SELECT 1 FROM {$table} AS {$alias}
             WHERE {$alias}.user_id = {$uid}
@@ -729,9 +743,9 @@ class Meprmf_Mepr_Predicate_Builder
         $alias  = 'mpmf_t_prd';
         $types  = self::txn_complete_types_sql($alias);
 
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Alias and uid are fixed SQL fragments; values use placeholders.
         $product_clause = $wpdb->prepare("AND {$alias}.product_id = %d", $product_id);
 
-        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
         return "EXISTS (
             SELECT 1 FROM {$table} AS {$alias}
             WHERE {$alias}.user_id = {$uid}
@@ -756,6 +770,8 @@ class Meprmf_Mepr_Predicate_Builder
         $alias     = 'mpmf_t_exp_rng';
         $types     = self::txn_complete_types_sql($alias);
         $lifetime  = MeprUtils::db_lifetime();
+
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Alias and uid are fixed SQL fragments; values use placeholders.
         $product   = $product_id > 0 ? $wpdb->prepare("AND {$alias}.product_id = %d", $product_id) : '';
         $date_bits = [];
 
@@ -776,7 +792,6 @@ class Meprmf_Mepr_Predicate_Builder
             $lifetime
         );
 
-        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
         return "EXISTS (
             SELECT 1 FROM {$table} AS {$alias}
             WHERE {$alias}.user_id = {$uid}
@@ -800,11 +815,12 @@ class Meprmf_Mepr_Predicate_Builder
         global $wpdb;
 
         $alias   = 'mpmf_sub';
+
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Alias and uid are fixed SQL fragments; values use placeholders.
         $product = $product_id > 0 ? $wpdb->prepare("AND {$alias}.product_id = %d", $product_id) : '';
 
         $status_clause = $wpdb->prepare("{$alias}.status = %s", $status);
 
-        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
         return "EXISTS (
             SELECT 1 FROM {$table} AS {$alias}
             WHERE {$alias}.user_id = {$uid}
@@ -826,6 +842,8 @@ class Meprmf_Mepr_Predicate_Builder
         global $wpdb;
 
         $alias     = 'mpmf_mbr_rng';
+
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Alias and uid are fixed SQL fragments; values use placeholders.
         $date_bits = [];
 
         if (null !== $from) {
@@ -841,7 +859,6 @@ class Meprmf_Mepr_Predicate_Builder
 
         $date_sql = implode(' AND ', $date_bits);
 
-        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
         return "EXISTS (
             SELECT 1 FROM {$members_table} AS {$alias}
             WHERE {$alias}.user_id = {$uid}
@@ -863,6 +880,8 @@ class Meprmf_Mepr_Predicate_Builder
         global $wpdb;
 
         $lifetime  = MeprUtils::db_lifetime();
+
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Row alias is a fixed SQL fragment from screen context; values use placeholders.
         $product   = $product_id > 0 ? $wpdb->prepare("{$row_alias}.product_id = %d", $product_id) : '';
         $date_bits = [];
 
@@ -884,7 +903,6 @@ class Meprmf_Mepr_Predicate_Builder
         );
         $product_clause   = '' !== $product ? ' AND ' . $product : '';
 
-        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
         return "({$exclude_lifetime} AND {$date_sql}{$product_clause})";
         // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
     }
@@ -924,11 +942,13 @@ class Meprmf_Mepr_Predicate_Builder
         $now      = MeprUtils::db_now();
         $product  = self::build_row_product_clause($row_alias, $product_id);
 
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Alias is a fixed SQL fragment from screen context; values use placeholders.
         $expired_dates = $wpdb->prepare(
             "{$expires_alias}.expires_at <> %s AND {$expires_alias}.expires_at IS NOT NULL AND {$expires_alias}.expires_at <= %s",
             $lifetime,
             $now
         );
+        // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
         $bits = [ $types, $expired_dates ];
         if ('' !== $product) {
@@ -951,7 +971,11 @@ class Meprmf_Mepr_Predicate_Builder
 
         global $wpdb;
 
-        return $wpdb->prepare("{$alias}.product_id = %d", $product_id);
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Row alias is a fixed SQL fragment from screen context.
+        $sql = $wpdb->prepare("{$alias}.product_id = %d", $product_id);
+        // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+        return $sql;
     }
 
     /**
@@ -968,10 +992,11 @@ class Meprmf_Mepr_Predicate_Builder
         global $wpdb;
 
         $alias         = 'mpmf_sub_row';
+
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Aliases are fixed SQL fragments; values use placeholders.
         $status_clause = $wpdb->prepare("{$alias}.status = %s", $status);
         $product       = $product_id > 0 ? $wpdb->prepare("AND {$alias}.product_id = %d", $product_id) : '';
 
-        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
         return "EXISTS (
             SELECT 1 FROM {$sub_table} AS {$alias}
             WHERE {$alias}.id = {$txn_alias}.subscription_id

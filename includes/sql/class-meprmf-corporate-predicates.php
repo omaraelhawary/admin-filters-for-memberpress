@@ -25,7 +25,8 @@ class Meprmf_Corporate_Predicates
     {
         global $wpdb;
 
-        return $wpdb->prepare(
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- uid_sql is a fixed user-id column expression from screen context.
+        $sql = $wpdb->prepare(
             "EXISTS (
                 SELECT 1 FROM {$wpdb->usermeta} AS mpmf_ca_um
                 WHERE mpmf_ca_um.user_id = {$uid_sql}
@@ -35,6 +36,9 @@ class Meprmf_Corporate_Predicates
             )",
             'mpca_corporate_account_id'
         );
+        // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+        return $sql;
     }
 
     /**

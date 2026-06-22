@@ -64,6 +64,7 @@ class Meprmf_Predicate_Builder
             $group_key = (string) $field['date_range_of'];
             if (! isset($range_groups[ $group_key ])) {
                 $range_groups[ $group_key ] = [
+                    // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Filter field config array key, not a DB query.
                     'meta_key' => (string) $field['meta_key'],
                     'from'     => null,
                     'to'       => null,
@@ -197,10 +198,12 @@ class Meprmf_Predicate_Builder
         $placeholders = implode(', ', array_fill(0, count($match_values), '%s'));
         $prepare_args = array_merge([ $meta_key ], $match_values);
 
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Alias and uid are fixed SQL fragments; values use placeholders.
         $sql = $wpdb->prepare(
             "EXISTS ( SELECT 1 FROM {$wpdb->usermeta} AS {$alias} WHERE {$alias}.user_id = {$uid} AND {$alias}.meta_key = %s AND {$alias}.meta_value IN ({$placeholders}) )",
             ...$prepare_args
         );
+        // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
         if (! is_string($sql) || '' === $sql) {
             return $args;
         }
@@ -239,7 +242,9 @@ class Meprmf_Predicate_Builder
             $clauses[] = "{$parsed} <= STR_TO_DATE(" . Meprmf_Util::wpdb_quote_scalar($wpdb, $to) . ", '%Y-%m-%d')";
         }
 
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Alias and uid are fixed SQL fragments; meta values are quoted.
         $sql = "EXISTS ( SELECT 1 FROM {$wpdb->usermeta} AS {$alias} WHERE {$alias}.user_id = {$uid} AND " . implode(' AND ', $clauses) . ' )';
+        // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
         $args[]                 = $sql;
         self::$last_fragments[] = $sql;
 

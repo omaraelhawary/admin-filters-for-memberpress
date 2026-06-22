@@ -388,6 +388,7 @@ class Meprmf_Util
         return [
             [
                 'param'           => $range['from'],
+                // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Filter field config array key, not a DB query.
                 'meta_key'        => $meta,
                 'label'           => sprintf(
                     /* translators: %s: filter label */
@@ -401,6 +402,7 @@ class Meprmf_Util
             ],
             [
                 'param'           => $range['to'],
+                // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Filter field config array key, not a DB query.
                 'meta_key'        => $meta,
                 'label'           => sprintf(
                     /* translators: %s: filter label */

@@ -161,6 +161,38 @@
 	}
 
 	/**
+	 * Transactions: MemberPress always renders #date_field (default created_at) even when
+	 * date_range_filter is "all". Do not treat date params as active unless a range is set.
+	 */
+	function stripInactiveTransactionDateParams(params) {
+		var out = {};
+		Object.keys(params || {}).forEach(function (key) {
+			out[key] = params[key];
+		});
+
+		if (getNativeToolbarKeys().indexOf('date_range_filter') === -1) {
+			return out;
+		}
+
+		var dateRange = typeof out.date_range_filter === 'string' ? out.date_range_filter.trim() : '';
+		if (!dateRange) {
+			var drEl = document.getElementById('date_range_filter');
+			if (drEl) {
+				dateRange = (drEl.value || '').trim();
+			}
+		}
+
+		if (!dateRange || dateRange === 'all') {
+			delete out.date_range_filter;
+			delete out.date_field;
+			delete out.date_start;
+			delete out.date_end;
+		}
+
+		return out;
+	}
+
+	/**
 	 * Active filter params: visible fields from the panel, hidden fields preserved from the URL.
 	 */
 	function collectEffectiveActiveParams(root, visibleMap) {
@@ -186,7 +218,7 @@
 			out[key] = fromNative[key];
 		});
 
-		return out;
+		return stripInactiveTransactionDateParams(out);
 	}
 
 	/**

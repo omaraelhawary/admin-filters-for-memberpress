@@ -89,6 +89,7 @@ class Meprmf_Screen
      */
     public static function detect_list_table_context()
     {
+        // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_debug_backtrace -- Identifies the MemberPress list_table() caller; not debug logging.
         $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 20);
         foreach ($trace as $frame) {
             if (empty($frame['class']) || empty($frame['function'])) {
