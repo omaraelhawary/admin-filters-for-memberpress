@@ -40,6 +40,12 @@ class Meprmf_Toolbar_Renderer
             echo '<label class="screen-reader-text" for="' . esc_attr($param) . '">' . esc_html($label) . '</label>';
         }
 
+        // Operator selector, only in the compact (floating panel) layout: the inline
+        // toolbar is already cramped and its fields keep their default match mode.
+        if ($compact && Meprmf_Util::field_supports_operators($field)) {
+            self::render_operator_select($param, $label, $omit_name);
+        }
+
         if ('country' === $field['type']) {
             $countries = MeprUtils::countries(true);
             echo '<select class="mepr_filter_field" id="' . esc_attr($param) . '"';
@@ -121,6 +127,62 @@ class Meprmf_Toolbar_Renderer
     }
 
     /**
+     * Output the operator selector for one field.
+     *
+     * The blank first option is the pre-2.1 default: no operator param in the URL and the
+     * field keeps its own match mode, so old bookmarks and presets are unaffected.
+     *
+     * @param string $param     Base GET param name.
+     * @param string $label     Field label, for the accessible name.
+     * @param bool   $omit_name Floating panel mode (Apply builds GET in JS).
+     * @return void
+     */
+    private static function render_operator_select($param, $label, $omit_name)
+    {
+        $op_param = Meprmf_Util::operator_param_name($param);
+        if ('' === $op_param || $op_param === $param) {
+            return;
+        }
+
+        $current = Meprmf_Util::get_field_operator($param);
+
+        $choices = [
+            ''             => __('Default', 'admin-filters-for-memberpress'),
+            'is'           => __('Is', 'admin-filters-for-memberpress'),
+            'is_not'       => __('Is not', 'admin-filters-for-memberpress'),
+            'contains'     => __('Contains', 'admin-filters-for-memberpress'),
+            'not_contains' => __('Does not contain', 'admin-filters-for-memberpress'),
+            'is_empty'     => __('Is empty', 'admin-filters-for-memberpress'),
+            'is_not_empty' => __('Is not empty', 'admin-filters-for-memberpress'),
+            'is_one_of'    => __('Is one of (comma separated)', 'admin-filters-for-memberpress'),
+        ];
+
+        printf(
+            '<label class="screen-reader-text" for="%1$s">%2$s</label>',
+            esc_attr($op_param),
+            /* translators: %s: filter field label. */
+            esc_html(sprintf(__('Comparison for %s', 'admin-filters-for-memberpress'), $label))
+        );
+
+        echo '<select class="mepr_filter_field meprmf-filter-op" id="' . esc_attr($op_param) . '"';
+        if (! $omit_name) {
+            echo ' name="' . esc_attr($op_param) . '"';
+        } else {
+            echo ' data-meprmf-param="' . esc_attr($op_param) . '"';
+        }
+        echo '>';
+        foreach ($choices as $value => $choice_label) {
+            printf(
+                '<option value="%s" %s>%s</option>',
+                esc_attr((string) $value),
+                selected($current, (string) $value, false),
+                esc_html($choice_label)
+            );
+        }
+        echo '</select>';
+    }
+
+    /**
      * Output one HTML5 date input.
      *
      * @param string $param     GET param name.
@@ -163,6 +225,17 @@ class Meprmf_Toolbar_Renderer
         $valid = Meprmf_Filter_Registry::get_normalized_fields_for_context($ctx);
         if (empty($valid)) {
             return;
+        }
+
+        /**
+         * Whether to show the removable active-filter chip row above the list.
+         *
+         * @since 2.1.0
+         * @param bool                  $show Default true.
+         * @param Meprmf_Screen_Context $ctx  Screen context.
+         */
+        if (apply_filters('meprmf_show_active_filter_chips', true, $ctx)) {
+            Meprmf_Active_Filters::render($valid, $ctx);
         }
 
         if (Meprmf_Plugin::use_floating_filter_panel($ctx)) {
@@ -226,7 +299,16 @@ class Meprmf_Toolbar_Renderer
 
         $active_count = 0;
         foreach ($known_params as $p) {
+            // Operator params describe how a field matches, they are not a filter on their own.
+            if (Meprmf_Util::is_operator_param($p)) {
+                continue;
+            }
             if ('' !== Meprmf_Util::get_request_value($p)) {
+                ++$active_count;
+                continue;
+            }
+            // "is empty" / "is not empty" constrain the list with an empty value box.
+            if (Meprmf_Util::has_valueless_operator($p)) {
                 ++$active_count;
             }
         }

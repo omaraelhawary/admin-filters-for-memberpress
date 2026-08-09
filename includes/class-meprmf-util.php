@@ -21,6 +21,18 @@ class Meprmf_Util
     /** Longest date-range suffix appended to a base param (`_from`). */
     const DATE_RANGE_SUFFIX_LENGTH = 5;
 
+    /** Suffix appended to a base param to carry its comparison operator. */
+    const OPERATOR_SUFFIX = '__op';
+
+    /** Length of {@see OPERATOR_SUFFIX}. */
+    const OPERATOR_SUFFIX_LENGTH = 4;
+
+    /** Default operator, meaning "use the field's own match mode" (pre-2.1 behaviour). */
+    const OPERATOR_DEFAULT = '';
+
+    /** Operators that take no value and so must bypass the empty-value skip. */
+    const VALUELESS_OPERATORS = [ 'is_empty', 'is_not_empty' ];
+
     /**
      * Sanitize a HTML id / $_GET key to [a-z0-9_], capped at {@see PARAM_MAX_LENGTH}. Null-safe.
      *
@@ -88,6 +100,163 @@ class Meprmf_Util
         }
 
         return 'like';
+    }
+
+    /**
+     * Supported comparison operators, keyed by GET value.
+     *
+     * The empty default keeps pre-2.1 URLs and saved presets behaving exactly as before:
+     * with no operator present the field falls back to {@see get_field_match_mode()}.
+     *
+     * @return array<int, string>
+     */
+    public static function get_operators()
+    {
+        return [
+            'is',
+            'is_not',
+            'contains',
+            'not_contains',
+            'is_empty',
+            'is_not_empty',
+            'is_one_of',
+        ];
+    }
+
+    /**
+     * Whether a field type accepts an operator selector.
+     *
+     * Dates, date ranges and checkboxes have their own comparison semantics and are
+     * left alone; operators apply to the text / select / country family.
+     *
+     * @param array<string, mixed> $field Field definition.
+     * @return bool
+     */
+    public static function field_supports_operators(array $field)
+    {
+        $type = isset($field['type']) ? (string) $field['type'] : 'text';
+
+        return ! in_array($type, [ 'date', 'date_range', 'checkbox' ], true);
+    }
+
+    /**
+     * GET param name carrying the operator for a base param.
+     *
+     * Truncates the base the same way {@see date_range_param_names()} does so the
+     * result still fits {@see PARAM_MAX_LENGTH}.
+     *
+     * @param string $base_param Base param name.
+     * @return string
+     */
+    public static function operator_param_name($base_param)
+    {
+        $base = self::sanitize_param($base_param);
+        if ('' === $base) {
+            return '';
+        }
+
+        $max_base = self::PARAM_MAX_LENGTH - self::OPERATOR_SUFFIX_LENGTH;
+        if (strlen($base) > $max_base) {
+            $base = substr($base, 0, $max_base);
+        }
+
+        return self::sanitize_param($base . self::OPERATOR_SUFFIX);
+    }
+
+    /**
+     * Read and validate the operator for a base param.
+     *
+     * @param string $base_param Base param name.
+     * @return string One of {@see get_operators()}, or {@see OPERATOR_DEFAULT}.
+     */
+    public static function get_field_operator($base_param)
+    {
+        $op_param = self::operator_param_name($base_param);
+        if ('' === $op_param) {
+            return self::OPERATOR_DEFAULT;
+        }
+
+        $raw = self::get_request_value($op_param);
+        if ('' === $raw || ! in_array($raw, self::get_operators(), true)) {
+            return self::OPERATOR_DEFAULT;
+        }
+
+        return $raw;
+    }
+
+    /**
+     * Whether a GET param carries an operator rather than a filter value.
+     *
+     * @param string $param Param name.
+     * @return bool
+     */
+    public static function is_operator_param($param)
+    {
+        $param = self::sanitize_param($param);
+        if ('' === $param || strlen($param) <= self::OPERATOR_SUFFIX_LENGTH) {
+            return false;
+        }
+
+        return substr($param, -self::OPERATOR_SUFFIX_LENGTH) === self::OPERATOR_SUFFIX;
+    }
+
+    /**
+     * Whether a base param currently carries an operator that constrains without a value.
+     *
+     * Used so the active-filter badge still counts "is empty" / "is not empty", which
+     * are real constraints even though the value box next to them is blank.
+     *
+     * @param string $base_param Base param name.
+     * @return bool
+     */
+    public static function has_valueless_operator($base_param)
+    {
+        return in_array(self::get_field_operator($base_param), self::VALUELESS_OPERATORS, true);
+    }
+
+    /**
+     * Read a multi-value request param as a list of non-empty strings.
+     *
+     * Accepts both `?p[]=a&p[]=b` (multi-select) and `?p=a,b` (hand-written or bookmarked
+     * URL), so an `is_one_of` filter survives being typed by hand.
+     *
+     * @param string $param Param name.
+     * @return array<int, string>
+     */
+    public static function get_request_values($param)
+    {
+        $param = self::sanitize_param($param);
+        if ('' === $param) {
+            return [];
+        }
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only filter query args on admin list screens.
+        if (! isset($_GET[ $param ])) {
+            return [];
+        }
+
+        $raw = wp_unslash($_GET[ $param ]); // phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Key restricted via sanitize_param(); values sanitized below.
+
+        $parts = [];
+        if (is_array($raw)) {
+            foreach ($raw as $one) {
+                if (is_scalar($one)) {
+                    $parts[] = (string) $one;
+                }
+            }
+        } elseif (is_scalar($raw)) {
+            $parts = explode(',', (string) $raw);
+        }
+
+        $out = [];
+        foreach ($parts as $part) {
+            $clean = sanitize_text_field(trim($part));
+            if ('' !== $clean && ! in_array($clean, $out, true)) {
+                $out[] = $clean;
+            }
+        }
+
+        return $out;
     }
 
     /**
@@ -291,7 +460,15 @@ class Meprmf_Util
             return $out;
         }
 
-        return [ $param ];
+        $out = [ $param ];
+        if (self::field_supports_operators($field)) {
+            $op_param = self::operator_param_name($param);
+            if ('' !== $op_param && $op_param !== $param) {
+                $out[] = $op_param;
+            }
+        }
+
+        return $out;
     }
 
     /**
