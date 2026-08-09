@@ -227,6 +227,17 @@ class Meprmf_Toolbar_Renderer
             return;
         }
 
+        /**
+         * Whether to show the removable active-filter chip row above the list.
+         *
+         * @since 2.1.0
+         * @param bool                  $show Default true.
+         * @param Meprmf_Screen_Context $ctx  Screen context.
+         */
+        if (apply_filters('meprmf_show_active_filter_chips', true, $ctx)) {
+            Meprmf_Active_Filters::render($valid, $ctx);
+        }
+
         if (Meprmf_Plugin::use_floating_filter_panel($ctx)) {
             self::render_floating_filter_panel($valid, $ctx);
             return;
