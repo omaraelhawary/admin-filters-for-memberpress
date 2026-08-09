@@ -24,6 +24,7 @@ require_once __DIR__ . '/sql/class-meprmf-predicate-builder.php';
 require_once __DIR__ . '/sql/class-meprmf-mepr-predicate-builder.php';
 require_once __DIR__ . '/ui/class-meprmf-active-filters.php';
 require_once __DIR__ . '/ui/class-meprmf-toolbar-renderer.php';
+require_once __DIR__ . '/ui/class-meprmf-columns.php';
 require_once __DIR__ . '/ui/class-meprmf-debug-panel.php';
 require_once __DIR__ . '/class-meprmf-settings.php';
 require_once __DIR__ . '/class-meprmf-presets.php';

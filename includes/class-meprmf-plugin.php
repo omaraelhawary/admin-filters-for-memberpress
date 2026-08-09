@@ -51,6 +51,7 @@ class Meprmf_Plugin
         add_action('admin_enqueue_scripts', 'meprmf_admin_enqueue_scripts');
         add_action('admin_footer', [ __CLASS__, 'print_deferred_floating_filter_panels' ], 5);
         Meprmf_Debug_Panel::init();
+        Meprmf_Columns::init();
     }
 
     /**
