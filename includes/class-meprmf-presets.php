@@ -237,6 +237,15 @@ class Meprmf_Presets
             $param = Meprmf_Util::sanitize_param((string) $field['param']);
             if ('' !== $param) {
                 $params[] = $param;
+
+                // Presets must carry the operator too, or a saved "is not empty" reloads
+                // as a plain contains-match against an empty value.
+                if (Meprmf_Util::field_supports_operators($field)) {
+                    $op_param = Meprmf_Util::operator_param_name($param);
+                    if ('' !== $op_param && $op_param !== $param) {
+                        $params[] = $op_param;
+                    }
+                }
             }
         }
 

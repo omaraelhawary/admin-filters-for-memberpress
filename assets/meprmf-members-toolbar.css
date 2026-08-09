@@ -310,6 +310,14 @@
 	appearance: none;
 }
 
+/* Operator selector sits above its value control and reads as secondary to it */
+.meprmf-filter-panel select.mepr_filter_field.meprmf-filter-op {
+	margin-bottom: 3px;
+	font-size: 11px;
+	min-height: 26px;
+	color: #50575e;
+}
+
 .meprmf-filter-panel .mepr_filter_field.meprmf-filter-date,
 .mepr-filter-by.meprmf-meta-filters .mepr_filter_field.meprmf-filter-date {
 	width: 100%;

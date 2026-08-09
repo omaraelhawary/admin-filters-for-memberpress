@@ -198,4 +198,88 @@ class UtilTest extends TestCase
         $this->assertSame('course', $valid[0]['param']);
         $this->assertSame('native', $valid[0]['source']);
     }
+
+    public function test_operator_param_name_appends_suffix()
+    {
+        $this->assertSame('mpf_country__op', Meprmf_Util::operator_param_name('mpf_country'));
+        $this->assertSame('', Meprmf_Util::operator_param_name(''));
+    }
+
+    public function test_operator_param_name_stays_within_the_param_length_cap()
+    {
+        $long = str_repeat('a', 40);
+        $op   = Meprmf_Util::operator_param_name($long);
+
+        $this->assertLessThanOrEqual(Meprmf_Util::PARAM_MAX_LENGTH, strlen($op));
+        $this->assertStringEndsWith('__op', $op);
+    }
+
+    public function test_is_operator_param_detects_the_suffix()
+    {
+        $this->assertTrue(Meprmf_Util::is_operator_param('mpf_country__op'));
+        $this->assertFalse(Meprmf_Util::is_operator_param('mpf_country'));
+        $this->assertFalse(Meprmf_Util::is_operator_param('__op'));
+        $this->assertFalse(Meprmf_Util::is_operator_param(''));
+    }
+
+    public function test_field_supports_operators_excludes_dates_and_checkboxes()
+    {
+        $this->assertTrue(Meprmf_Util::field_supports_operators([ 'type' => 'text' ]));
+        $this->assertTrue(Meprmf_Util::field_supports_operators([ 'type' => 'country' ]));
+        $this->assertTrue(Meprmf_Util::field_supports_operators([ 'type' => 'select' ]));
+        $this->assertFalse(Meprmf_Util::field_supports_operators([ 'type' => 'date' ]));
+        $this->assertFalse(Meprmf_Util::field_supports_operators([ 'type' => 'date_range' ]));
+        $this->assertFalse(Meprmf_Util::field_supports_operators([ 'type' => 'checkbox' ]));
+    }
+
+    public function test_get_field_operator_rejects_unknown_values()
+    {
+        $original = $_GET;
+
+        $_GET = [ 'mpf_country__op' => 'is_not' ];
+        $this->assertSame('is_not', Meprmf_Util::get_field_operator('mpf_country'));
+
+        $_GET = [ 'mpf_country__op' => 'nonsense' ];
+        $this->assertSame(Meprmf_Util::OPERATOR_DEFAULT, Meprmf_Util::get_field_operator('mpf_country'));
+
+        $_GET = [];
+        $this->assertSame(Meprmf_Util::OPERATOR_DEFAULT, Meprmf_Util::get_field_operator('mpf_country'));
+
+        $_GET = $original;
+    }
+
+    public function test_get_request_values_splits_and_dedupes()
+    {
+        $original = $_GET;
+
+        $_GET = [ 'mpf_country' => 'DE, AT ,DE,' ];
+        $this->assertSame([ 'DE', 'AT' ], Meprmf_Util::get_request_values('mpf_country'));
+
+        $_GET = [ 'mpf_country' => [ 'DE', 'AT' ] ];
+        $this->assertSame([ 'DE', 'AT' ], Meprmf_Util::get_request_values('mpf_country'));
+
+        $_GET = [];
+        $this->assertSame([], Meprmf_Util::get_request_values('mpf_country'));
+
+        $_GET = $original;
+    }
+
+    public function test_collect_field_request_params_includes_the_operator_param()
+    {
+        $params = Meprmf_Util::collect_field_request_params(
+            [ 'param' => 'mpf_country', 'type' => 'country' ]
+        );
+
+        $this->assertContains('mpf_country', $params);
+        $this->assertContains('mpf_country__op', $params);
+    }
+
+    public function test_collect_field_request_params_omits_the_operator_for_dates()
+    {
+        $params = Meprmf_Util::collect_field_request_params(
+            [ 'param' => 'mpf_joined', 'type' => 'date' ]
+        );
+
+        $this->assertSame([ 'mpf_joined' ], $params);
+    }
 }

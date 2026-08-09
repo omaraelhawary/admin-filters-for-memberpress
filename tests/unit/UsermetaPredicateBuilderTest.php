@@ -311,4 +311,197 @@ class UsermetaPredicateBuilderTest extends TestCase
         $this->assertStringContainsString('meta_value LIKE', $out[0]);
         $this->assertStringContainsString('%Paris%', $out[0]);
     }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function city_field($match = 'like')
+    {
+        return [
+            [
+                'param'    => 'mpf_city',
+                'meta_key' => 'mepr-address-city',
+                'label'    => 'City',
+                'type'     => 'text',
+                'match'    => $match,
+            ],
+        ];
+    }
+
+    /**
+     * Run the builder for one field with an operator set.
+     *
+     * @param array<int, array<string, mixed>> $fields Fields.
+     * @return array<int, string>
+     */
+    private function build(array $fields)
+    {
+        $ctx = new Meprmf_Screen_Context('memberpress-members', 'u.ID');
+
+        return Meprmf_Predicate_Builder::append_usermeta_exists([], $ctx, $fields);
+    }
+
+    public function test_operator_is_behaves_like_exact_match()
+    {
+        $_GET['mpf_country']     = 'DE';
+        $_GET['mpf_country__op'] = 'is';
+        $out                     = $this->build($this->country_field());
+
+        $this->assertCount(1, $out);
+        $this->assertStringStartsWith('EXISTS', $out[0]);
+        $this->assertStringContainsString("meta_value = 'DE'", $out[0]);
+    }
+
+    public function test_operator_is_not_uses_not_exists_so_rows_without_the_key_are_included()
+    {
+        $_GET['mpf_country']     = 'DE';
+        $_GET['mpf_country__op'] = 'is_not';
+        $out                     = $this->build($this->country_field());
+
+        $this->assertCount(1, $out);
+        $this->assertStringStartsWith('NOT EXISTS', $out[0]);
+        $this->assertStringContainsString("meta_value = 'DE'", $out[0]);
+    }
+
+    public function test_operator_not_contains_negates_the_like_clause()
+    {
+        $_GET['mpf_city']     = 'Paris';
+        $_GET['mpf_city__op'] = 'not_contains';
+        $out                  = $this->build($this->city_field());
+
+        $this->assertCount(1, $out);
+        $this->assertStringStartsWith('NOT EXISTS', $out[0]);
+        $this->assertStringContainsString('%Paris%', $out[0]);
+    }
+
+    public function test_operator_not_contains_keeps_serialized_matching_for_contains_fields()
+    {
+        $_GET['mpf_multi']     = 'blue';
+        $_GET['mpf_multi__op'] = 'not_contains';
+        $out                   = $this->build(
+            [
+                [
+                    'param'    => 'mpf_multi',
+                    'meta_key' => 'multi_key',
+                    'label'    => 'Multi',
+                    'type'     => 'select',
+                    'match'    => 'contains',
+                    'options'  => [ 'blue' => 'Blue' ],
+                ],
+            ]
+        );
+
+        $this->assertCount(1, $out);
+        $this->assertStringStartsWith('NOT EXISTS', $out[0]);
+        $this->assertStringContainsString('s:4:"blue";', $out[0]);
+    }
+
+    public function test_operator_is_empty_matches_missing_row_and_empty_string()
+    {
+        $_GET['mpf_city__op'] = 'is_empty';
+        $out                  = $this->build($this->city_field());
+
+        $this->assertCount(1, $out);
+        $this->assertStringStartsWith('NOT EXISTS', $out[0]);
+        $this->assertStringContainsString("meta_value <> ''", $out[0]);
+    }
+
+    public function test_operator_is_not_empty_requires_a_non_empty_row()
+    {
+        $_GET['mpf_city__op'] = 'is_not_empty';
+        $out                  = $this->build($this->city_field());
+
+        $this->assertCount(1, $out);
+        $this->assertStringStartsWith('EXISTS', $out[0]);
+        $this->assertStringContainsString("meta_value <> ''", $out[0]);
+    }
+
+    public function test_valueless_operators_do_not_need_a_value_in_the_request()
+    {
+        $_GET['mpf_city']     = '';
+        $_GET['mpf_city__op'] = 'is_empty';
+        $out                  = $this->build($this->city_field());
+
+        $this->assertCount(1, $out);
+    }
+
+    public function test_operator_is_one_of_builds_a_single_in_clause()
+    {
+        $_GET['mpf_country']     = 'DE,AT,CH';
+        $_GET['mpf_country__op'] = 'is_one_of';
+        $out                     = $this->build($this->country_field());
+
+        $this->assertCount(1, $out, 'is_one_of must produce one fragment, not one per value.');
+        $this->assertStringContainsString("IN ('DE', 'AT', 'CH')", $out[0]);
+    }
+
+    public function test_operator_is_one_of_accepts_an_array_from_a_multi_select()
+    {
+        $_GET['mpf_country']     = [ 'DE', 'AT' ];
+        $_GET['mpf_country__op'] = 'is_one_of';
+        $out                     = $this->build($this->country_field());
+
+        $this->assertCount(1, $out);
+        $this->assertStringContainsString("IN ('DE', 'AT')", $out[0]);
+    }
+
+    public function test_operator_is_one_of_with_no_values_adds_no_constraint()
+    {
+        $_GET['mpf_country']     = ' , ,';
+        $_GET['mpf_country__op'] = 'is_one_of';
+        $out                     = $this->build($this->country_field());
+
+        $this->assertCount(0, $out);
+    }
+
+    public function test_is_one_of_values_are_escaped()
+    {
+        $_GET['mpf_country']     = "DE,' OR '1'='1";
+        $_GET['mpf_country__op'] = 'is_one_of';
+        $out                     = $this->build($this->country_field());
+
+        $this->assertCount(1, $out);
+        $this->assertStringNotContainsString("'DE', '' OR '1'='1'", $out[0]);
+        $this->assertStringContainsString("''' OR ''1''=''1'", $out[0]);
+    }
+
+    public function test_unknown_operator_falls_back_to_default_match_mode()
+    {
+        $_GET['mpf_country']     = 'DE';
+        $_GET['mpf_country__op'] = 'drop_table';
+        $out                     = $this->build($this->country_field());
+
+        $this->assertCount(1, $out);
+        $this->assertStringStartsWith('EXISTS', $out[0]);
+        $this->assertStringContainsString("meta_value = 'DE'", $out[0]);
+    }
+
+    public function test_absent_operator_leaves_pre_existing_behaviour_untouched()
+    {
+        $_GET['mpf_city'] = 'Paris';
+        $out              = $this->build($this->city_field());
+
+        $this->assertCount(1, $out);
+        $this->assertStringStartsWith('EXISTS', $out[0]);
+        $this->assertStringContainsString('%Paris%', $out[0]);
+    }
+
+    public function test_operators_are_ignored_on_checkbox_fields()
+    {
+        $_GET['mpf_optin']     = '1';
+        $_GET['mpf_optin__op'] = 'is_not';
+        $out                   = $this->build(
+            [
+                [
+                    'param'    => 'mpf_optin',
+                    'meta_key' => 'newsletter',
+                    'label'    => 'Opt in',
+                    'type'     => 'checkbox',
+                ],
+            ]
+        );
+
+        $this->assertCount(1, $out);
+        $this->assertStringStartsWith('EXISTS', $out[0], 'Checkbox semantics must not be negated by an operator param.');
+    }
 }

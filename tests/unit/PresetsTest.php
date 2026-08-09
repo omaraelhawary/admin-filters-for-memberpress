@@ -257,4 +257,48 @@ class PresetsTest extends TestCase
         $this->assertCount(1, $list);
         $this->assertSame($save['preset']['id'], $list[0]['id']);
     }
+
+    public function test_operator_params_survive_a_preset_round_trip()
+    {
+        $known = array_merge($this->known, [ 'mpf_country__op' ]);
+
+        $save = Meprmf_Presets::save_preset(
+            self::SCREEN,
+            'Not Germany',
+            [ 'mpf_country' => 'DE', 'mpf_country__op' => 'is_not' ],
+            $known
+        );
+
+        $this->assertTrue($save['success']);
+        $this->assertSame('is_not', $save['preset']['params']['mpf_country__op']);
+    }
+
+    public function test_a_valueless_operator_preset_saves_without_a_value()
+    {
+        $known = array_merge($this->known, [ 'mpf_country__op' ]);
+
+        // The empty value is dropped as always; the operator alone is the whole filter.
+        $save = Meprmf_Presets::save_preset(
+            self::SCREEN,
+            'Missing country',
+            [ 'mpf_country' => '', 'mpf_country__op' => 'is_empty' ],
+            $known
+        );
+
+        $this->assertTrue($save['success']);
+        $this->assertSame([ 'mpf_country__op' => 'is_empty' ], $save['preset']['params']);
+    }
+
+    public function test_operator_params_outside_the_whitelist_are_still_rejected()
+    {
+        $save = Meprmf_Presets::save_preset(
+            self::SCREEN,
+            'Sneaky',
+            [ 'mpm_access' => 'active', 'evil__op' => 'is_not' ],
+            $this->known
+        );
+
+        $this->assertTrue($save['success']);
+        $this->assertArrayNotHasKey('evil__op', $save['preset']['params']);
+    }
 }
