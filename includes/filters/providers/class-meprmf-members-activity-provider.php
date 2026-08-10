@@ -77,6 +77,7 @@ class Meprmf_Members_Activity_Provider
                 'group'     => Meprmf_Util::GROUP_ACTIVITY,
                 'range_of'   => 'mpm_spent',
                 'range_part' => 'min',
+                'unit'       => self::currency_symbol(),
             ],
             [
                 'param'     => 'mpm_spent_max',
@@ -87,6 +88,7 @@ class Meprmf_Members_Activity_Provider
                 'group'     => Meprmf_Util::GROUP_ACTIVITY,
                 'range_of'   => 'mpm_spent',
                 'range_part' => 'max',
+                'unit'       => self::currency_symbol(),
             ],
             [
                 'param'     => 'mpm_trial',
@@ -106,5 +108,28 @@ class Meprmf_Members_Activity_Provider
          * @param Meprmf_Screen_Context              $ctx    Screen context.
          */
         return apply_filters('meprmf_members_activity_filters_fields', $fields, $ctx);
+    }
+
+    /**
+     * MemberPress currency symbol, shown as the unit glyph next to a money input.
+     *
+     * Decoded because MemberPress interpolates this option straight into HTML, so a site may
+     * legitimately have `&#36;` stored. The glyph is written with textContent, which would
+     * otherwise print the entity itself.
+     *
+     * @return string Empty when MemberPress options are unavailable.
+     */
+    private static function currency_symbol()
+    {
+        if (! class_exists('MeprOptions')) {
+            return '';
+        }
+
+        $options = MeprOptions::fetch();
+        if (! is_object($options) || empty($options->currency_symbol)) {
+            return '';
+        }
+
+        return html_entity_decode((string) $options->currency_symbol, ENT_QUOTES, 'UTF-8');
     }
 }

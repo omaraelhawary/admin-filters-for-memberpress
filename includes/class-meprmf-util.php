@@ -223,6 +223,43 @@ class Meprmf_Util
     }
 
     /**
+     * Translated labels for every operator token, keyed by token.
+     *
+     * The query-builder row reads as a sentence ("Registered · is after · 2026-01-01"), so
+     * the labels are lower-case phrases rather than sentence-case button text.
+     *
+     * @since 2.1.0
+     * @return array<string, string>
+     */
+    public static function get_operator_labels()
+    {
+        $labels = [
+            'is'           => __('is', 'admin-filters-for-memberpress'),
+            'is_not'       => __('is not', 'admin-filters-for-memberpress'),
+            'contains'     => __('contains', 'admin-filters-for-memberpress'),
+            'not_contains' => __('does not contain', 'admin-filters-for-memberpress'),
+            'is_empty'     => __('is empty', 'admin-filters-for-memberpress'),
+            'is_not_empty' => __('is not empty', 'admin-filters-for-memberpress'),
+            'is_one_of'    => __('is one of', 'admin-filters-for-memberpress'),
+            'after'        => __('is after', 'admin-filters-for-memberpress'),
+            'before'       => __('is before', 'admin-filters-for-memberpress'),
+            'between'      => __('is between', 'admin-filters-for-memberpress'),
+            'in_last'      => __('is in the last', 'admin-filters-for-memberpress'),
+            'not_in_last'  => __('is not in the last', 'admin-filters-for-memberpress'),
+            'at_least'     => __('is at least', 'admin-filters-for-memberpress'),
+            'at_most'      => __('is at most', 'admin-filters-for-memberpress'),
+        ];
+
+        /**
+         * Labels shown in the query-builder operator selector.
+         *
+         * @since 2.1.0
+         * @param array<string, string> $labels Operator token => label.
+         */
+        return apply_filters('meprmf_operator_labels', $labels);
+    }
+
+    /**
      * Whether a field accepts an operator selector at all.
      *
      * @param array<string, mixed> $field Field definition.
@@ -831,6 +868,18 @@ class Meprmf_Util
             }
         } else {
             $out[] = $param;
+        }
+
+        // A single date field gets `between`, which resolves through the same `_from` / `_to`
+        // bounds as a range field, so those two names have to be known params as well or an
+        // applied "is between" is neither cleared on Apply nor saved into a preset. A field
+        // that is one half of a pair is skipped: its sibling already owns the other bound.
+        if ('date' === $type && empty($field['range_of']) && empty($field['date_range_of'])) {
+            foreach (self::date_range_param_names($param) as $bound) {
+                if ('' !== $bound && ! in_array($bound, $out, true)) {
+                    $out[] = $bound;
+                }
+            }
         }
 
         if (! self::field_supports_operators($field)) {

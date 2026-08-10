@@ -85,7 +85,11 @@ class Meprmf_Plugin
     }
 
     /**
-     * Whether floating panel UI is enabled for this screen (Members hook preserved).
+     * Whether the filter card UI is enabled for this screen (both legacy hook names preserved).
+     *
+     * Returning false now removes the filter UI entirely rather than falling back to the old
+     * inline toolbar: since 2.1.0 the query-builder card is the only filter UI. MemberPress's
+     * own search and "Filter by … Go" rows, and this plugin's chips, are unaffected.
      *
      * @param Meprmf_Screen_Context $ctx Context.
      * @return bool
@@ -95,19 +99,19 @@ class Meprmf_Plugin
         $default = true;
         if ($ctx->is_members()) {
             /**
-             * Whether the floating filter panel is used on the Members list.
+             * Whether the filter card is rendered on the Members list.
              *
              * @since 1.6.5
-             * @param bool $enabled Default true; return false for inline toolbar.
+             * @param bool $enabled Default true; return false to render no filter UI.
              */
             $default = (bool) apply_filters('meprmf_use_floating_members_panel', $default);
         }
 
         /**
-         * Whether the floating filter panel is used for this list screen.
+         * Whether the filter card is rendered for this list screen.
          *
          * @since 1.7.0
-         * @param bool                  $enabled Default true; return false for inline toolbar.
+         * @param bool                  $enabled Default true; return false to render no filter UI.
          * @param Meprmf_Screen_Context $ctx     Screen context.
          */
         return (bool) apply_filters('meprmf_use_floating_meta_filters_panel', $default, $ctx);
@@ -202,6 +206,31 @@ class Meprmf_Plugin
     }
 
     /**
+     * Relative-window units for the "is in the last N …" control, as `{v, l}` pairs.
+     *
+     * @return array<int, array<string, string>>
+     */
+    private static function relative_unit_choices()
+    {
+        $labels = [
+            'days'   => __('days', 'admin-filters-for-memberpress'),
+            'weeks'  => __('weeks', 'admin-filters-for-memberpress'),
+            'months' => __('months', 'admin-filters-for-memberpress'),
+            'years'  => __('years', 'admin-filters-for-memberpress'),
+        ];
+
+        $out = [];
+        foreach (Meprmf_Util::RELATIVE_UNITS as $unit) {
+            $out[] = [
+                'v' => $unit,
+                'l' => isset($labels[ $unit ]) ? $labels[ $unit ] : $unit,
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
      * Load admin styles/scripts on relevant screens.
      *
      * @param string $hook_suffix Current admin page hook.
@@ -268,24 +297,41 @@ class Meprmf_Plugin
                 [
                     'knownParams'          => $known,
                     'nativeParams'         => $native,
-                    'knownParamsSignature' => md5(implode('|', $known)),
                     'storageId'            => $ctx->get_storage_id(),
-                    'dateRangeEnabled'     => Meprmf_Settings::is_date_custom_fields_use_range_enabled(),
-                    'dateRangeNonce'       => wp_create_nonce('meprmf_date_range_pref'),
+                    'matchParam'           => Meprmf_Util::MATCH_MODE_PARAM,
+                    'matchMode'            => Meprmf_Util::get_match_mode($ctx),
+                    'catalog'              => Meprmf_Toolbar_Renderer::build_field_catalog(
+                        Meprmf_Filter_Registry::get_normalized_fields_for_context($ctx)
+                    ),
+                    'groupLabels'          => Meprmf_Util::get_group_labels(),
+                    'relativeUnits'        => self::relative_unit_choices(),
                     'presets'              => Meprmf_Presets::get_presets_for_screen($ctx->get_storage_id()),
                     'presetsNonce'         => wp_create_nonce('meprmf_filter_presets'),
                     'ajaxUrl'              => admin_url('admin-ajax.php'),
                     'i18n'                 => [
-                        'presetsLabel'       => __('Saved presets', 'admin-filters-for-memberpress'),
-                        'presetsPlaceholder' => __('— Choose a preset —', 'admin-filters-for-memberpress'),
-                        'loadPreset'         => __('Load', 'admin-filters-for-memberpress'),
-                        'savePreset'         => __('Save current…', 'admin-filters-for-memberpress'),
-                        'deletePreset'       => __('Delete', 'admin-filters-for-memberpress'),
                         'savePrompt'         => __('Preset name', 'admin-filters-for-memberpress'),
-                        'deleteConfirm'      => __('Delete this saved preset for all admins?', 'admin-filters-for-memberpress'),
                         'saveError'          => __('Could not save the preset. Please try again.', 'admin-filters-for-memberpress'),
-                        'deleteError'        => __('Could not delete the preset. Please try again.', 'admin-filters-for-memberpress'),
                         'noActiveFilters'    => __('Apply at least one filter before saving a preset.', 'admin-filters-for-memberpress'),
+                        'anyValue'           => __('Any value', 'admin-filters-for-memberpress'),
+                        'valuePlaceholder'   => __('Type a value…', 'admin-filters-for-memberpress'),
+                        'noValueNeeded'      => __('no value needed', 'admin-filters-for-memberpress'),
+                        'andJoiner'          => __('and', 'admin-filters-for-memberpress'),
+                        /* translators: %s: filter field label. */
+                        'removeFilter'       => __('Remove %s filter', 'admin-filters-for-memberpress'),
+                        /* translators: %s: filter field label. */
+                        'operatorFor'        => __('Comparison for %s', 'admin-filters-for-memberpress'),
+                        /* translators: %s: filter field label. */
+                        'valueFor'           => __('Value for %s', 'admin-filters-for-memberpress'),
+                        /* translators: %s: filter field label. */
+                        'valueFromFor'       => __('%s from', 'admin-filters-for-memberpress'),
+                        /* translators: %s: filter field label. */
+                        'valueToFor'         => __('%s to', 'admin-filters-for-memberpress'),
+                        'noFilterMatches'    => __('No filters match.', 'admin-filters-for-memberpress'),
+                        'opIs'               => __('is', 'admin-filters-for-memberpress'),
+                        'kindChoice'         => __('choice', 'admin-filters-for-memberpress'),
+                        'kindText'           => __('text', 'admin-filters-for-memberpress'),
+                        'kindDate'           => __('date', 'admin-filters-for-memberpress'),
+                        'kindNumber'         => __('number', 'admin-filters-for-memberpress'),
                     ],
                 ]
             );

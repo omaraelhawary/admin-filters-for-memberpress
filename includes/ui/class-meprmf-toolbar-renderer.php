@@ -1,6 +1,6 @@
 <?php
 /**
- * Renders filter controls in MemberPress list table toolbars.
+ * Query-builder filter card for MemberPress list table toolbars.
  *
  * @package MemberPress_Members_Meta_Filters
  */
@@ -10,216 +10,202 @@ if (! defined('ABSPATH')) {
 }
 
 /**
- * Toolbar UI for meta filters.
+ * Renders the filter card shell (toolbar / body / footer bands).
+ *
+ * The rows inside the card are built in JS from the field catalog this class exports, so the
+ * row markup has exactly one implementation and cannot drift between PHP and JS.
  */
 class Meprmf_Toolbar_Renderer
 {
 
     /**
-     * Output one filter control (select or search input).
+     * Saved views offered as quick-filter pills in the empty state.
      *
-     * @param array<string, mixed> $field     Field definition.
-     * @param bool                 $compact   When true, show visible label and wrap in a grid cell.
-     * @param bool                 $omit_name When true, omit the `name` attribute (floating panel; Apply builds GET in JS).
-     * @return void
+     * @var int
      */
-    public static function render_single_filter_control(array $field, $compact, $omit_name = false)
+    const EMPTY_STATE_PILL_LIMIT = 4;
+
+    /**
+     * Field catalog for the add-filter popover and the row controls.
+     *
+     * Pure: everything comes from the passed field definitions, so the grouping and operator
+     * rules are testable without a request. A from/to (or min/max) pair collapses into one
+     * entry, because one row drives both of its params.
+     *
+     * @since 2.1.0
+     * @param array<int, array<string, mixed>> $valid Normalized field definitions.
+     * @return array<int, array<string, mixed>>
+     */
+    public static function build_field_catalog(array $valid)
     {
-        $param = Meprmf_Util::sanitize_param(isset($field['param']) ? $field['param'] : '');
-        if ('' === $param) {
-            return;
+        $groups = [];
+
+        foreach ($valid as $field) {
+            $param = Meprmf_Util::sanitize_param(isset($field['param']) ? $field['param'] : '');
+            if ('' === $param) {
+                continue;
+            }
+            $base = Meprmf_Util::range_base_param($field);
+            if ('' === $base) {
+                continue;
+            }
+            $groups[ $base ][] = $field;
         }
 
-        $label   = isset($field['label']) ? (string) $field['label'] : '';
-        $current = Meprmf_Util::get_request_value($param);
+        $catalog = [];
 
-        if ($compact) {
-            echo '<div class="meprmf-meta-filters__cell">';
-            echo '<label class="meprmf-meta-filters__cell-label" for="' . esc_attr($param) . '">' . esc_html($label) . '</label>';
-        } else {
-            echo '<label class="screen-reader-text" for="' . esc_attr($param) . '">' . esc_html($label) . '</label>';
-        }
+        foreach ($groups as $base => $fields) {
+            $first = $fields[0];
+            $type  = isset($first['type']) ? (string) $first['type'] : 'text';
+            $kind  = self::field_kind($type);
+            // A pair has no single value param: its value(s) live in the two bound params.
+            $pair  = count($fields) > 1 || 'date_range' === $type;
 
-        // Operator selector, only in the compact (floating panel) layout: the inline
-        // toolbar is already cramped and its fields keep their default match mode.
-        // Date and number operators need the query-builder row UI, so they stay out of
-        // this text-oriented selector for now.
-        $text_operators = ! in_array($field['type'], [ 'date', 'date_range', 'number' ], true);
-        if ($compact && $text_operators && Meprmf_Util::field_supports_operators($field)) {
-            self::render_operator_select($param, $label, $omit_name);
-        }
+            $params = [];
+            $op     = Meprmf_Util::operator_param_name($base);
+            if ('' !== $op) {
+                $params['op'] = $op;
+            }
 
-        if ('country' === $field['type']) {
-            $countries = MeprUtils::countries(true);
-            echo '<select class="mepr_filter_field" id="' . esc_attr($param) . '"';
-            if (! $omit_name) {
-                echo ' name="' . esc_attr($param) . '"';
+            if ($pair) {
+                $bounds = Meprmf_Util::date_range_param_names($base);
+                foreach ($fields as $part) {
+                    $slot = self::range_slot($part);
+                    $name = Meprmf_Util::sanitize_param(isset($part['param']) ? $part['param'] : '');
+                    if ('' !== $slot && '' !== $name) {
+                        $params[ $slot ] = $name;
+                    }
+                }
+                // An unexpanded date_range field owns both bounds itself.
+                if (! isset($params['from']) && '' !== $bounds['from']) {
+                    $params['from'] = $bounds['from'];
+                }
+                if (! isset($params['to']) && '' !== $bounds['to']) {
+                    $params['to'] = $bounds['to'];
+                }
             } else {
-                echo ' data-meprmf-param="' . esc_attr($param) . '"';
+                $params['value'] = Meprmf_Util::sanitize_param(isset($first['param']) ? $first['param'] : '');
+                if ('date' === $kind) {
+                    // `is between` on a single date resolves through the same bounds as a pair.
+                    $bounds = Meprmf_Util::date_range_param_names($base);
+                    if ('' !== $bounds['from']) {
+                        $params['from'] = $bounds['from'];
+                    }
+                    if ('' !== $bounds['to']) {
+                        $params['to'] = $bounds['to'];
+                    }
+                }
             }
-            echo '>';
-            echo '<option value="">' . esc_html__('— Country —', 'admin-filters-for-memberpress') . '</option>';
-            foreach ($countries as $code => $name) {
-                printf(
-                    '<option value="%s" %s>%s</option>',
-                    esc_attr($code),
-                    selected($current, (string) $code, false),
-                    esc_html($name)
-                );
+
+            if ('date' === $kind) {
+                $relative = Meprmf_Util::relative_param_names($base);
+                if ('' !== $relative['n']) {
+                    $params['n'] = $relative['n'];
+                }
+                if ('' !== $relative['unit']) {
+                    $params['u'] = $relative['unit'];
+                }
             }
-            echo '</select>';
-        } elseif ('checkbox' === $field['type']) {
-            echo '<select class="mepr_filter_field" id="' . esc_attr($param) . '"';
-            if (! $omit_name) {
-                echo ' name="' . esc_attr($param) . '"';
-            } else {
-                echo ' data-meprmf-param="' . esc_attr($param) . '"';
+
+            $entry = [
+                'param' => $base,
+                'label' => self::entry_label($fields, $base),
+                'group' => Meprmf_Util::field_group($first),
+                'kind'  => $kind,
+                'pair'  => $pair,
+                'ops'   => self::operator_options($first, $pair, $kind),
+                'params' => $params,
+            ];
+
+            if ('choice' === $kind) {
+                $entry['options'] = self::choice_options($first);
             }
-            echo '>';
-            echo '<option value="">' . esc_html(sprintf('— %s —', $label)) . '</option>';
-            printf(
-                '<option value="1" %s>%s</option>',
-                selected($current, '1', false),
-                esc_html__('Checked', 'admin-filters-for-memberpress')
-            );
-            echo '</select>';
-        } elseif ('select' === $field['type'] && ! empty($field['options']) && is_array($field['options'])) {
-            echo '<select class="mepr_filter_field" id="' . esc_attr($param) . '"';
-            if (! $omit_name) {
-                echo ' name="' . esc_attr($param) . '"';
-            } else {
-                echo ' data-meprmf-param="' . esc_attr($param) . '"';
+            if (! empty($first['unit'])) {
+                $entry['unit'] = (string) $first['unit'];
             }
-            echo '>';
-            echo '<option value="">' . esc_html(sprintf('— %s —', $label)) . '</option>';
-            foreach ($field['options'] as $value => $opt_label) {
-                printf(
-                    '<option value="%s" %s>%s</option>',
-                    esc_attr((string) $value),
-                    selected($current, (string) $value, false),
-                    esc_html((string) $opt_label)
-                );
-            }
-            echo '</select>';
-        } elseif ('date' === $field['type']) {
-            self::render_date_input($param, $current, $omit_name);
-        } else {
-            $placeholder = $compact
-                ? __('Contains…', 'admin-filters-for-memberpress')
-                : $label;
-            if ($omit_name) {
-                printf(
-                    '<input type="search" class="mepr_filter_field regular-text" id="%1$s" data-meprmf-param="%1$s" value="%2$s" placeholder="%3$s" />',
-                    esc_attr($param),
-                    esc_attr($current),
-                    esc_attr($placeholder)
-                );
-            } else {
-                printf(
-                    '<input type="search" class="mepr_filter_field regular-text" id="%1$s" name="%1$s" value="%2$s" placeholder="%3$s" />',
-                    esc_attr($param),
-                    esc_attr($current),
-                    esc_attr($placeholder)
-                );
-            }
+
+            $catalog[] = $entry;
         }
 
-        if ($compact) {
-            echo '</div>';
-        }
+        /**
+         * Field catalog handed to the query-builder UI.
+         *
+         * @since 2.1.0
+         * @param array<int, array<string, mixed>> $catalog Catalog entries.
+         * @param array<int, array<string, mixed>> $valid   Normalized field definitions.
+         */
+        return apply_filters('meprmf_field_catalog', $catalog, $valid);
     }
 
     /**
-     * Output the operator selector for one field.
+     * How many catalog entries the current request has a filter for.
      *
-     * The blank first option is the pre-2.1 default: no operator param in the URL and the
-     * field keeps its own match mode, so old bookmarks and presets are unaffected.
+     * Counts entries, not params, so a two-bound "is between" is one active filter — the same
+     * arithmetic the JS row model does, which keeps the badge stable across the JS handover.
      *
-     * @param string $param     Base GET param name.
-     * @param string $label     Field label, for the accessible name.
-     * @param bool   $omit_name Floating panel mode (Apply builds GET in JS).
-     * @return void
+     * @since 2.1.0
+     * @param array<int, array<string, mixed>> $catalog Catalog from {@see build_field_catalog()}.
+     * @return int
      */
-    private static function render_operator_select($param, $label, $omit_name)
+    public static function count_active_entries(array $catalog)
     {
-        $op_param = Meprmf_Util::operator_param_name($param);
-        if ('' === $op_param || $op_param === $param) {
-            return;
+        $count = 0;
+
+        foreach ($catalog as $entry) {
+            $params = isset($entry['params']) && is_array($entry['params']) ? $entry['params'] : [];
+
+            // "is empty" / "is not empty" constrain the list with no value at all.
+            if (Meprmf_Util::has_valueless_operator((string) $entry['param'])) {
+                ++$count;
+                continue;
+            }
+
+            foreach ([ 'value', 'from', 'to', 'n' ] as $slot) {
+                if (empty($params[ $slot ])) {
+                    continue;
+                }
+                if ('' !== Meprmf_Util::get_request_value($params[ $slot ])) {
+                    ++$count;
+                    break;
+                }
+            }
         }
 
-        $current = Meprmf_Util::get_field_operator($param);
+        return $count;
+    }
 
-        $choices = [
-            ''             => __('Default', 'admin-filters-for-memberpress'),
-            'is'           => __('Is', 'admin-filters-for-memberpress'),
-            'is_not'       => __('Is not', 'admin-filters-for-memberpress'),
-            'contains'     => __('Contains', 'admin-filters-for-memberpress'),
-            'not_contains' => __('Does not contain', 'admin-filters-for-memberpress'),
-            'is_empty'     => __('Is empty', 'admin-filters-for-memberpress'),
-            'is_not_empty' => __('Is not empty', 'admin-filters-for-memberpress'),
-            'is_one_of'    => __('Is one of (comma separated)', 'admin-filters-for-memberpress'),
+    /**
+     * Element ids for one screen's card.
+     *
+     * @param Meprmf_Screen_Context $ctx Screen context.
+     * @return array<string, string>
+     */
+    private static function card_ids(Meprmf_Screen_Context $ctx)
+    {
+        $sid = $ctx->get_storage_id();
+
+        return [
+            // Kept from the pre-2.1 panel so bookmarked anchors and `aria-controls` targets survive.
+            'panel'   => 'meprmf-filter-panel--' . $sid,
+            'toggle'  => 'meprmf-filter-toggle--' . $sid,
+            'body'    => 'meprmf-qb-body--' . $sid,
+            'popover' => 'meprmf-qb-popover--' . $sid,
+            'search'  => 'meprmf-qb-search--' . $sid,
+            'views'   => 'meprmf-qb-views--' . $sid,
         ];
-
-        printf(
-            '<label class="screen-reader-text" for="%1$s">%2$s</label>',
-            esc_attr($op_param),
-            /* translators: %s: filter field label. */
-            esc_html(sprintf(__('Comparison for %s', 'admin-filters-for-memberpress'), $label))
-        );
-
-        echo '<select class="mepr_filter_field meprmf-filter-op" id="' . esc_attr($op_param) . '"';
-        if (! $omit_name) {
-            echo ' name="' . esc_attr($op_param) . '"';
-        } else {
-            echo ' data-meprmf-param="' . esc_attr($op_param) . '"';
-        }
-        echo '>';
-        foreach ($choices as $value => $choice_label) {
-            printf(
-                '<option value="%s" %s>%s</option>',
-                esc_attr((string) $value),
-                selected($current, (string) $value, false),
-                esc_html($choice_label)
-            );
-        }
-        echo '</select>';
     }
 
     /**
-     * Output one HTML5 date input.
+     * Renders the chip row and the card mount point.
      *
-     * @param string $param     GET param name.
-     * @param string $current   Current value.
-     * @param bool   $omit_name Floating panel mode.
-     * @return void
-     */
-    private static function render_date_input($param, $current, $omit_name)
-    {
-        if ($omit_name) {
-            printf(
-                '<input type="date" class="mepr_filter_field meprmf-filter-date" id="%1$s" data-meprmf-param="%1$s" value="%2$s" />',
-                esc_attr($param),
-                esc_attr($current)
-            );
-            return;
-        }
-
-        printf(
-            '<input type="date" class="mepr_filter_field meprmf-filter-date" id="%1$s" name="%1$s" value="%2$s" />',
-            esc_attr($param),
-            esc_attr($current)
-        );
-    }
-
-    /**
-     * Renders extra filter controls (reuses MemberPress `.mepr_filter_field` + Go button behavior).
-     *
-     * @param string $search_term Unused.
-     * @param int    $perpage     Unused.
+     * @param string $search_term Unused (MemberPress hook signature).
+     * @param int    $perpage     Unused (MemberPress hook signature).
      * @return void
      */
     public static function render($search_term, $perpage)
     {
+        unset($search_term, $perpage);
+
         $ctx = Meprmf_Screen::detect();
         if (null === $ctx || ! $ctx->supports_meta_filters_list() || ! Meprmf_Capabilities::current_user_can_filter()) {
             return;
@@ -241,225 +227,20 @@ class Meprmf_Toolbar_Renderer
             Meprmf_Active_Filters::render($valid, $ctx);
         }
 
-        if (Meprmf_Plugin::use_floating_filter_panel($ctx)) {
-            self::render_floating_filter_panel($valid, $ctx);
+        // The off switch also stops the assets from loading, so bail before the mount point:
+        // an unmounted card would sit hidden in the footer with nothing to bring it to life.
+        if (! Meprmf_Plugin::use_floating_filter_panel($ctx)) {
             return;
         }
 
-        $count     = count($valid);
-        /**
-         * Field count at or above which the inline toolbar uses a compact details UI.
-         *
-         * @since 1.0.0
-         * @param int $threshold Default 6.
-         */
-        $threshold = (int) apply_filters('meprmf_compact_filters_threshold', 6);
-        $compact   = $count >= $threshold;
-
-        if ($compact) {
-            echo '<div class="mepr-filter-by meprmf-meta-filters meprmf-meta-filters--compact">';
-            echo '<details class="meprmf-meta-filters__details" open>';
-            $summary = $ctx->is_members()
-                ? __('Member filters', 'admin-filters-for-memberpress')
-                : __('Member profile filters', 'admin-filters-for-memberpress');
-            printf(
-                '<summary class="meprmf-meta-filters__summary"><span class="meprmf-meta-filters__summary-text">%s</span> <span class="meprmf-meta-filters__count">(%d)</span></summary>',
-                esc_html($summary),
-                (int) $count
-            );
-            echo '<div class="meprmf-meta-filters__grid">';
-            foreach ($valid as $field) {
-                self::render_single_filter_control($field, true);
-            }
-            echo '</div></details></div>';
-            return;
-        }
-
-        echo '<span class="mepr-filter-by meprmf-meta-filters">';
-        foreach ($valid as $field) {
-            self::render_single_filter_control($field, false);
-        }
-        echo '</span>';
+        self::render_floating_filter_panel($valid, $ctx);
     }
 
     /**
-     * Toggle id, panel id, and active filter count for the floating UI.
+     * Card mount point. The card itself is deferred — see Meprmf_Plugin::print_deferred_floating_filter_panels().
      *
-     * @param array<int, array<string, mixed>> $valid Normalized field definitions.
-     * @param Meprmf_Screen_Context            $ctx   Current screen context.
-     * @return array{toggle_id: string, panel_id: string, active_count: int}
-     */
-    private static function get_floating_filter_mount_state(array $valid, Meprmf_Screen_Context $ctx)
-    {
-        $known_params = [];
-        foreach ($valid as $field) {
-            foreach (Meprmf_Util::collect_field_request_params($field) as $p) {
-                if ('' !== $p) {
-                    $known_params[] = $p;
-                }
-            }
-        }
-
-        $active_count = 0;
-        foreach ($known_params as $p) {
-            // Operator params describe how a field matches, they are not a filter on their own.
-            if (Meprmf_Util::is_operator_param($p)) {
-                continue;
-            }
-            if ('' !== Meprmf_Util::get_request_value($p)) {
-                ++$active_count;
-                continue;
-            }
-            // "is empty" / "is not empty" constrain the list with an empty value box.
-            if (Meprmf_Util::has_valueless_operator($p)) {
-                ++$active_count;
-            }
-        }
-
-        $sid       = $ctx->get_storage_id();
-        $panel_id  = 'meprmf-filter-panel--' . $sid;
-        $toggle_id = 'meprmf-filter-toggle--' . $sid;
-
-        return [
-            'toggle_id'    => $toggle_id,
-            'panel_id'     => $panel_id,
-            'active_count' => $active_count,
-        ];
-    }
-
-    /**
-     * The floating panel surface only (printed in admin_footer pool, then moved next to the toggle by JS).
-     *
-     * @param array<int, array<string, mixed>> $valid Normalized field definitions.
-     * @param Meprmf_Screen_Context            $ctx   Current screen context.
-     * @return void
-     */
-    public static function echo_floating_filter_panel_surface(array $valid, Meprmf_Screen_Context $ctx)
-    {
-        $mount = self::get_floating_filter_mount_state($valid, $ctx);
-        $panel_id  = $mount['panel_id'];
-        $toggle_id = $mount['toggle_id'];
-
-        printf(
-            '<div id="%1$s" class="meprmf-filter-panel" role="region" aria-labelledby="%2$s" hidden>',
-            esc_attr($panel_id),
-            esc_attr($toggle_id)
-        );
-
-        echo '<div class="meprmf-filter-panel__mode meprmf-filter-panel__mode--filter">';
-        self::echo_presets_bar($ctx);
-        echo '<p class="meprmf-filter-panel__empty" hidden>';
-        echo esc_html__('No filters visible. Click Customize to add some.', 'admin-filters-for-memberpress');
-        echo '</p>';
-
-        echo '<div class="meprmf-filter-panel__grid">';
-        foreach ($valid as $field) {
-            $param = Meprmf_Util::sanitize_param(isset($field['param']) ? $field['param'] : '');
-            if ('' === $param) {
-                continue;
-            }
-            echo '<div class="meprmf-filter-panel__item" data-meprmf-param="' . esc_attr($param) . '">';
-            self::render_single_filter_control($field, true, true);
-            echo '</div>';
-        }
-        echo '</div>';
-
-        echo '<div class="meprmf-filter-panel__actions">';
-        printf(
-            '<button type="button" class="button button-primary meprmf-filter-panel__apply">%s</button> ',
-            esc_html__('Apply filters', 'admin-filters-for-memberpress')
-        );
-        printf(
-            '<button type="button" class="button-link meprmf-filter-panel__clear">%s</button> ',
-            esc_html__('Clear', 'admin-filters-for-memberpress')
-        );
-        printf(
-            '<button type="button" class="button-link meprmf-filter-panel__customize">%s</button>',
-            esc_html__('Customize', 'admin-filters-for-memberpress')
-        );
-        echo '</div>';
-        echo '</div>';
-
-        echo '<div class="meprmf-filter-panel__mode meprmf-filter-panel__mode--customize" hidden>';
-        echo '<div class="meprmf-filter-panel__customize-head">';
-        printf(
-            '<button type="button" class="button-link meprmf-filter-panel__back">%s</button>',
-            esc_html__('← Back', 'admin-filters-for-memberpress')
-        );
-        echo '<span class="meprmf-filter-panel__customize-title">' . esc_html__('Customize filters', 'admin-filters-for-memberpress') . '</span>';
-        echo '</div>';
-        echo '<ul class="meprmf-filter-panel__customize-list">';
-        foreach ($valid as $field) {
-            $param = Meprmf_Util::sanitize_param(isset($field['param']) ? $field['param'] : '');
-            if ('' === $param) {
-                continue;
-            }
-            $label = isset($field['label']) ? (string) $field['label'] : $param;
-            echo '<li><label><input type="checkbox" class="meprmf-filter-panel__vis-cb" value="' . esc_attr($param) . '" checked="checked" /> ';
-            echo esc_html($label) . '</label></li>';
-        }
-        echo '</ul>';
-        if (Meprmf_Members_Provider::context_has_date_custom_fields($ctx)) {
-            echo '<p class="meprmf-filter-panel__customize-option">';
-            echo '<label><input type="checkbox" class="meprmf-filter-panel__date-range-cb" ';
-            checked(Meprmf_Settings::is_date_custom_fields_use_range_enabled());
-            echo ' /> ';
-            echo esc_html__('Date custom fields: use from / to range', 'admin-filters-for-memberpress');
-            echo '</label></p>';
-        }
-        printf(
-            '<p class="meprmf-filter-panel__done-wrap"><button type="button" class="button meprmf-filter-panel__done">%s</button></p>',
-            esc_html__('Done', 'admin-filters-for-memberpress')
-        );
-        echo '</div>';
-
-        echo '</div>';
-    }
-
-    /**
-     * Saved presets bar (load / save / delete) above the filter grid.
-     *
-     * @param Meprmf_Screen_Context $ctx Screen context.
-     * @return void
-     */
-    private static function echo_presets_bar(Meprmf_Screen_Context $ctx)
-    {
-        $presets = Meprmf_Presets::get_presets_for_screen($ctx->get_storage_id());
-
-        echo '<div class="meprmf-filter-panel__presets">';
-        echo '<span class="meprmf-filter-panel__presets-label">' . esc_html__('Saved presets', 'admin-filters-for-memberpress') . '</span>';
-        echo '<div class="meprmf-filter-panel__presets-controls">';
-        echo '<select class="meprmf-filter-panel__preset-select" aria-label="' . esc_attr__('Saved presets', 'admin-filters-for-memberpress') . '">';
-        echo '<option value="">' . esc_html__('— Choose a preset —', 'admin-filters-for-memberpress') . '</option>';
-        foreach ($presets as $preset) {
-            if (empty($preset['id']) || empty($preset['name'])) {
-                continue;
-            }
-            printf(
-                '<option value="%1$s">%2$s</option>',
-                esc_attr((string) $preset['id']),
-                esc_html((string) $preset['name'])
-            );
-        }
-        echo '</select>';
-        printf(
-            '<button type="button" class="button meprmf-filter-panel__preset-load" disabled>%s</button> ',
-            esc_html__('Load', 'admin-filters-for-memberpress')
-        );
-        printf(
-            '<button type="button" class="button meprmf-filter-panel__preset-save">%s</button> ',
-            esc_html__('Save current…', 'admin-filters-for-memberpress')
-        );
-        printf(
-            '<button type="button" class="button-link meprmf-filter-panel__preset-delete" disabled>%s</button>',
-            esc_html__('Delete', 'admin-filters-for-memberpress')
-        );
-        echo '</div>';
-        echo '</div>';
-    }
-
-    /**
-     * Floating filter toggle (MemberPress admin lists). Panel DOM is deferred — see Meprmf_Plugin::print_deferred_floating_filter_panels().
+     * MemberPress fires this hook inside `<p class="mepr-search-box">`, where block markup would
+     * break the tablenav, so only an empty phrasing-level anchor is printed here.
      *
      * @param array<int, array<string, mixed>> $valid Normalized field definitions.
      * @param Meprmf_Screen_Context            $ctx   Current screen context.
@@ -467,39 +248,12 @@ class Meprmf_Toolbar_Renderer
      */
     public static function render_floating_filter_panel(array $valid, Meprmf_Screen_Context $ctx)
     {
-        $mount        = self::get_floating_filter_mount_state($valid, $ctx);
-        $panel_id     = $mount['panel_id'];
-        $toggle_id    = $mount['toggle_id'];
-        $active_count = $mount['active_count'];
-
-        // Span (phrasing) keeps MemberPress's `<p class="mepr-search-box">` valid; block panel is printed in admin_footer.
-        echo '<span class="mepr-filter-by meprmf-floating-root" data-meprmf-panel-id="' . esc_attr($panel_id) . '">';
+        $ids = self::card_ids($ctx);
 
         printf(
-            '<button type="button" class="button meprmf-toggle-btn" aria-expanded="false" aria-controls="%1$s" id="%2$s">',
-            esc_attr($panel_id),
-            esc_attr($toggle_id)
+            '<span class="meprmf-qb-anchor" data-meprmf-panel-id="%s" hidden></span>',
+            esc_attr($ids['panel'])
         );
-        echo '<span class="meprmf-toggle-btn__icon dashicons dashicons-filter" aria-hidden="true"></span>';
-        echo '<span class="meprmf-toggle-btn__label">' . esc_html__('Filters', 'admin-filters-for-memberpress') . '</span>';
-        if ($active_count > 0) {
-            printf(
-                ' <span class="meprmf-toggle-btn__badge" aria-live="polite" aria-label="%s">%d</span>',
-                esc_attr(
-                    sprintf(
-                        /* translators: %d: number of active filters */
-                        _n('%d active filter', '%d active filters', $active_count, 'admin-filters-for-memberpress'),
-                        $active_count
-                    )
-                ),
-                (int) $active_count
-            );
-        } else {
-            echo ' <span class="meprmf-toggle-btn__badge" aria-live="polite" hidden aria-hidden="true">0</span>';
-        }
-        echo '</button>';
-
-        echo '</span>';
 
         Meprmf_Plugin::queue_deferred_floating_filter_panel($valid, $ctx);
     }
@@ -516,5 +270,467 @@ class Meprmf_Toolbar_Renderer
             $valid,
             new Meprmf_Screen_Context(Meprmf_Screen::PAGE_MEMBERS, 'u.ID')
         );
+    }
+
+    /**
+     * The card surface: printed in the admin_footer pool, then moved above the list by JS.
+     *
+     * Stays `hidden` until JS mounts it: with scripting off the rows, the popover and Apply are
+     * all inert, so showing a dead card would be worse than leaving MemberPress's own search and
+     * "Filter by … Go" controls (plus this plugin's server-rendered chips) to do the work.
+     *
+     * @param array<int, array<string, mixed>> $valid Normalized field definitions.
+     * @param Meprmf_Screen_Context            $ctx   Current screen context.
+     * @return void
+     */
+    public static function echo_floating_filter_panel_surface(array $valid, Meprmf_Screen_Context $ctx)
+    {
+        $ids     = self::card_ids($ctx);
+        $catalog = self::build_field_catalog($valid);
+        $active  = self::count_active_entries($catalog);
+        $mode    = Meprmf_Util::get_match_mode($ctx);
+
+        printf(
+            '<div id="%1$s" class="meprmf-qb" role="region" aria-labelledby="%2$s" data-meprmf-screen="%3$s" hidden>',
+            esc_attr($ids['panel']),
+            esc_attr($ids['toggle']),
+            esc_attr($ctx->get_storage_id())
+        );
+
+        self::echo_toolbar_band($ids, $ctx, count($catalog), $active);
+        self::echo_body_band($ids, $ctx, $mode);
+        self::echo_footer_band();
+
+        echo '</div>';
+    }
+
+    /**
+     * Toolbar band: disclosure, add-filter popover, saved views.
+     *
+     * @param array<string, string> $ids     Element ids.
+     * @param Meprmf_Screen_Context $ctx     Screen context.
+     * @param int                   $n_field Catalog size, for the popover search placeholder.
+     * @param int                   $active  Active filter count, for the disclosure badge.
+     * @return void
+     */
+    private static function echo_toolbar_band(array $ids, Meprmf_Screen_Context $ctx, $n_field, $active)
+    {
+        echo '<div class="meprmf-qb__toolbar">';
+
+        printf(
+            '<button type="button" class="meprmf-qb__disclosure" id="%1$s" aria-expanded="true" aria-controls="%2$s">',
+            esc_attr($ids['toggle']),
+            esc_attr($ids['body'])
+        );
+        echo '<span class="meprmf-qb__caret" aria-hidden="true">&#9662;</span>';
+        echo '<span class="meprmf-qb__disclosure-label">' . esc_html__('Filters', 'admin-filters-for-memberpress') . '</span>';
+        printf(
+            '<span class="meprmf-qb__count" data-meprmf-count aria-label="%1$s"%2$s>%3$d</span>',
+            esc_attr(
+                sprintf(
+                    /* translators: %d: number of active filters. */
+                    _n('%d active filter', '%d active filters', (int) $active, 'admin-filters-for-memberpress'),
+                    (int) $active
+                )
+            ),
+            $active > 0 ? '' : ' hidden',
+            (int) $active
+        );
+        echo '</button>';
+
+        echo '<span class="meprmf-qb__add-wrap">';
+        printf(
+            '<button type="button" class="meprmf-qb__add" aria-expanded="false" aria-haspopup="dialog" aria-controls="%s">',
+            esc_attr($ids['popover'])
+        );
+        echo '<span class="meprmf-qb__add-glyph" aria-hidden="true">+</span> ';
+        echo esc_html__('Add filter', 'admin-filters-for-memberpress');
+        echo '</button>';
+
+        printf(
+            '<div class="meprmf-qb__popover" id="%1$s" role="dialog" aria-label="%2$s" hidden>',
+            esc_attr($ids['popover']),
+            esc_attr__('Add filter', 'admin-filters-for-memberpress')
+        );
+        echo '<div class="meprmf-qb__popover-search">';
+        printf(
+            '<label class="screen-reader-text" for="%1$s">%2$s</label>',
+            esc_attr($ids['search']),
+            esc_html__('Search filters', 'admin-filters-for-memberpress')
+        );
+        printf(
+            '<input type="search" class="meprmf-qb__search" id="%1$s" autocomplete="off" placeholder="%2$s" />',
+            esc_attr($ids['search']),
+            esc_attr(
+                sprintf(
+                    /* translators: %d: number of available filter fields. */
+                    _n('Search %d filter…', 'Search %d filters…', (int) $n_field, 'admin-filters-for-memberpress'),
+                    (int) $n_field
+                )
+            )
+        );
+        echo '</div>';
+        echo '<div class="meprmf-qb__popover-list" data-meprmf-popover-list></div>';
+        echo '</div>';
+        echo '</span>';
+
+        echo '<span class="meprmf-qb__divider" aria-hidden="true"></span>';
+
+        printf(
+            '<label class="screen-reader-text" for="%1$s">%2$s</label>',
+            esc_attr($ids['views']),
+            esc_html__('Saved views', 'admin-filters-for-memberpress')
+        );
+        printf('<select class="meprmf-qb__views" id="%s" data-meprmf-views>', esc_attr($ids['views']));
+        printf('<option value="">%s</option>', esc_html__('Saved views…', 'admin-filters-for-memberpress'));
+        foreach (self::screen_presets($ctx) as $preset) {
+            printf(
+                '<option value="%1$s">%2$s</option>',
+                esc_attr((string) $preset['id']),
+                esc_html((string) $preset['name'])
+            );
+        }
+        echo '</select>';
+
+        echo '<span class="meprmf-qb__spacer"></span>';
+        echo '<span class="meprmf-qb__chips" data-meprmf-chips hidden></span>';
+        echo '</div>';
+    }
+
+    /**
+     * Body band: match toggle, rows (JS-rendered), empty state.
+     *
+     * @param array<string, string> $ids  Element ids.
+     * @param Meprmf_Screen_Context $ctx  Screen context.
+     * @param string                $mode Applied match mode (`all`|`any`).
+     * @return void
+     */
+    private static function echo_body_band(array $ids, Meprmf_Screen_Context $ctx, $mode)
+    {
+        printf('<div class="meprmf-qb__body" id="%s">', esc_attr($ids['body']));
+
+        echo '<div class="meprmf-qb__match" data-meprmf-match hidden>';
+        echo '<span class="meprmf-qb__match-label" id="' . esc_attr($ids['body']) . '-match">';
+        echo esc_html__('Match', 'admin-filters-for-memberpress');
+        echo '</span>';
+        printf(
+            '<span class="meprmf-qb__segments" role="radiogroup" aria-labelledby="%s-match">',
+            esc_attr($ids['body'])
+        );
+        $segments = [
+            'all' => __('all filters', 'admin-filters-for-memberpress'),
+            'any' => __('any filter', 'admin-filters-for-memberpress'),
+        ];
+        foreach ($segments as $value => $label) {
+            $is_selected = ($value === $mode);
+            printf(
+                '<button type="button" class="meprmf-qb__segment%1$s" role="radio" aria-checked="%2$s" data-meprmf-match-mode="%3$s">%4$s</button>',
+                $is_selected ? ' is-selected' : '',
+                $is_selected ? 'true' : 'false',
+                esc_attr($value),
+                esc_html($label)
+            );
+        }
+        echo '</span>';
+        echo '</div>';
+
+        echo '<div class="meprmf-qb__rows" data-meprmf-rows></div>';
+
+        echo '<div class="meprmf-qb__empty" data-meprmf-empty>';
+        echo '<p class="meprmf-qb__empty-text">' . esc_html(self::empty_state_text($ctx)) . '</p>';
+        self::echo_quick_filter_pills($ctx);
+        echo '</div>';
+
+        echo '</div>';
+    }
+
+    /**
+     * Footer band: Apply, Clear all, Save as view, pending-changes status.
+     *
+     * @return void
+     */
+    private static function echo_footer_band()
+    {
+        echo '<div class="meprmf-qb__footer">';
+        printf(
+            '<button type="button" class="button button-primary meprmf-qb__apply" data-meprmf-apply>%s</button>',
+            esc_html__('Apply filters', 'admin-filters-for-memberpress')
+        );
+        printf(
+            '<button type="button" class="button-link meprmf-qb__clear" data-meprmf-clear>%s</button>',
+            esc_html__('Clear all', 'admin-filters-for-memberpress')
+        );
+        printf(
+            '<button type="button" class="button-link meprmf-qb__save-view" data-meprmf-save-view>%s</button>',
+            esc_html__('Save as view', 'admin-filters-for-memberpress')
+        );
+        printf(
+            '<span class="meprmf-qb__status" data-meprmf-status role="status" hidden>%s</span>',
+            esc_html__('Unapplied changes', 'admin-filters-for-memberpress')
+        );
+        echo '</div>';
+    }
+
+    /**
+     * Quick-filter pills: the first few real saved views for this screen.
+     *
+     * Nothing is printed when the screen has no saved views — an invented pill would promise a
+     * filter that does not exist.
+     *
+     * @param Meprmf_Screen_Context $ctx Screen context.
+     * @return void
+     */
+    private static function echo_quick_filter_pills(Meprmf_Screen_Context $ctx)
+    {
+        $presets = array_slice(self::screen_presets($ctx), 0, self::EMPTY_STATE_PILL_LIMIT);
+        if (empty($presets)) {
+            return;
+        }
+
+        echo '<div class="meprmf-qb__pills" data-meprmf-pills>';
+        foreach ($presets as $preset) {
+            printf(
+                '<button type="button" class="meprmf-qb__pill" data-meprmf-preset-id="%1$s">%2$s</button>',
+                esc_attr((string) $preset['id']),
+                esc_html((string) $preset['name'])
+            );
+        }
+        echo '</div>';
+    }
+
+    /**
+     * Saved views for one screen, skipping rows with no id or name.
+     *
+     * @param Meprmf_Screen_Context $ctx Screen context.
+     * @return array<int, array<string, mixed>>
+     */
+    private static function screen_presets(Meprmf_Screen_Context $ctx)
+    {
+        $out = [];
+        foreach (Meprmf_Presets::get_presets_for_screen($ctx->get_storage_id()) as $preset) {
+            if (empty($preset['id']) || empty($preset['name'])) {
+                continue;
+            }
+            $out[] = $preset;
+        }
+
+        return $out;
+    }
+
+    /**
+     * Empty-state sentence, naming the rows of the current list.
+     *
+     * @param Meprmf_Screen_Context $ctx Screen context.
+     * @return string
+     */
+    private static function empty_state_text(Meprmf_Screen_Context $ctx)
+    {
+        if ($ctx->is_transactions()) {
+            return __('No filters yet — showing all transactions.', 'admin-filters-for-memberpress');
+        }
+        if ($ctx->is_subscriptions_recurring() || $ctx->is_lifetimes()) {
+            return __('No filters yet — showing all subscriptions.', 'admin-filters-for-memberpress');
+        }
+
+        return __('No filters yet — showing all members.', 'admin-filters-for-memberpress');
+    }
+
+    /**
+     * Value-control family for a field type.
+     *
+     * @param string $type Field type.
+     * @return string `choice`|`text`|`date`|`number`
+     */
+    private static function field_kind($type)
+    {
+        switch ($type) {
+            case 'date':
+            case 'date_range':
+                return 'date';
+            case 'number':
+                return 'number';
+            case 'select':
+            case 'country':
+            case 'checkbox':
+                return 'choice';
+            default:
+                return 'text';
+        }
+    }
+
+    /**
+     * Which bound of a pair a field is, normalised to from/to.
+     *
+     * @param array<string, mixed> $field Field definition.
+     * @return string `from`|`to`|`''`
+     */
+    private static function range_slot(array $field)
+    {
+        $part = isset($field['range_part']) ? (string) $field['range_part'] : '';
+        if ('' === $part && isset($field['date_range_part'])) {
+            $part = (string) $field['date_range_part'];
+        }
+
+        if ('from' === $part || 'min' === $part) {
+            return 'from';
+        }
+        if ('to' === $part || 'max' === $part) {
+            return 'to';
+        }
+
+        return '';
+    }
+
+    /**
+     * Row label for a catalog entry.
+     *
+     * A pair reads as one row, so its label is the part the two halves share:
+     * "Registered (from)" + "Registered (to)" is "Registered".
+     *
+     * @param array<int, array<string, mixed>> $fields Fields sharing one base param.
+     * @param string                           $base   Base param, as a last-resort label.
+     * @return string
+     */
+    private static function entry_label(array $fields, $base)
+    {
+        $labels = [];
+        foreach ($fields as $field) {
+            $label = isset($field['label']) ? trim((string) $field['label']) : '';
+            if ('' !== $label) {
+                $labels[] = $label;
+            }
+        }
+
+        if (empty($labels)) {
+            return $base;
+        }
+
+        $shared = array_shift($labels);
+        foreach ($labels as $label) {
+            $shared = self::shared_label_prefix($shared, $label);
+        }
+
+        return '' !== $shared ? $shared : $base;
+    }
+
+    /**
+     * Longest leading run of characters two labels share, trimmed of dangling punctuation.
+     *
+     * Splits on characters rather than bytes so a multibyte label is never cut mid-sequence.
+     *
+     * @param string $a First label.
+     * @param string $b Second label.
+     * @return string
+     */
+    private static function shared_label_prefix($a, $b)
+    {
+        $a_chars = preg_split('//u', $a, -1, PREG_SPLIT_NO_EMPTY);
+        $b_chars = preg_split('//u', $b, -1, PREG_SPLIT_NO_EMPTY);
+        if (! is_array($a_chars) || ! is_array($b_chars)) {
+            return $a;
+        }
+
+        $shared = '';
+        $len    = min(count($a_chars), count($b_chars));
+        for ($i = 0; $i < $len; $i++) {
+            if ($a_chars[ $i ] !== $b_chars[ $i ]) {
+                break;
+            }
+            $shared .= $a_chars[ $i ];
+        }
+
+        $shared = trim($shared);
+        $shared = rtrim($shared, " \t([{-–—/,:;");
+        $shared = trim($shared);
+
+        return '' !== $shared ? $shared : $a;
+    }
+
+    /**
+     * Operators offered in one row, as `{v, l}` pairs for the `<select>`.
+     *
+     * Narrows the engine's list to what this row can actually express, so the selector never
+     * offers a comparison that would be silently ignored.
+     *
+     * @param array<string, mixed> $field Field definition (first part of the pair).
+     * @param bool                 $pair  Whether the entry drives two bound params.
+     * @param string               $kind  Value-control family.
+     * @return array<int, array<string, string>>
+     */
+    private static function operator_options(array $field, $pair, $kind)
+    {
+        $tokens = Meprmf_Util::get_operators_for_field($field);
+
+        // MemberPress-column and native params are read as plain values: the SQL builders never
+        // look at the operator for them, so only `is` would be truthful. Their date and number
+        // pairs are the exception — those do go through the operator-aware range resolver.
+        if (! empty($field['source']) && 'date' !== $kind && 'number' !== $kind) {
+            $tokens = array_intersect($tokens, [ 'is' ]);
+        }
+
+        // The numeric pair is two independent bounds (`>= min`, `<= max`); it has no param that
+        // could carry an equality, so `is` / `is not` are not expressible.
+        if ('number' === $kind && $pair) {
+            $tokens = array_intersect($tokens, [ 'at_least', 'at_most', 'between' ]);
+        }
+
+        // One `<select>` cannot express a list of values.
+        if ('choice' === $kind) {
+            $tokens = array_diff($tokens, [ 'is_one_of' ]);
+        }
+
+        $labels = Meprmf_Util::get_operator_labels();
+        $out    = [];
+        foreach ($tokens as $token) {
+            $out[] = [
+                'v' => (string) $token,
+                'l' => isset($labels[ $token ]) ? (string) $labels[ $token ] : (string) $token,
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Options for a choice-kind entry, as `{v, l}` pairs.
+     *
+     * @param array<string, mixed> $field Field definition.
+     * @return array<int, array<string, string>>
+     */
+    private static function choice_options(array $field)
+    {
+        $type = isset($field['type']) ? (string) $field['type'] : '';
+        $out  = [];
+
+        if ('country' === $type && class_exists('MeprUtils')) {
+            foreach (MeprUtils::countries(true) as $code => $name) {
+                $out[] = [
+                    'v' => (string) $code,
+                    'l' => (string) $name,
+                ];
+            }
+
+            return $out;
+        }
+
+        if ('checkbox' === $type) {
+            return [
+                [
+                    'v' => '1',
+                    'l' => __('Checked', 'admin-filters-for-memberpress'),
+                ],
+            ];
+        }
+
+        if (! empty($field['options']) && is_array($field['options'])) {
+            foreach ($field['options'] as $value => $label) {
+                $out[] = [
+                    'v' => (string) $value,
+                    'l' => (string) $label,
+                ];
+            }
+        }
+
+        return $out;
     }
 }

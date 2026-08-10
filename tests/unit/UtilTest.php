@@ -278,14 +278,35 @@ class UtilTest extends TestCase
         $this->assertContains('mpf_country__op', $params);
     }
 
-    public function test_collect_field_request_params_includes_the_relative_window_for_dates()
+    public function test_collect_field_request_params_includes_the_bounds_and_relative_window_for_dates()
     {
         $params = Meprmf_Util::collect_field_request_params(
             [ 'param' => 'mpf_joined', 'type' => 'date' ]
         );
 
         $this->assertSame(
-            [ 'mpf_joined', 'mpf_joined__op', 'mpf_joined__n', 'mpf_joined__u' ],
+            [
+                'mpf_joined',
+                'mpf_joined_from',
+                'mpf_joined_to',
+                'mpf_joined__op',
+                'mpf_joined__n',
+                'mpf_joined__u',
+            ],
+            $params
+        );
+    }
+
+    public function test_collect_field_request_params_does_not_add_bounds_to_a_range_half()
+    {
+        $params = Meprmf_Util::collect_field_request_params(
+            [ 'param' => 'mpf_joined_from', 'type' => 'date', 'range_of' => 'mpf_joined', 'range_slot' => 'from' ]
+        );
+
+        // The half keeps only its own bound; the operator and relative window are the pair's,
+        // so they are named after the base param and are not duplicated per half.
+        $this->assertSame(
+            [ 'mpf_joined_from', 'mpf_joined__op', 'mpf_joined__n', 'mpf_joined__u' ],
             $params
         );
     }

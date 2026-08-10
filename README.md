@@ -35,11 +35,13 @@ The plugin lives in **`admin-filters-for-memberpress/`** with bootstrap **`admin
 
 ## Screenshots
 
-### Members list — floating Filters panel
+### Members list — Filters card
 
 ![MemberPress Members screen with the Filters panel open — address fields, custom fields, and Apply filters](.github/readme-assets/members-table-filters.png)
 
-The same **Filters** panel appears on **Transactions**, **Subscriptions (Recurring)**, and **Non-Recurring (Lifetimes)** with screen-appropriate fields (see table below).
+<!-- The screenshot still shows the pre-2.1 panel; it is regenerated during release QA. -->
+
+The same **Filters** card appears on **Transactions**, **Subscriptions (Recurring)**, and **Non-Recurring (Lifetimes)** with screen-appropriate fields (see table below).
 
 ## Features
 
@@ -48,8 +50,8 @@ The same **Filters** panel appears on **Transactions**, **Subscriptions (Recurri
 - **Screen-specific filters in the panel** (in addition to MemberPress’s native toolbar): see [Filters by screen](#filters-by-screen). Native toolbar filters (`status`, `membership`, `gateway`, date presets) still work alongside the panel; all active conditions are combined (AND).
 - Filter by the six built-in MemberPress address fields when address capture is enabled for signup/checkout and/or the account page (`meprmf_include_address_filters` to override).
 - Automatically expose every **MemberPress custom field** (MemberPress → Settings → Fields) with control types mapped to exact, contains, or checkbox match behavior.
-- **Floating Filters panel** on supported screens (field visibility in the browser via `localStorage`; resets when filter params change so new fields are not stuck hidden). Filter `meprmf_use_floating_meta_filters_panel` per screen; Members still respects `meprmf_use_floating_members_panel`.
-- **Saved filter presets** (floating panel): name and reload common filter combinations **site-wide** on each list screen. Presets include plugin panel params **and** MemberPress native toolbar filters (`status`, `membership`, `gateway`, transaction date presets, gifting `type` when applicable). Any admin who can filter may save or delete presets.
+- **Query-builder Filters card** above the list on supported screens: one row per filter you add, each reading *field · comparison · value*, with **Match all filters / any filter**. Nothing is rendered until you add a filter, and the card's collapsed state is remembered in the browser (`localStorage`). Filter `meprmf_use_floating_meta_filters_panel` per screen; Members still respects `meprmf_use_floating_members_panel`.
+- **Saved views** (filter card): name and reload common filter combinations **site-wide** on each list screen. Views include plugin panel params **and** MemberPress native toolbar filters (`status`, `membership`, `gateway`, transaction date presets, gifting `type` when applicable). Any admin who can filter may save a view.
 - **Add-on aware passthrough filters** (when the add-on is active): **Course**, **Circle**, and **Directory** on **Members**; **Coupon** and **Gift type** on **Transactions** — these use the same GET params MemberPress add-ons already understand (`course`, `circle_id`, `directory`, `coupon_id`, `type`).
 - **Members activity filters:** registered date range, last login range, total spent min/max, and **On trial** (`mepr_members` / user aggregates).
 - **Corporate type** on **Members** when MemberPress Corporate is active (corp account owner, sub account, not corporate).
@@ -69,22 +71,24 @@ The same **Filters** panel appears on **Transactions**, **Subscriptions (Recurri
 
 ## Usage
 
-Open **MemberPress → Members** (or **Subscriptions**, **Lifetimes**, or **Transactions**). Use the **Filters** control, set values, then **Apply filters**. MemberPress **Go** still runs the native search; it does not read the plugin panel fields.
+Open **MemberPress → Members** (or **Subscriptions**, **Lifetimes**, or **Transactions**). In the **Filters** card above the table:
 
-Use the **Filters** button above the table, choose criteria, then **Apply filters**. For “who has active access on this plan?” style queries on **Members**, prefer **Access** and **Membership** in the panel rather than mixing with MemberPress’s native **status** dropdown (they use different rules).
+1. Click **+ Add filter** and pick a field (type to search; fields are grouped by Membership, Dates, Activity, Content access, Location, Custom fields).
+2. Each added row gives a comparison (*is*, *contains*, *is after*, *is between*, *is in the last*, *is empty*, …) and a value control for that field’s type.
+3. Choose **Match all filters** (AND, default) or **any filter** (OR), then click **Apply filters**.
+4. **×** removes one row; **Clear all** empties the card.
 
-### Saved presets
+MemberPress **Go** still runs the native search; it does not read the card’s fields. For “who has active access on this plan?” style queries on **Members**, prefer **Access** and **Membership** in the card rather than mixing with MemberPress’s native **status** dropdown (they use different rules).
 
-In the floating **Filters** panel, the **Saved presets** bar appears above the filter fields:
+### Saved views
 
-1. Apply filters and click **Apply filters** so the URL reflects your criteria.
-2. Click **Save current…**, enter a name, and save. Saving the same name again updates that preset.
-3. Choose a preset from the dropdown and click **Load** to apply it (same as bookmarking the filter URL).
-4. Select a preset and click **Delete** to remove it for all admins.
+1. Build a filter set and click **Save as view**, then enter a name. Saving the same name again updates that view.
+2. Pick a view from the **Saved views…** dropdown to apply it (same as bookmarking the filter URL).
+3. When a screen has saved views, its first few appear as one-click pills in the card’s empty state.
 
-Presets are stored per screen (Members, Transactions, Subscriptions, Lifetimes) in `wp_options` (`meprmf_filter_presets`). They include plugin panel params (`mpf_*`, `mpm_*`, `mpmt_*`, `mpfs_*`, `mpml_*`) **and** native toolbar params for that screen (`status`, `membership`, `gateway`, transaction date fields, etc.).
+Views are stored per screen (Members, Transactions, Subscriptions, Lifetimes) in `wp_options` (`meprmf_filter_presets`). They include plugin panel params (`mpf_*`, `mpm_*`, `mpmt_*`, `mpfs_*`, `mpml_*`) **and** native toolbar params for that screen (`status`, `membership`, `gateway`, transaction date fields, etc.).
 
-Presets are **site-wide**: any admin who can filter the list may save, load, or delete them for everyone on that screen. Saving the same name again updates that preset; concurrent saves from multiple admins are last-write-wins.
+Views are **site-wide**: any admin who can filter the list may save or load them for everyone on that screen. Saving the same name again updates that view; concurrent saves from multiple admins are last-write-wins. Deleting a view has no control in the card yet — the `meprmf_delete_filter_preset` endpoint is still there, but nothing calls it.
 
 ### Filters by screen
 
@@ -118,7 +122,7 @@ Presets are **site-wide**: any admin who can filter the list may save, load, or 
 
 | **Member status** (Members only) | Aligns with MemberPress **Filter by → status**: active, inactive, expired, or non-members (`mepr_members` aggregates). Optional **Membership** narrows active vs inactive membership lists the same way as core MemberPress. |
 
-To use the previous inline toolbar on Members: `add_filter( 'meprmf_use_floating_members_panel', '__return_false' );`
+To remove the Filters card on Members (MemberPress’s own search and **Filter by … Go** rows stay, as do this plugin’s active-filter chips): `add_filter( 'meprmf_use_floating_members_panel', '__return_false' );`
 
 ## Extending with code
 
@@ -173,7 +177,7 @@ Pair this with the matching `meprmf_*_core_filters_fields` hook for that screen 
 
 **Security:** Only append SQL you prepare yourself (`$wpdb->prepare()`). Do not concatenate raw request data into fragments.
 
-**Other hooks:** `meprmf_use_floating_meta_filters_panel`, `meprmf_use_floating_members_panel`, `meprmf_include_address_filters`, `meprmf_compact_filters_threshold` (default `6`), `meprmf_filter_presets`, `meprmf_max_filter_presets_per_screen` (default `25`), `meprmf_use_inactive_access_predicate` (Members list inactive/expired access SQL; default `true`), `meprmf_members_addon_filters_fields`, `meprmf_members_activity_filters_fields`, `meprmf_native_toolbar_params`, `meprmf_corporate_type_predicate`.
+**Other hooks:** `meprmf_use_floating_meta_filters_panel`, `meprmf_use_floating_members_panel`, `meprmf_include_address_filters`, `meprmf_field_catalog`, `meprmf_operator_labels`, `meprmf_filter_presets`, `meprmf_max_filter_presets_per_screen` (default `25`), `meprmf_use_inactive_access_predicate` (Members list inactive/expired access SQL; default `true`), `meprmf_members_addon_filters_fields`, `meprmf_members_activity_filters_fields`, `meprmf_native_toolbar_params`, `meprmf_corporate_type_predicate`.
 
 ### Performance notes
 
