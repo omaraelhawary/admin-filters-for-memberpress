@@ -572,12 +572,14 @@
 			n.type = 'number';
 			n.min = '1';
 			n.value = row.v1 || '';
-			n.setAttribute('aria-label', sprintf1(i18n('valueFor', 'Value for %s'), entry.label));
+			// Two controls, so two names: sharing one leaves a screen reader announcing the
+			// amount and the unit identically.
+			n.setAttribute('aria-label', sprintf1(i18n('windowAmountFor', '%s window length'), entry.label));
 			n.addEventListener('input', onValueChange(row, 'v1'));
 			target.appendChild(n);
 
 			var unit = el('select', 'meprmf-qb__input meprmf-qb__input--unit');
-			unit.setAttribute('aria-label', sprintf1(i18n('valueFor', 'Value for %s'), entry.label));
+			unit.setAttribute('aria-label', sprintf1(i18n('windowUnitFor', '%s window unit'), entry.label));
 			relativeUnits().forEach(function (choice) {
 				unit.appendChild(optionNode(choice.v, choice.l, String(row.v2 || 'days') === String(choice.v)));
 			});

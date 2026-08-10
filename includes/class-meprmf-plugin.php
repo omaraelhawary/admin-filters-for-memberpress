@@ -322,6 +322,10 @@ class Meprmf_Plugin
                         'valueFromFor'       => __('%s from', 'admin-filters-for-memberpress'),
                         /* translators: %s: filter field label. */
                         'valueToFor'         => __('%s to', 'admin-filters-for-memberpress'),
+                        /* translators: %s: filter field label. */
+                        'windowAmountFor'    => __('%s window length', 'admin-filters-for-memberpress'),
+                        /* translators: %s: filter field label. */
+                        'windowUnitFor'      => __('%s window unit', 'admin-filters-for-memberpress'),
                         'noFilterMatches'    => __('No filters match.', 'admin-filters-for-memberpress'),
                         'opIs'               => __('is', 'admin-filters-for-memberpress'),
                         'kindChoice'         => __('choice', 'admin-filters-for-memberpress'),

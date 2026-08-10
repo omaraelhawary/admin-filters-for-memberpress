@@ -40,10 +40,10 @@ class Meprmf_Active_Filters
     /**
      * Phrase appended to a field label for each operator.
      *
-     * `is`, `contains` and `between` return an empty phrase: "Label: value" and
-     * "Label: a – b" are already the plain reading, and adding words would only make the
-     * chip longer. Every other token takes its wording from the query builder's own
-     * operator labels, so a chip and the row that produced it read the same.
+     * Every operator keeps its word, because a text field offers both `is` and `contains`
+     * and dropping the word would render two different filters as the same chip. Wording
+     * comes from the query builder's own operator labels, so a chip and the row that
+     * produced it read the same.
      *
      * @param string $operator Operator token.
      * @return string
@@ -51,7 +51,7 @@ class Meprmf_Active_Filters
     private static function operator_phrase($operator)
     {
         $operator = (string) $operator;
-        if (in_array($operator, [ '', 'is', 'contains', 'between' ], true)) {
+        if ('' === $operator) {
             return '';
         }
 
@@ -150,7 +150,14 @@ class Meprmf_Active_Filters
             $labels = self::native_param_labels();
             $label  = isset($labels[ $key ]) ? $labels[ $key ] : ucfirst(str_replace('_', ' ', $key));
 
-            $chips[] = self::chip($label, '', self::resolve_native_value($catalog, $key, $raw), [ $key ]);
+            // A native toolbar control only ever means equality, so it reads with the `is` word
+            // the builder rows use rather than a punctuation style of its own.
+            $chips[] = self::chip(
+                $label,
+                self::operator_phrase('is'),
+                self::resolve_native_value($catalog, $key, $raw),
+                [ $key ]
+            );
         }
 
         // The mode changes what the whole row means, so it is only worth saying next to
@@ -243,9 +250,6 @@ class Meprmf_Active_Filters
     /**
      * Assemble one chip and its display reading.
      *
-     * An operator phrase already carries its own grammar ("Registered is after 1 May 2026"),
-     * so only a bare label takes the "Label: value" colon.
-     *
      * @since 2.1.0
      * @param string             $label  Field label.
      * @param string             $phrase Operator phrase, or ''.
@@ -256,15 +260,7 @@ class Meprmf_Active_Filters
     private static function chip($label, $phrase, $value, array $params)
     {
         $full = trim($label . ('' !== $phrase ? ' ' . $phrase : ''));
-
-        if ('' === $value) {
-            $text = $full;
-        } elseif ('' !== $phrase) {
-            $text = $full . ' ' . $value;
-        } else {
-            /* translators: 1: filter label, 2: filter value. */
-            $text = sprintf(__('%1$s: %2$s', 'admin-filters-for-memberpress'), $full, $value);
-        }
+        $text = ('' === $value) ? $full : $full . ' ' . $value;
 
         return [
             'label'  => $full,

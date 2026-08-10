@@ -72,7 +72,7 @@ class ActiveFiltersTest extends TestCase
         $chips = Meprmf_Active_Filters::build_chips($this->fields(), [], [ 'mpf_country' => 'DE' ]);
 
         $this->assertCount(1, $chips);
-        $this->assertSame('Country', $chips[0]['label']);
+        $this->assertSame('Country is', $chips[0]['label']);
         $this->assertSame('Germany', $chips[0]['value']);
         $this->assertContains('mpf_country', $chips[0]['params']);
     }
@@ -136,7 +136,9 @@ class ActiveFiltersTest extends TestCase
             [ 'mpf_country' => 'DE', 'mpf_country__op' => 'nonsense' ]
         );
 
-        $this->assertSame('Country', $chips[0]['label']);
+        // An unrecognised token falls back to the inferred operator instead of leaking through.
+        $this->assertSame('Country is', $chips[0]['label']);
+        $this->assertStringNotContainsString('nonsense', $chips[0]['text']);
     }
 
     public function test_a_date_range_renders_as_one_chip_not_two()
@@ -389,6 +391,25 @@ class ActiveFiltersTest extends TestCase
         $this->assertSame('Germany, Austria', $chips[0]['value']);
     }
 
+    public function test_exact_match_and_substring_chips_do_not_read_the_same()
+    {
+        $exact = Meprmf_Active_Filters::build_chips(
+            $this->fields(),
+            [],
+            [ 'mpf_city' => 'Berlin', 'mpf_city__op' => 'is' ]
+        );
+        $substring = Meprmf_Active_Filters::build_chips(
+            $this->fields(),
+            [],
+            [ 'mpf_city' => 'Berlin', 'mpf_city__op' => 'contains' ]
+        );
+
+        // Both operators are offered on a text field, so an identical chip would leave the
+        // admin unable to tell an exact match from a substring one.
+        $this->assertSame('City is Berlin', $exact[0]['text']);
+        $this->assertSame('City contains Berlin', $substring[0]['text']);
+    }
+
     public function test_native_toolbar_params_get_their_own_chips()
     {
         $chips = Meprmf_Active_Filters::build_chips(
@@ -398,8 +419,8 @@ class ActiveFiltersTest extends TestCase
         );
 
         $labels = array_column($chips, 'label');
-        $this->assertContains('Status', $labels);
-        $this->assertContains('Gateway', $labels);
+        $this->assertContains('Status is', $labels);
+        $this->assertContains('Gateway is', $labels);
     }
 
     public function test_native_membership_resolves_to_the_product_name()
@@ -415,7 +436,7 @@ class ActiveFiltersTest extends TestCase
         $chips = Meprmf_Active_Filters::build_chips($fields, [ 'membership' ], [ 'membership' => '42' ]);
 
         $this->assertCount(1, $chips);
-        $this->assertSame('Membership', $chips[0]['label']);
+        $this->assertSame('Membership is', $chips[0]['label']);
         $this->assertSame('Gold Plan', $chips[0]['value']);
     }
 
@@ -451,6 +472,6 @@ class ActiveFiltersTest extends TestCase
         $chips = Meprmf_Active_Filters::build_chips($fields, [ 'status' ], [ 'status' => 'active' ]);
 
         $this->assertCount(1, $chips, 'A param owned by a panel field must not also chip as a native param.');
-        $this->assertSame('Subscription status', $chips[0]['label']);
+        $this->assertSame('Subscription status is', $chips[0]['label']);
     }
 }
