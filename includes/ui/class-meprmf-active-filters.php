@@ -143,7 +143,11 @@ class Meprmf_Active_Filters
                 continue;
             }
             $raw = self::read_param($request, $key);
-            if ('' === $raw) {
+            // MemberPress uses `all` as the no-restriction option in every native select
+            // (All Memberships, All Statuses, All Gateways, the date range's All), and treats
+            // it as falsy itself. It filters nothing, so it must not produce a chip whose
+            // removal changes no rows.
+            if ('' === $raw || 'all' === $raw) {
                 continue;
             }
 

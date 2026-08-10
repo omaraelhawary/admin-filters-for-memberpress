@@ -25,7 +25,7 @@
 | --- | --- |
 | **Contributors** | Omar ElHawary — [WordPress.org profile](https://profiles.wordpress.org/omarelhawary/) |
 | **Requires** | WordPress 5.6+, PHP 8.1+, active [MemberPress](https://memberpress.com/) |
-| **Current release** | 2.1.0 (see plugin header in `admin-filters-for-memberpress.php`) |
+| **Current release** | 2.1.1 (see plugin header in `admin-filters-for-memberpress.php`) |
 | **Text domain** | `admin-filters-for-memberpress` (matches the plugin slug) |
 | **License** | GPLv2 or later |
 
@@ -37,9 +37,7 @@ The plugin lives in **`admin-filters-for-memberpress/`** with bootstrap **`admin
 
 ### Members list — Filters card
 
-![MemberPress Members screen with the Filters panel open — address fields, custom fields, and Apply filters](.github/readme-assets/members-table-filters.png)
-
-<!-- The screenshot still shows the pre-2.1 panel; it is regenerated during release QA. -->
+![MemberPress Members screen with the Filters card open, showing three filter rows — Member status is Active members, Registered is in the last 12 months, and Total spent is at least 1 — above the filtered list](.github/readme-assets/members-table-filters.png)
 
 The same **Filters** card appears on **Transactions**, **Subscriptions (Recurring)**, and **Non-Recurring (Lifetimes)** with screen-appropriate fields (see table below).
 
@@ -210,6 +208,11 @@ Uses `tests/bootstrap-unit.php` (no full WordPress test database). CI runs on PH
 
 ## Changelog
 
+### 2.1.1
+
+- Fixed: a native MemberPress toolbar filter left on its **All** option (All Memberships, All Statuses, All Gateways, the transaction date range's All) no longer produces an active-filter chip. `all` is MemberPress's no-restriction value, so the chip removed nothing.
+- Screenshot and caption regenerated against the query-builder card.
+
 ### 2.1.0
 
 - **Query-builder Filters card** on all four list screens: filters are added one at a time as a `field · comparison · value` row instead of a grid of every available field.
@@ -332,6 +335,10 @@ Uses `tests/bootstrap-unit.php` (no full WordPress test database). CI runs on PH
 - Compact collapsible filter layout when many filters are active (threshold filterable in later releases).
 
 ## Upgrade notices
+
+### 2.1.1
+
+Fixes an active-filter chip shown for a native MemberPress toolbar filter left on **All**, which restricted nothing. No other behaviour changes.
 
 ### 2.1.0
 
