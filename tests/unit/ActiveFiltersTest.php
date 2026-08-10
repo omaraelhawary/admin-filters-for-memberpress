@@ -423,6 +423,34 @@ class ActiveFiltersTest extends TestCase
         $this->assertContains('Gateway is', $labels);
     }
 
+    public function test_native_no_restriction_value_does_not_chip()
+    {
+        $chips = Meprmf_Active_Filters::build_chips(
+            $this->fields(),
+            [ 'status', 'membership', 'gateway', 'date_range_filter' ],
+            [
+                'status'            => 'all',
+                'membership'        => 'all',
+                'gateway'           => 'all',
+                'date_range_filter' => 'all',
+            ]
+        );
+
+        $this->assertSame([], $chips, "MemberPress's `all` means no restriction, so it must not chip.");
+    }
+
+    public function test_native_params_still_chip_alongside_a_no_restriction_sibling()
+    {
+        $chips = Meprmf_Active_Filters::build_chips(
+            $this->fields(),
+            [ 'status', 'gateway' ],
+            [ 'status' => 'all', 'gateway' => 'stripe' ]
+        );
+
+        $this->assertCount(1, $chips, 'Only the restricting param may chip.');
+        $this->assertSame('Gateway is', $chips[0]['label']);
+    }
+
     public function test_native_membership_resolves_to_the_product_name()
     {
         $fields   = $this->fields();

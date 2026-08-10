@@ -4,7 +4,7 @@ Tags: memberpress, members, admin, filters, membership
 Requires at least: 5.6
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 2.1.0
+Stable tag: 2.1.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -41,7 +41,7 @@ Filtering reads values you or your administrators submit on those admin lists (s
 
 == Screenshots ==
 
-1. MemberPress **Members** admin list with the **Filters** panel open: address fields, MemberPress **Settings -> Fields** fields, and **Apply filters**.
+1. MemberPress **Members** admin list with the **Filters** card open: each filter is a field, comparison, and value row -- **Member status is Active members**, **Registered is in the last 12 months**, **Total spent is at least 1** -- above the filtered list.
 
 == Frequently Asked Questions ==
 
@@ -82,6 +82,11 @@ Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-m
 * Source and issues: see **Plugin URI** and **GitHub URI** in the main plugin file header (`admin-filters-for-memberpress.php`).
 
 == Changelog ==
+
+= 2.1.1 =
+
+* Fixed: a native MemberPress toolbar filter left on its **All** option (All Memberships, All Statuses, All Gateways, or the transaction date range's All) no longer shows an active-filter chip. It restricts nothing, so removing it changed no rows.
+* Screenshot and its caption updated to the query-builder Filters card.
 
 = 2.1.0 =
 
@@ -202,6 +207,10 @@ Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-m
 * Compact collapsible filter layout when many filters are active (threshold filterable in later releases).
 
 == Upgrade Notice ==
+
+= 2.1.1 =
+
+Fixes an active-filter chip shown for a native MemberPress toolbar filter left on **All**, which restricted nothing. No other behaviour changes.
 
 = 2.1.0 =
 
