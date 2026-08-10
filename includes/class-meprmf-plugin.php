@@ -85,7 +85,11 @@ class Meprmf_Plugin
     }
 
     /**
-     * Whether floating panel UI is enabled for this screen (Members hook preserved).
+     * Whether the filter card UI is enabled for this screen (both legacy hook names preserved).
+     *
+     * Returning false now removes the filter UI entirely rather than falling back to the old
+     * inline toolbar: since 2.1.0 the query-builder card is the only filter UI. MemberPress's
+     * own search and "Filter by … Go" rows, and this plugin's chips, are unaffected.
      *
      * @param Meprmf_Screen_Context $ctx Context.
      * @return bool
@@ -95,19 +99,19 @@ class Meprmf_Plugin
         $default = true;
         if ($ctx->is_members()) {
             /**
-             * Whether the floating filter panel is used on the Members list.
+             * Whether the filter card is rendered on the Members list.
              *
              * @since 1.6.5
-             * @param bool $enabled Default true; return false for inline toolbar.
+             * @param bool $enabled Default true; return false to render no filter UI.
              */
             $default = (bool) apply_filters('meprmf_use_floating_members_panel', $default);
         }
 
         /**
-         * Whether the floating filter panel is used for this list screen.
+         * Whether the filter card is rendered for this list screen.
          *
          * @since 1.7.0
-         * @param bool                  $enabled Default true; return false for inline toolbar.
+         * @param bool                  $enabled Default true; return false to render no filter UI.
          * @param Meprmf_Screen_Context $ctx     Screen context.
          */
         return (bool) apply_filters('meprmf_use_floating_meta_filters_panel', $default, $ctx);
@@ -145,7 +149,50 @@ class Meprmf_Plugin
             $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists($args, $ctx, $core_valid);
         }
 
-        return $args;
+        return self::apply_match_mode($args, $ctx);
+    }
+
+    /**
+     * Join this plugin's own fragments with OR when match=any.
+     *
+     * Only fragments this request's builders reported are touched: MemberPress core and
+     * third-party fragments must keep their AND, or the list's own scoping breaks.
+     *
+     * @param array<int, string>    $args WHERE fragments.
+     * @param Meprmf_Screen_Context $ctx  Screen context.
+     * @return array<int, string>
+     */
+    public static function apply_match_mode(array $args, Meprmf_Screen_Context $ctx)
+    {
+        if ('any' !== Meprmf_Util::get_match_mode($ctx)) {
+            return $args;
+        }
+
+        $pool = array_merge(
+            (array) Meprmf_Predicate_Builder::get_last_fragments(),
+            (array) Meprmf_Mepr_Predicate_Builder::get_last_fragments()
+        );
+
+        $kept     = [];
+        $branches = [];
+        foreach ($args as $fragment) {
+            $found = array_search($fragment, $pool, true);
+            if (false === $found) {
+                $kept[] = $fragment;
+                continue;
+            }
+            // Drop one occurrence only: two filters can produce the same fragment.
+            unset($pool[ $found ]);
+            $branches[] = '( ' . $fragment . ' )';
+        }
+
+        if (count($branches) < 2) {
+            return $args;
+        }
+
+        $kept[] = '( ' . implode(' OR ', $branches) . ' )';
+
+        return $kept;
     }
 
     /**
@@ -156,6 +203,24 @@ class Meprmf_Plugin
     private static function admin_asset_suffix()
     {
         return (defined('SCRIPT_DEBUG') && SCRIPT_DEBUG) ? '' : '.min';
+    }
+
+    /**
+     * Relative-window units for the "is in the last N …" control, as `{v, l}` pairs.
+     *
+     * @return array<int, array<string, string>>
+     */
+    private static function relative_unit_choices()
+    {
+        $out = [];
+        foreach (Meprmf_Util::get_relative_unit_labels() as $unit => $label) {
+            $out[] = [
+                'v' => $unit,
+                'l' => $label,
+            ];
+        }
+
+        return $out;
     }
 
     /**
@@ -201,7 +266,8 @@ class Meprmf_Plugin
                 MEPRMF_VERSION,
                 true
             );
-            $known = [];
+            // The match mode is a known param too, so Apply does not drop it from the URL.
+            $known = [ Meprmf_Util::MATCH_MODE_PARAM ];
             foreach (Meprmf_Filter_Registry::get_normalized_fields_for_context($ctx) as $field) {
                 foreach (Meprmf_Util::collect_field_request_params($field) as $p) {
                     if ('' !== $p) {
@@ -224,24 +290,48 @@ class Meprmf_Plugin
                 [
                     'knownParams'          => $known,
                     'nativeParams'         => $native,
-                    'knownParamsSignature' => md5(implode('|', $known)),
                     'storageId'            => $ctx->get_storage_id(),
-                    'dateRangeEnabled'     => Meprmf_Settings::is_date_custom_fields_use_range_enabled(),
-                    'dateRangeNonce'       => wp_create_nonce('meprmf_date_range_pref'),
+                    'matchParam'           => Meprmf_Util::MATCH_MODE_PARAM,
+                    'matchMode'            => Meprmf_Util::get_match_mode($ctx),
+                    'catalog'              => Meprmf_Toolbar_Renderer::build_field_catalog(
+                        Meprmf_Filter_Registry::get_normalized_fields_for_context($ctx)
+                    ),
+                    'groupLabels'          => Meprmf_Util::get_group_labels(),
+                    'relativeUnits'        => self::relative_unit_choices(),
                     'presets'              => Meprmf_Presets::get_presets_for_screen($ctx->get_storage_id()),
                     'presetsNonce'         => wp_create_nonce('meprmf_filter_presets'),
                     'ajaxUrl'              => admin_url('admin-ajax.php'),
                     'i18n'                 => [
-                        'presetsLabel'       => __('Saved presets', 'admin-filters-for-memberpress'),
-                        'presetsPlaceholder' => __('— Choose a preset —', 'admin-filters-for-memberpress'),
-                        'loadPreset'         => __('Load', 'admin-filters-for-memberpress'),
-                        'savePreset'         => __('Save current…', 'admin-filters-for-memberpress'),
-                        'deletePreset'       => __('Delete', 'admin-filters-for-memberpress'),
                         'savePrompt'         => __('Preset name', 'admin-filters-for-memberpress'),
-                        'deleteConfirm'      => __('Delete this saved preset for all admins?', 'admin-filters-for-memberpress'),
                         'saveError'          => __('Could not save the preset. Please try again.', 'admin-filters-for-memberpress'),
-                        'deleteError'        => __('Could not delete the preset. Please try again.', 'admin-filters-for-memberpress'),
                         'noActiveFilters'    => __('Apply at least one filter before saving a preset.', 'admin-filters-for-memberpress'),
+                        /* translators: %s: saved view name. */
+                        'deleteViewConfirm'  => __('Delete the saved view “%s”? This removes it for everyone.', 'admin-filters-for-memberpress'),
+                        'deleteViewError'    => __('Could not delete the saved view. Please try again.', 'admin-filters-for-memberpress'),
+                        'anyValue'           => __('Any value', 'admin-filters-for-memberpress'),
+                        'valuePlaceholder'   => __('Type a value…', 'admin-filters-for-memberpress'),
+                        'noValueNeeded'      => __('no value needed', 'admin-filters-for-memberpress'),
+                        'andJoiner'          => __('and', 'admin-filters-for-memberpress'),
+                        /* translators: %s: filter field label. */
+                        'removeFilter'       => __('Remove %s filter', 'admin-filters-for-memberpress'),
+                        /* translators: %s: filter field label. */
+                        'operatorFor'        => __('Comparison for %s', 'admin-filters-for-memberpress'),
+                        /* translators: %s: filter field label. */
+                        'valueFor'           => __('Value for %s', 'admin-filters-for-memberpress'),
+                        /* translators: %s: filter field label. */
+                        'valueFromFor'       => __('%s from', 'admin-filters-for-memberpress'),
+                        /* translators: %s: filter field label. */
+                        'valueToFor'         => __('%s to', 'admin-filters-for-memberpress'),
+                        /* translators: %s: filter field label. */
+                        'windowAmountFor'    => __('%s window length', 'admin-filters-for-memberpress'),
+                        /* translators: %s: filter field label. */
+                        'windowUnitFor'      => __('%s window unit', 'admin-filters-for-memberpress'),
+                        'noFilterMatches'    => __('No filters match.', 'admin-filters-for-memberpress'),
+                        'opIs'               => __('is', 'admin-filters-for-memberpress'),
+                        'kindChoice'         => __('choice', 'admin-filters-for-memberpress'),
+                        'kindText'           => __('text', 'admin-filters-for-memberpress'),
+                        'kindDate'           => __('date', 'admin-filters-for-memberpress'),
+                        'kindNumber'         => __('number', 'admin-filters-for-memberpress'),
                     ],
                 ]
             );

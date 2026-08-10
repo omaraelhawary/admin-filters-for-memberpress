@@ -74,6 +74,7 @@ class Meprmf_Members_Provider
                 'param'    => $param,
                 'meta_key' => $field_key,
                 'label'    => $label,
+                'group'    => Meprmf_Util::GROUP_CUSTOM_FIELDS,
                 'type'     => 'select',
                 'match'    => 'exact',
                 'options'  => $options,
@@ -89,6 +90,7 @@ class Meprmf_Members_Provider
                 'param'    => $param,
                 'meta_key' => $field_key,
                 'label'    => $label,
+                'group'    => Meprmf_Util::GROUP_CUSTOM_FIELDS,
                 'type'     => 'select',
                 'match'    => 'contains',
                 'options'  => $options,
@@ -100,6 +102,7 @@ class Meprmf_Members_Provider
                 'param'    => $param,
                 'meta_key' => $field_key,
                 'label'    => $label,
+                'group'    => Meprmf_Util::GROUP_CUSTOM_FIELDS,
                 'type'     => 'checkbox',
                 'match'    => 'exact',
             ];
@@ -119,6 +122,7 @@ class Meprmf_Members_Provider
                     'param'    => $param,
                     'meta_key' => $field_key,
                     'label'    => $label,
+                'group'    => Meprmf_Util::GROUP_CUSTOM_FIELDS,
                     'type'     => 'date_range',
                 ];
             }
@@ -127,6 +131,7 @@ class Meprmf_Members_Provider
                 'param'    => $param,
                 'meta_key' => $field_key,
                 'label'    => $label,
+                'group'    => Meprmf_Util::GROUP_CUSTOM_FIELDS,
                 'type'     => 'date',
                 'match'    => 'exact',
             ];
@@ -137,6 +142,7 @@ class Meprmf_Members_Provider
                 'param'    => $param,
                 'meta_key' => $field_key,
                 'label'    => $label,
+                'group'    => Meprmf_Util::GROUP_CUSTOM_FIELDS,
                 'type'     => 'text',
                 'match'    => 'like',
             ];
@@ -218,6 +224,7 @@ class Meprmf_Members_Provider
                 'label'    => $country_label,
                 'type'     => 'country',
                 'match'    => 'exact',
+                'group'    => Meprmf_Util::GROUP_LOCATION,
             ],
             [
                 'param'    => 'mpf_state',
@@ -225,6 +232,7 @@ class Meprmf_Members_Provider
                 'label'    => $state_label,
                 'type'     => 'text',
                 'match'    => 'like',
+                'group'    => Meprmf_Util::GROUP_LOCATION,
             ],
             [
                 'param'    => 'mpf_city',
@@ -232,6 +240,7 @@ class Meprmf_Members_Provider
                 'label'    => $city_label,
                 'type'     => 'text',
                 'match'    => 'like',
+                'group'    => Meprmf_Util::GROUP_LOCATION,
             ],
             [
                 'param'    => 'mpf_zip',
@@ -239,6 +248,7 @@ class Meprmf_Members_Provider
                 'label'    => $zip_label,
                 'type'     => 'text',
                 'match'    => 'like',
+                'group'    => Meprmf_Util::GROUP_LOCATION,
             ],
             [
                 'param'    => 'mpf_address_one',
@@ -246,6 +256,7 @@ class Meprmf_Members_Provider
                 'label'    => $addr1_label,
                 'type'     => 'text',
                 'match'    => 'like',
+                'group'    => Meprmf_Util::GROUP_LOCATION,
             ],
             [
                 'param'    => 'mpf_address_two',
@@ -253,6 +264,7 @@ class Meprmf_Members_Provider
                 'label'    => $addr2_label,
                 'type'     => 'text',
                 'match'    => 'like',
+                'group'    => Meprmf_Util::GROUP_LOCATION,
             ],
         ];
     }

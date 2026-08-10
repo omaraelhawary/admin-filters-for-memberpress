@@ -92,7 +92,10 @@ class UtilTest extends TestCase
                 'type'     => 'date_range',
             ]
         );
-        $this->assertSame([ 'mpf_birthday_from', 'mpf_birthday_to' ], $params);
+        $this->assertSame(
+            [ 'mpf_birthday_from', 'mpf_birthday_to', 'mpf_birthday__op', 'mpf_birthday__n', 'mpf_birthday__u' ],
+            $params
+        );
     }
 
     public function test_finalize_meta_filter_fields_expands_date_range()
@@ -222,13 +225,14 @@ class UtilTest extends TestCase
         $this->assertFalse(Meprmf_Util::is_operator_param(''));
     }
 
-    public function test_field_supports_operators_excludes_dates_and_checkboxes()
+    public function test_field_supports_operators_excludes_checkboxes_only()
     {
         $this->assertTrue(Meprmf_Util::field_supports_operators([ 'type' => 'text' ]));
         $this->assertTrue(Meprmf_Util::field_supports_operators([ 'type' => 'country' ]));
         $this->assertTrue(Meprmf_Util::field_supports_operators([ 'type' => 'select' ]));
-        $this->assertFalse(Meprmf_Util::field_supports_operators([ 'type' => 'date' ]));
-        $this->assertFalse(Meprmf_Util::field_supports_operators([ 'type' => 'date_range' ]));
+        $this->assertTrue(Meprmf_Util::field_supports_operators([ 'type' => 'date' ]));
+        $this->assertTrue(Meprmf_Util::field_supports_operators([ 'type' => 'date_range' ]));
+        $this->assertTrue(Meprmf_Util::field_supports_operators([ 'type' => 'number' ]));
         $this->assertFalse(Meprmf_Util::field_supports_operators([ 'type' => 'checkbox' ]));
     }
 
@@ -274,12 +278,36 @@ class UtilTest extends TestCase
         $this->assertContains('mpf_country__op', $params);
     }
 
-    public function test_collect_field_request_params_omits_the_operator_for_dates()
+    public function test_collect_field_request_params_includes_the_bounds_and_relative_window_for_dates()
     {
         $params = Meprmf_Util::collect_field_request_params(
             [ 'param' => 'mpf_joined', 'type' => 'date' ]
         );
 
-        $this->assertSame([ 'mpf_joined' ], $params);
+        $this->assertSame(
+            [
+                'mpf_joined',
+                'mpf_joined_from',
+                'mpf_joined_to',
+                'mpf_joined__op',
+                'mpf_joined__n',
+                'mpf_joined__u',
+            ],
+            $params
+        );
+    }
+
+    public function test_collect_field_request_params_does_not_add_bounds_to_a_range_half()
+    {
+        $params = Meprmf_Util::collect_field_request_params(
+            [ 'param' => 'mpf_joined_from', 'type' => 'date', 'range_of' => 'mpf_joined', 'range_slot' => 'from' ]
+        );
+
+        // The half keeps only its own bound; the operator and relative window are the pair's,
+        // so they are named after the base param and are not duplicated per half.
+        $this->assertSame(
+            [ 'mpf_joined_from', 'mpf_joined__op', 'mpf_joined__n', 'mpf_joined__u' ],
+            $params
+        );
     }
 }

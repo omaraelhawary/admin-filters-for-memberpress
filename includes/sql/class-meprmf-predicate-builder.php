@@ -63,18 +63,15 @@ class Meprmf_Predicate_Builder
             }
             $group_key = (string) $field['date_range_of'];
             if (! isset($range_groups[ $group_key ])) {
+                // The operator lives on the group base, so both parts resolve to one set of bounds.
+                $bounds                     = Meprmf_Util::resolve_range_bounds($group_key, $field);
                 $range_groups[ $group_key ] = [
                     // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Filter field config array key, not a DB query.
                     'meta_key' => (string) $field['meta_key'],
-                    'from'     => null,
-                    'to'       => null,
+                    'from'     => $bounds['from'],
+                    'to'       => $bounds['to'],
+                    'negate'   => $bounds['negate'],
                 ];
-            }
-            $part = (string) $field['date_range_part'];
-            if ('from' === $part || 'to' === $part) {
-                $range_groups[ $group_key ][ $part ] = Meprmf_Util::parse_date_param(
-                    Meprmf_Util::get_request_value((string) $field['param'])
-                );
             }
             $skip_params[ (string) $field['param'] ] = true;
         }
@@ -89,7 +86,8 @@ class Meprmf_Predicate_Builder
                 'mpf_um_' . $base,
                 $group['meta_key'],
                 $group['from'],
-                $group['to']
+                $group['to'],
+                $group['negate']
             );
         }
 
@@ -103,21 +101,45 @@ class Meprmf_Predicate_Builder
             $alias = 'mpf_um_' . $param;
             $ftype = (string) $field['type'];
 
-            if ('date_range' === $ftype) {
-                $range = Meprmf_Util::date_range_param_names($param);
-                $from  = Meprmf_Util::parse_date_param(Meprmf_Util::get_request_value($range['from']));
-                $to    = Meprmf_Util::parse_date_param(Meprmf_Util::get_request_value($range['to']));
-                if (null === $from && null === $to) {
+            $operator = Meprmf_Util::field_supports_operators($field)
+                ? Meprmf_Util::get_field_operator($param, $field)
+                : Meprmf_Util::OPERATOR_DEFAULT;
+
+            // Dates are handled before the generic operator dispatch, so `after` on a date
+            // is a date comparison and never a string compare.
+            if ('date' === $ftype || 'date_range' === $ftype) {
+                if (in_array($operator, Meprmf_Util::VALUELESS_OPERATORS, true)) {
+                    $args = self::append_operator_exists($args, $wpdb, $uid, $alias, $meta, $param, $operator, $field);
                     continue;
                 }
 
-                $args = self::append_usermeta_date_range_exists($args, $wpdb, $uid, $alias, $meta, $from, $to);
+                if ('date_range' === $ftype || Meprmf_Util::is_range_operator($operator)) {
+                    $bounds = Meprmf_Util::resolve_range_bounds($param, $field);
+                    if (null === $bounds['from'] && null === $bounds['to']) {
+                        continue;
+                    }
+
+                    $args = self::append_usermeta_date_range_exists(
+                        $args,
+                        $wpdb,
+                        $uid,
+                        $alias,
+                        $meta,
+                        $bounds['from'],
+                        $bounds['to'],
+                        $bounds['negate']
+                    );
+                    continue;
+                }
+
+                $ymd = Meprmf_Util::parse_date_param(Meprmf_Util::get_request_value($param));
+                if (null === $ymd) {
+                    continue;
+                }
+
+                $args = self::append_usermeta_date_exact_exists($args, $wpdb, $uid, $alias, $meta, $ymd);
                 continue;
             }
-
-            $operator = Meprmf_Util::field_supports_operators($field)
-                ? Meprmf_Util::get_field_operator($param)
-                : Meprmf_Util::OPERATOR_DEFAULT;
 
             if (Meprmf_Util::OPERATOR_DEFAULT !== $operator) {
                 $args = self::append_operator_exists($args, $wpdb, $uid, $alias, $meta, $param, $operator, $field);
@@ -130,16 +152,6 @@ class Meprmf_Predicate_Builder
             }
 
             $match = Meprmf_Util::get_field_match_mode($field);
-
-            if ('date' === $ftype) {
-                $ymd = Meprmf_Util::parse_date_param($raw);
-                if (null === $ymd) {
-                    continue;
-                }
-
-                $args = self::append_usermeta_date_exact_exists($args, $wpdb, $uid, $alias, $meta, $ymd);
-                continue;
-            }
 
             if ('checkbox' === $ftype) {
                 if ('1' !== $raw) {
@@ -338,9 +350,10 @@ class Meprmf_Predicate_Builder
      * @param string             $meta_key Meta key.
      * @param string|null        $from     Y-m-d lower bound.
      * @param string|null        $to       Y-m-d upper bound.
+     * @param bool               $negate   When true, invert the whole predicate (`not_in_last`).
      * @return array<int, string>
      */
-    private static function append_usermeta_date_range_exists(array $args, $wpdb, $uid, $alias, $meta_key, $from, $to)
+    private static function append_usermeta_date_range_exists(array $args, $wpdb, $uid, $alias, $meta_key, $from, $to, $negate = false)
     {
         if (null === $from && null === $to) {
             return $args;
@@ -359,8 +372,12 @@ class Meprmf_Predicate_Builder
             $clauses[] = "{$parsed} <= STR_TO_DATE(" . Meprmf_Util::wpdb_quote_scalar($wpdb, $to) . ", '%Y-%m-%d')";
         }
 
+        // NOT EXISTS also keeps users with no meta row at all, which is what "not in the
+        // last N days" has to mean: never logged in / no date recorded is not "recent".
+        $keyword = $negate ? 'NOT EXISTS' : 'EXISTS';
+
         // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Alias and uid are fixed SQL fragments; meta values are quoted.
-        $sql = "EXISTS ( SELECT 1 FROM {$wpdb->usermeta} AS {$alias} WHERE {$alias}.user_id = {$uid} AND " . implode(' AND ', $clauses) . ' )';
+        $sql = "{$keyword} ( SELECT 1 FROM {$wpdb->usermeta} AS {$alias} WHERE {$alias}.user_id = {$uid} AND " . implode(' AND ', $clauses) . ' )';
         // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
         $args[]                 = $sql;
         self::$last_fragments[] = $sql;

@@ -4,7 +4,7 @@ Tags: memberpress, members, admin, filters, membership
 Requires at least: 5.6
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 2.0.0
+Stable tag: 2.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -30,7 +30,8 @@ Filtering reads values you or your administrators submit on those admin lists (s
 * Extra filter controls on the **MemberPress -> Members**, **Subscriptions**, **Lifetimes**, and **Transactions** admin lists so you can narrow rows by address, registration fields, and (optionally) other stored member data you wire in with code.
 * On every supported list, additional filters query MemberPress tables (memberships, access, subscriptions, dates) and list-specific fields such as transaction status, gateway, and member status — not only wp_usermeta.
 * Each list still works like MemberPress; this plugin only adds filtering options for administrators.
-* **Saved presets** (floating Filters panel): name and reload common filter combinations site-wide on each list screen. Presets include plugin panel params and native MemberPress toolbar params (`status`, `membership`, `gateway`, transaction date fields, gifting `type` when applicable).
+* A **Filters** card above the list where you add one filter at a time — pick a field, a comparison (is, contains, is after, is between, is in the last, is empty, ...) and a value — and choose whether rows must match **all** filters or **any** of them.
+* **Saved views** (Filters card): name and reload common filter combinations site-wide on each list screen. Views include plugin panel params and native MemberPress toolbar params (`status`, `membership`, `gateway`, transaction date fields, gifting `type` when applicable).
 
 == Installation ==
 
@@ -50,7 +51,7 @@ No. You must purchase and install MemberPress separately. This plugin only adds 
 
 = Where do I use the filters? =
 
-In the WordPress admin, open **MemberPress -> Members** (or **Subscriptions**, **Lifetimes**, or **Transactions**). Use the **Filters** area above the table to choose criteria, then apply them to refresh the list. In the floating **Filters** panel, use **Saved presets** to load, save, or delete named filter combinations shared by all admins on that screen.
+In the WordPress admin, open **MemberPress -> Members** (or **Subscriptions**, **Lifetimes**, or **Transactions**). In the **Filters** card above the table, click **+ Add filter**, pick a field, set the comparison and value, then click **Apply filters** to refresh the list. Use **Saved views** to save or load named filter combinations shared by all admins on that screen.
 
 = What can I filter members by? =
 
@@ -77,10 +78,19 @@ Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-m
 = How do developers extend the filters? =
 
 * Filter hook for extra meta-based filter definitions: `meprmf_members_meta_filters_fields`.
-* Optional UI hook (floating **Filters** panel vs inline toolbar): `meprmf_use_floating_members_panel`.
+* Optional UI hook (show or remove the **Filters** card): `meprmf_use_floating_members_panel`.
 * Source and issues: see **Plugin URI** and **GitHub URI** in the main plugin file header (`admin-filters-for-memberpress.php`).
 
 == Changelog ==
+
+= 2.1.0 =
+
+* **Query-builder Filters card** on all four list screens: add one filter at a time as a field, comparison, and value row instead of scanning a grid of every available field.
+* **Comparisons per field type:** choice (is, is not, is empty), text (contains, does not contain, is, is empty), date (is after, is before, is between, is in the last, is not in the last), number (is at least, is at most, is between).
+* **Match all or any:** rows can require every filter or just one of them.
+* **Saved presets are now Saved views,** with the same site-wide storage and hooks.
+* Active-filter chips read the same wording as the row that produced them, so an exact match and a substring match are no longer shown identically.
+* Filters stay bookmarkable: each row reads from and writes to plain query parameters.
 
 = 2.0.0 =
 
@@ -192,6 +202,10 @@ Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-m
 * Compact collapsible filter layout when many filters are active (threshold filterable in later releases).
 
 == Upgrade Notice ==
+
+= 2.1.0 =
+
+Redesigned Filters card: filters are now added one at a time as field, comparison, and value. Existing bookmarked filter URLs and saved presets keep working. No database migration.
 
 = 2.0.0 =
 

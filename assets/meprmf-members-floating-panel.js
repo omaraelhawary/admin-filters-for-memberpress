@@ -1,44 +1,115 @@
 /**
- * MemberPress admin lists — floating filter panel (Phase 1). See DESIGN-SCREENS-AND-COMPONENTS.md §11.
+ * MemberPress admin lists — query-builder filter card.
+ *
+ * The card shell is printed by Meprmf_Toolbar_Renderer into an admin_footer pool; this script
+ * moves it above the list table and renders one row per filter from the localized field catalog.
+ * Field labels and saved-view names are always written with textContent / setAttribute: they can
+ * contain anything an admin typed.
  */
 (function () {
 	'use strict';
 
-	function getKnownKeys() {
-		if (typeof window.meprmfMembersFloating === 'undefined' || !window.meprmfMembersFloating.knownParams) {
-			return [];
+	var GLYPH_CARET_OPEN = '▾';
+	var GLYPH_CARET_CLOSED = '▸';
+	var GLYPH_REMOVE = '×';
+	var VALUELESS_OPS = { is_empty: true, is_not_empty: true };
+	var RELATIVE_OPS = { in_last: true, not_in_last: true };
+
+	function cfg() {
+		return window.meprmfMembersFloating || {};
+	}
+
+	function i18n(key, fallback) {
+		var strings = cfg().i18n || {};
+		return typeof strings[key] === 'string' && strings[key] !== '' ? strings[key] : fallback;
+	}
+
+	function sprintf1(template, value) {
+		return String(template).replace('%s', value);
+	}
+
+	function catalog() {
+		return Array.isArray(cfg().catalog) ? cfg().catalog : [];
+	}
+
+	function entryByParam(param) {
+		var list = catalog();
+		for (var i = 0; i < list.length; i++) {
+			if (String(list[i].param) === String(param)) {
+				return list[i];
+			}
 		}
-		return window.meprmfMembersFloating.knownParams;
+		return null;
+	}
+
+	function opTokens(entry) {
+		return (entry && Array.isArray(entry.ops) ? entry.ops : []).map(function (op) {
+			return String(op.v);
+		});
+	}
+
+	function pickOp(entry, wanted) {
+		var tokens = opTokens(entry);
+		if (tokens.indexOf(wanted) !== -1) {
+			return wanted;
+		}
+		return tokens.length > 0 ? tokens[0] : '';
+	}
+
+	function defaultOp(entry) {
+		// No operator in the URL means the field used its own match mode: LIKE for text,
+		// exact for everything else. Read that back as the operator that means the same thing.
+		return pickOp(entry, entry.kind === 'text' ? 'contains' : 'is');
+	}
+
+	function matchParam() {
+		return cfg().matchParam || 'meprmf_match';
+	}
+
+	function appliedMatchMode() {
+		return cfg().matchMode === 'any' ? 'any' : 'all';
+	}
+
+	function relativeUnits() {
+		var units = cfg().relativeUnits;
+		if (Array.isArray(units) && units.length > 0) {
+			return units;
+		}
+		return [ { v: 'days', l: 'days' }, { v: 'weeks', l: 'weeks' }, { v: 'months', l: 'months' }, { v: 'years', l: 'years' } ];
+	}
+
+	function kindLabel(kind) {
+		switch (kind) {
+			case 'choice':
+				return i18n('kindChoice', 'choice');
+			case 'date':
+				return i18n('kindDate', 'date');
+			case 'number':
+				return i18n('kindNumber', 'number');
+			default:
+				return i18n('kindText', 'text');
+		}
+	}
+
+	function knownKeys() {
+		return Array.isArray(cfg().knownParams) ? cfg().knownParams : [];
+	}
+
+	function nativeKeys() {
+		return Array.isArray(cfg().nativeParams) ? cfg().nativeParams : [];
 	}
 
 	function storageNs() {
-		var f = window.meprmfMembersFloating;
-		if (f && f.storageId) {
-			return String(f.storageId);
-		}
-		return 'memberpress_members';
+		return cfg().storageId ? String(cfg().storageId) : 'memberpress_members';
 	}
 
 	function lsKeys() {
-		var ns = storageNs();
-		return {
-			open: 'meprmf_panel_open_' + ns,
-			vis: 'meprmf_visible_filters_' + ns,
-			sig: 'meprmf_visible_filters_sig_' + ns
-		};
+		return { open: 'meprmf_panel_open_' + storageNs() };
 	}
 
 	function safeSet(key, value) {
 		try {
 			localStorage.setItem(key, value);
-		} catch (e) {
-			/* private mode / quota */
-		}
-	}
-
-	function safeRemove(key) {
-		try {
-			localStorage.removeItem(key);
 		} catch (e) {
 			/* private mode / quota */
 		}
@@ -52,101 +123,19 @@
 		}
 	}
 
+	/* ---------------------------------------------------------------- URL plumbing */
+
 	function stripKnownParams(u) {
-		getKnownKeys().forEach(function (key) {
+		knownKeys().forEach(function (key) {
 			u.searchParams.delete(key);
 		});
-	}
-
-	function normalizePresetsList(presets) {
-		if (Array.isArray(presets)) {
-			return presets;
-		}
-		if (presets && typeof presets === 'object') {
-			return Object.keys(presets).map(function (key) {
-				return presets[key];
-			});
-		}
-		return [];
-	}
-
-	function mergePresetsList(existing, incoming, savedPreset) {
-		var list = normalizePresetsList(incoming);
-		if (list.length === 0) {
-			list = normalizePresetsList(existing);
-		}
-		if (savedPreset && savedPreset.id) {
-			var savedId = String(savedPreset.id).toLowerCase();
-			list = list.filter(function (p) {
-				return !p || String(p.id).toLowerCase() !== savedId;
-			});
-			list.push(savedPreset);
-		}
-		return list;
-	}
-
-	function collectActiveParamsFromPanel(root) {
-		var out = {};
-		if (!root) {
-			return out;
-		}
-		root.querySelectorAll('.meprmf-filter-panel__item').forEach(function (item) {
-			item.querySelectorAll('.mepr_filter_field').forEach(function (el) {
-				var p = el.getAttribute('data-meprmf-param') || el.getAttribute('name');
-				if (!p) {
-					return;
-				}
-				var val = (el.value || '').trim();
-				if (val !== '') {
-					out[String(p)] = val;
-				}
-			});
-		});
-		return out;
-	}
-
-	function filterParamsToKnownKeys(params) {
-		var known = {};
-		getKnownKeys().forEach(function (key) {
-			known[key] = true;
-		});
-		var out = {};
-		Object.keys(params || {}).forEach(function (key) {
-			if (!known[key]) {
-				return;
-			}
-			var val = String(params[key] || '').trim();
-			if (val !== '') {
-				out[key] = val;
-			}
-		});
-		return out;
-	}
-
-	function collectActiveParamsFromUrl() {
-		var u = new URL(window.location.href);
-		var out = {};
-		getKnownKeys().forEach(function (key) {
-			var v = u.searchParams.get(key);
-			if (v !== null && String(v) !== '') {
-				out[key] = String(v);
-			}
-		});
-		return out;
-	}
-
-	function getNativeToolbarKeys() {
-		if (typeof window.meprmfMembersFloating === 'undefined' || !window.meprmfMembersFloating.nativeParams) {
-			return [];
-		}
-		return window.meprmfMembersFloating.nativeParams;
 	}
 
 	function collectNativeToolbarParams() {
 		var out = {};
 		var skipValues = { all: true, '': true };
 
-		getNativeToolbarKeys().forEach(function (key) {
+		nativeKeys().forEach(function (key) {
 			var el = document.getElementById(String(key));
 			if (!el) {
 				return;
@@ -162,7 +151,7 @@
 
 	/**
 	 * Transactions: MemberPress always renders #date_field (default created_at) even when
-	 * date_range_filter is "all". Do not treat date params as active unless a range is set.
+	 * date_range_filter is "all". Do not carry date params unless a range is actually set.
 	 */
 	function stripInactiveTransactionDateParams(params) {
 		var out = {};
@@ -170,7 +159,7 @@
 			out[key] = params[key];
 		});
 
-		if (getNativeToolbarKeys().indexOf('date_range_filter') === -1) {
+		if (nativeKeys().indexOf('date_range_filter') === -1) {
 			return out;
 		}
 
@@ -193,36 +182,7 @@
 	}
 
 	/**
-	 * Active filter params: visible fields from the panel, hidden fields preserved from the URL.
-	 */
-	function collectEffectiveActiveParams(root, visibleMap) {
-		var fromUrl = collectActiveParamsFromUrl();
-		var fromPanel = collectActiveParamsFromPanel(root);
-		var fromNative = collectNativeToolbarParams();
-		var vis = visibleMap || null;
-		var out = {};
-
-		Object.keys(fromUrl).forEach(function (key) {
-			if (vis && !vis[key]) {
-				out[key] = fromUrl[key];
-			}
-		});
-
-		Object.keys(fromPanel).forEach(function (key) {
-			if (!vis || vis[key]) {
-				out[key] = fromPanel[key];
-			}
-		});
-
-		Object.keys(fromNative).forEach(function (key) {
-			out[key] = fromNative[key];
-		});
-
-		return stripInactiveTransactionDateParams(out);
-	}
-
-	/**
-	 * Bookmarked ?*_access=expired URLs still filter; rewrite to inactive so the dropdown matches.
+	 * Bookmarked ?*_access=expired URLs still filter; rewrite to inactive so the row matches.
 	 */
 	function canonicalizeLegacyAccessParam() {
 		var u = new URL(window.location.href);
@@ -238,675 +198,1093 @@
 		}
 	}
 
-	function initRoot(root) {
-		var k = lsKeys();
+	/* ---------------------------------------------------------------- row model */
 
-		function loadVisibleRaw() {
-			try {
-				var raw = localStorage.getItem(k.vis);
-				if (raw === null || raw === '') {
-					return null;
-				}
-				var arr = JSON.parse(raw);
-				if (!Array.isArray(arr)) {
-					return null;
-				}
-				return arr;
-			} catch (e) {
-				return null;
-			}
-		}
+	var rowSeq = 0;
 
-		function allParamsMap() {
-			var keys = getKnownKeys();
-			var o = {};
-			keys.forEach(function (key) {
-				o[String(key)] = true;
-			});
-			return o;
-		}
-
-		function effectiveVisibleMap() {
-			var arr = loadVisibleRaw();
-			if (arr === null) {
-				return allParamsMap();
-			}
-			var o = {};
-			arr.forEach(function (param) {
-				o[String(param)] = true;
-			});
-			return o;
-		}
-
-		function saveVisibleFromCheckboxes() {
-			var out = [];
-			root.querySelectorAll('.meprmf-filter-panel__vis-cb').forEach(function (cb) {
-				if (cb.checked) {
-					out.push(cb.value);
-				}
-			});
-			safeSet(k.vis, JSON.stringify(out));
-		}
-
-		function applyItemVisibility() {
-			var vis = effectiveVisibleMap();
-			var any = false;
-			root.querySelectorAll('.meprmf-filter-panel__item').forEach(function (item) {
-				var p = item.getAttribute('data-meprmf-param');
-				var show = !!(p && vis[p]);
-				item.hidden = !show;
-				if (show) {
-					any = true;
-				}
-			});
-			var emptyEl = root.querySelector('.meprmf-filter-panel__empty');
-			var gridEl = root.querySelector('.meprmf-filter-panel__grid');
-			if (emptyEl && gridEl) {
-				emptyEl.hidden = any;
-				gridEl.hidden = !any;
-			}
-		}
-
-		function syncCustomizeChecks() {
-			var vis = effectiveVisibleMap();
-			root.querySelectorAll('.meprmf-filter-panel__vis-cb').forEach(function (cb) {
-				cb.checked = !!vis[cb.value];
-			});
-		}
-
-		function updateBadge() {
-			var badge = root.querySelector('.meprmf-toggle-btn__badge');
-			if (!badge) {
-				return;
-			}
-			var n = Object.keys(collectEffectiveActiveParams(root, effectiveVisibleMap())).length;
-			badge.textContent = String(n);
-			if (n > 0) {
-				badge.removeAttribute('hidden');
-				badge.removeAttribute('aria-hidden');
-			} else {
-				badge.setAttribute('hidden', 'hidden');
-				badge.setAttribute('aria-hidden', 'true');
-			}
-		}
-
-		function getFocusableInPanel() {
-			if (!panel) {
-				return [];
-			}
-			var selector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-			return Array.prototype.slice.call(panel.querySelectorAll(selector)).filter(function (el) {
-				return !el.hidden && el.offsetParent !== null;
-			});
-		}
-
-		var focusTrapHandler = null;
-
-		function enableFocusTrap() {
-			disableFocusTrap();
-			focusTrapHandler = function (ev) {
-				if (ev.key !== 'Tab' || panel.hasAttribute('hidden')) {
-					return;
-				}
-				var focusable = getFocusableInPanel();
-				if (focusable.length === 0) {
-					return;
-				}
-				var first = focusable[0];
-				var last = focusable[focusable.length - 1];
-				if (ev.shiftKey && document.activeElement === first) {
-					ev.preventDefault();
-					last.focus();
-				} else if (!ev.shiftKey && document.activeElement === last) {
-					ev.preventDefault();
-					first.focus();
-				}
-			};
-			document.addEventListener('keydown', focusTrapHandler);
-		}
-
-		function disableFocusTrap() {
-			if (focusTrapHandler) {
-				document.removeEventListener('keydown', focusTrapHandler);
-				focusTrapHandler = null;
-			}
-		}
-
-		function invalidateVisibleIfKnownParamsChanged() {
-			var floating = window.meprmfMembersFloating;
-			if (!floating || typeof floating.knownParamsSignature !== 'string' || floating.knownParamsSignature === '') {
-				return;
-			}
-			var current = String(floating.knownParamsSignature);
-			var prev = safeGet(k.sig);
-			if (prev !== null && prev !== current) {
-				safeRemove(k.vis);
-			}
-			safeSet(k.sig, current);
-		}
-
-		var toggle = root.querySelector('.meprmf-toggle-btn');
-		var panel = root.querySelector('.meprmf-filter-panel');
-		var modeFilter = root.querySelector('.meprmf-filter-panel__mode--filter');
-		var modeCustomize = root.querySelector('.meprmf-filter-panel__mode--customize');
-		if (!toggle || !panel || !modeFilter || !modeCustomize) {
-			return;
-		}
-
-		invalidateVisibleIfKnownParamsChanged();
-
-		function setPanelOpen(open) {
-			safeSet(k.open, open ? 'true' : 'false');
-			toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-			if (open) {
-				panel.removeAttribute('hidden');
-				panel.classList.add('meprmf-filter-panel--open');
-				enableFocusTrap();
-				var firstField = panel.querySelector('.mepr_filter_field:not([hidden])');
-				if (!firstField) {
-					firstField = panel.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
-				}
-				if (firstField) {
-					firstField.focus();
-				}
-			} else {
-				disableFocusTrap();
-				panel.setAttribute('hidden', 'hidden');
-				panel.classList.remove('meprmf-filter-panel--open');
-				modeCustomize.hidden = true;
-				modeFilter.hidden = false;
-				panel.classList.remove('meprmf-filter-panel--customize');
-				toggle.focus();
-			}
-		}
-
-		function setCustomizeMode(on) {
-			if (on) {
-				modeFilter.hidden = true;
-				modeCustomize.hidden = false;
-				panel.classList.add('meprmf-filter-panel--customize');
-				syncCustomizeChecks();
-			} else {
-				modeCustomize.hidden = true;
-				modeFilter.hidden = false;
-				panel.classList.remove('meprmf-filter-panel--customize');
-			}
-		}
-
-		if (safeGet(k.open) === 'true') {
-			toggle.setAttribute('aria-expanded', 'true');
-			panel.removeAttribute('hidden');
-			panel.classList.add('meprmf-filter-panel--open');
-			enableFocusTrap();
-		}
-
-		applyItemVisibility();
-		updateBadge();
-
-		toggle.addEventListener('click', function () {
-			var open = toggle.getAttribute('aria-expanded') === 'true';
-			setPanelOpen(!open);
-		});
-
-		panel.addEventListener('keydown', function (ev) {
-			if (ev.key === 'Escape') {
-				setPanelOpen(false);
-			}
-		});
-
-		var applyBtn = root.querySelector('.meprmf-filter-panel__apply');
-		if (applyBtn) {
-			applyBtn.addEventListener('click', function () {
-				if (applyBtn.disabled) {
-					return;
-				}
-				applyBtn.disabled = true;
-				applyBtn.classList.add('is-busy');
-				var u = new URL(window.location.href);
-				stripKnownParams(u);
-				var active = collectEffectiveActiveParams(root, effectiveVisibleMap());
-				Object.keys(active).forEach(function (p) {
-					u.searchParams.set(p, active[p]);
-				});
-				safeSet(k.open, 'false');
-				window.location.assign(u.toString());
-			});
-		}
-
-		var clearBtn = root.querySelector('.meprmf-filter-panel__clear');
-		if (clearBtn) {
-			clearBtn.addEventListener('click', function () {
-				var u = new URL(window.location.href);
-				stripKnownParams(u);
-				safeSet(k.open, 'false');
-				window.location.assign(u.toString());
-			});
-		}
-
-		var custBtn = root.querySelector('.meprmf-filter-panel__customize');
-		if (custBtn) {
-			custBtn.addEventListener('click', function () {
-				setCustomizeMode(true);
-			});
-		}
-
-		var backBtn = root.querySelector('.meprmf-filter-panel__back');
-		var doneBtn = root.querySelector('.meprmf-filter-panel__done');
-		var dateRangeCb = root.querySelector('.meprmf-filter-panel__date-range-cb');
-		var floatingCfg = window.meprmfMembersFloating || {};
-		var initialDateRangeEnabled = !!floatingCfg.dateRangeEnabled;
-
-		function saveDateRangePrefIfChanged(done) {
-			if (!dateRangeCb || !floatingCfg.ajaxUrl || !floatingCfg.dateRangeNonce) {
-				done();
-				return;
-			}
-			var enabled = !!dateRangeCb.checked;
-			if (enabled === initialDateRangeEnabled) {
-				done();
-				return;
-			}
-			var body = new URLSearchParams();
-			body.set('action', 'meprmf_save_date_range_pref');
-			body.set('nonce', floatingCfg.dateRangeNonce);
-			body.set('enabled', enabled ? '1' : '0');
-			fetch(floatingCfg.ajaxUrl, {
-				method: 'POST',
-				credentials: 'same-origin',
-				headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-				body: body.toString()
-			})
-				.then(function (res) {
-					if (!res.ok) {
-						throw new Error('HTTP ' + res.status);
-					}
-					return res.json();
-				})
-				.then(function (data) {
-					if (!data || !data.success) {
-						throw new Error('save_failed');
-					}
-					window.location.reload();
-				})
-				.catch(function () {
-					window.alert('Could not save the date range preference. Please try again.');
-					done();
-				});
-		}
-
-		function leaveCustomize() {
-			saveDateRangePrefIfChanged(function () {
-				setCustomizeMode(false);
-				applyItemVisibility();
-			});
-		}
-		if (backBtn) {
-			backBtn.addEventListener('click', leaveCustomize);
-		}
-		if (doneBtn) {
-			doneBtn.addEventListener('click', leaveCustomize);
-		}
-
-		root.querySelectorAll('.meprmf-filter-panel__vis-cb').forEach(function (cb) {
-			cb.addEventListener('change', function () {
-				saveVisibleFromCheckboxes();
-				applyItemVisibility();
-			});
-		});
-
-		root.querySelectorAll('.mepr_filter_field').forEach(function (field) {
-			field.addEventListener('change', function () {
-				updateBadge();
-			});
-			field.addEventListener('input', function () {
-				updateBadge();
-			});
-			field.addEventListener('keydown', function (ev) {
-				if (ev.key !== 'Enter') {
-					return;
-				}
-				ev.preventDefault();
-				if (applyBtn) {
-					applyBtn.click();
-				}
-			});
-		});
-
-		initPresetsBar(root, panel, effectiveVisibleMap);
+	function makeRow(entry, op, v1, v2) {
+		rowSeq += 1;
+		return {
+			id: 'r' + rowSeq,
+			param: String(entry.param),
+			op: op,
+			v1: typeof v1 === 'string' ? v1 : '',
+			v2: typeof v2 === 'string' ? v2 : ''
+		};
 	}
 
-	function getPresetsFromConfig() {
-		var cfg = window.meprmfMembersFloating || {};
-		return normalizePresetsList(cfg.presets);
-	}
-
-	function findPresetById(id) {
-		var target = String(id || '');
-		if (target === '') {
-			return null;
+	function shapeFor(entry, op) {
+		if (VALUELESS_OPS[op]) {
+			return 'none';
 		}
-		var list = getPresetsFromConfig();
-		for (var i = 0; i < list.length; i++) {
-			if (String(list[i].id) === target) {
-				return list[i];
-			}
+		if (RELATIVE_OPS[op]) {
+			return 'relative';
 		}
-		return null;
-	}
-
-	function normalizePresetParams(params) {
-		var out = {};
-		if (!params || typeof params !== 'object') {
-			return out;
+		if (op === 'between') {
+			return 'two';
 		}
-		var known = {};
-		getKnownKeys().forEach(function (key) {
-			known[key] = true;
-		});
-		Object.keys(params).forEach(function (key) {
-			if (!known[key]) {
-				return;
-			}
-			var val = String(params[key] || '').trim();
-			if (val !== '') {
-				out[key] = val;
-			}
-		});
-		return out;
-	}
-
-	function paramsMatchActiveUrl(presetParams) {
-		var active = collectActiveParamsFromUrl();
-		var preset = normalizePresetParams(presetParams);
-		var activeKeys = Object.keys(active);
-		var presetKeys = Object.keys(preset);
-		if (activeKeys.length === 0 || presetKeys.length === 0 || activeKeys.length !== presetKeys.length) {
-			return false;
-		}
-		for (var i = 0; i < presetKeys.length; i++) {
-			var key = presetKeys[i];
-			if (active[key] !== preset[key]) {
-				return false;
-			}
-		}
-		return true;
-	}
-
-	function findMatchingPresetId() {
-		var list = getPresetsFromConfig();
-		for (var i = 0; i < list.length; i++) {
-			if (list[i] && list[i].id && paramsMatchActiveUrl(list[i].params)) {
-				return String(list[i].id);
-			}
-		}
-		return '';
-	}
-
-	function syncPresetSelectToActiveUrl(selectEl, loadBtn, deleteBtn) {
-		if (!selectEl) {
-			return;
-		}
-		var matchedId = findMatchingPresetId();
-		selectEl.value = matchedId;
-		syncPresetActionButtons(selectEl, loadBtn, deleteBtn);
-	}
-
-	function rebuildPresetSelect(selectEl, presets, selectedId, ensurePreset) {
-		if (!selectEl) {
-			return;
-		}
-		var cfg = window.meprmfMembersFloating || {};
-		var i18n = cfg.i18n || {};
-		var placeholder = i18n.presetsPlaceholder || '— Choose a preset —';
-		var list = normalizePresetsList(presets);
-
-		while (selectEl.firstChild) {
-			selectEl.removeChild(selectEl.firstChild);
-		}
-
-		var emptyOpt = document.createElement('option');
-		emptyOpt.value = '';
-		emptyOpt.textContent = placeholder;
-		selectEl.appendChild(emptyOpt);
-
-		list.forEach(function (preset) {
-			if (!preset || !preset.id || !preset.name) {
-				return;
-			}
-			var opt = document.createElement('option');
-			opt.value = String(preset.id);
-			opt.textContent = String(preset.name);
-			selectEl.appendChild(opt);
-		});
-
-		if (selectedId) {
-			var sid = String(selectedId);
-			selectEl.value = sid;
-			if (selectEl.value !== sid && ensurePreset && String(ensurePreset.id) === sid && ensurePreset.name) {
-				var fallbackOpt = document.createElement('option');
-				fallbackOpt.value = sid;
-				fallbackOpt.textContent = String(ensurePreset.name);
-				selectEl.appendChild(fallbackOpt);
-				selectEl.value = sid;
-			}
-			if (selectEl.value !== sid) {
-				selectEl.value = '';
-			}
-		}
-	}
-
-	function setConfigPresets(presets) {
-		if (!window.meprmfMembersFloating) {
-			window.meprmfMembersFloating = {};
-		}
-		window.meprmfMembersFloating.presets = normalizePresetsList(presets);
-	}
-
-	function syncPresetActionButtons(selectEl, loadBtn, deleteBtn) {
-		var hasSelection = !!(selectEl && selectEl.value);
-		if (loadBtn) {
-			loadBtn.disabled = !hasSelection;
-		}
-		if (deleteBtn) {
-			deleteBtn.disabled = !hasSelection;
-		}
-	}
-
-	function applyPresetParams(params) {
-		var u = new URL(window.location.href);
-		stripKnownParams(u);
-		if (params && typeof params === 'object') {
-			var known = {};
-			getKnownKeys().forEach(function (key) {
-				known[key] = true;
-			});
-			Object.keys(params).forEach(function (key) {
-				if (!known[key]) {
-					return;
-				}
-				var val = String(params[key] || '').trim();
-				if (val !== '') {
-					u.searchParams.set(key, val);
-				}
-			});
-		}
-		window.location.assign(u.toString());
-	}
-
-	function initPresetsBar(root, panel, getVisibleMap) {
-		var cfg = window.meprmfMembersFloating || {};
-		var i18n = cfg.i18n || {};
-		var selectEl = panel.querySelector('.meprmf-filter-panel__preset-select');
-		var loadBtn = panel.querySelector('.meprmf-filter-panel__preset-load');
-		var saveBtn = panel.querySelector('.meprmf-filter-panel__preset-save');
-		var deleteBtn = panel.querySelector('.meprmf-filter-panel__preset-delete');
-
-		if (!selectEl || !loadBtn || !saveBtn || !deleteBtn) {
-			return;
-		}
-
-		syncPresetSelectToActiveUrl(selectEl, loadBtn, deleteBtn);
-
-		selectEl.addEventListener('change', function () {
-			syncPresetActionButtons(selectEl, loadBtn, deleteBtn);
-		});
-
-		loadBtn.addEventListener('click', function () {
-			if (loadBtn.disabled || !selectEl.value) {
-				return;
-			}
-			var preset = findPresetById(selectEl.value);
-			if (!preset || !preset.params) {
-				return;
-			}
-			applyPresetParams(preset.params);
-		});
-
-		saveBtn.addEventListener('click', function () {
-			var visMap = typeof getVisibleMap === 'function' ? getVisibleMap() : null;
-			var active = filterParamsToKnownKeys(collectEffectiveActiveParams(root, visMap));
-			if (Object.keys(active).length === 0) {
-				window.alert(i18n.noActiveFilters || 'Apply at least one filter before saving a preset.');
-				return;
-			}
-			if (!cfg.ajaxUrl || !cfg.presetsNonce) {
-				window.alert(i18n.saveError || 'Could not save the preset. Please try again.');
-				return;
-			}
-
-			var name = window.prompt(i18n.savePrompt || 'Preset name', '');
-			if (name === null) {
-				return;
-			}
-			name = String(name).trim();
-			if (name === '') {
-				return;
-			}
-
-			saveBtn.disabled = true;
-
-			var body = new URLSearchParams();
-			body.set('action', 'meprmf_save_filter_preset');
-			body.set('nonce', cfg.presetsNonce);
-			body.set('screen', cfg.storageId || storageNs());
-			body.set('name', name);
-			body.set('params', JSON.stringify(active));
-
-			fetch(cfg.ajaxUrl, {
-				method: 'POST',
-				credentials: 'same-origin',
-				headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-				body: body.toString()
-			})
-				.then(function (res) {
-					return res.json().then(function (data) {
-						return { ok: res.ok, data: data };
-					});
-				})
-				.then(function (result) {
-					var data = result.data;
-					if (!result.ok || !data || !data.success) {
-						var msg = (data && data.data && data.data.message) ? data.data.message : (i18n.saveError || 'Could not save the preset. Please try again.');
-						throw new Error(msg);
-					}
-					var savedPreset = data.data && data.data.preset ? data.data.preset : null;
-					var presets = mergePresetsList(cfg.presets, data.data ? data.data.presets : null, savedPreset);
-					setConfigPresets(presets);
-					var selectedId = savedPreset && savedPreset.id ? savedPreset.id : '';
-					rebuildPresetSelect(selectEl, presets, selectedId, savedPreset);
-					syncPresetActionButtons(selectEl, loadBtn, deleteBtn);
-				})
-				.catch(function (err) {
-					window.alert(err && err.message ? err.message : (i18n.saveError || 'Could not save the preset. Please try again.'));
-				})
-				.finally(function () {
-					saveBtn.disabled = false;
-				});
-		});
-
-		deleteBtn.addEventListener('click', function () {
-			if (deleteBtn.disabled || !selectEl.value) {
-				return;
-			}
-			if (!window.confirm(i18n.deleteConfirm || 'Delete this saved preset for all admins?')) {
-				return;
-			}
-			if (!cfg.ajaxUrl || !cfg.presetsNonce) {
-				window.alert(i18n.deleteError || 'Could not delete the preset. Please try again.');
-				return;
-			}
-
-			deleteBtn.disabled = true;
-
-			var body = new URLSearchParams();
-			body.set('action', 'meprmf_delete_filter_preset');
-			body.set('nonce', cfg.presetsNonce);
-			body.set('screen', cfg.storageId || storageNs());
-			body.set('id', selectEl.value);
-
-			fetch(cfg.ajaxUrl, {
-				method: 'POST',
-				credentials: 'same-origin',
-				headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-				body: body.toString()
-			})
-				.then(function (res) {
-					return res.json().then(function (data) {
-						return { ok: res.ok, data: data };
-					});
-				})
-				.then(function (result) {
-					var data = result.data;
-					if (!result.ok || !data || !data.success) {
-						var msg = (data && data.data && data.data.message) ? data.data.message : (i18n.deleteError || 'Could not delete the preset. Please try again.');
-						throw new Error(msg);
-					}
-					var presets = normalizePresetsList(data.data ? data.data.presets : null);
-					setConfigPresets(presets);
-					rebuildPresetSelect(selectEl, presets, '');
-					syncPresetActionButtons(selectEl, loadBtn, deleteBtn);
-				})
-				.catch(function (err) {
-					window.alert(err && err.message ? err.message : (i18n.deleteError || 'Could not delete the preset. Please try again.'));
-				})
-				.finally(function () {
-					syncPresetActionButtons(selectEl, loadBtn, deleteBtn);
-				});
-		});
+		return 'one';
 	}
 
 	/**
-	 * Panel markup is printed in admin_footer (valid HTML). Move each panel next to its toggle before wiring handlers.
+	 * Which of the entry's params a single value is written to.
 	 */
-	function relocateFloatingPanelsFromPool() {
-		var pool = document.getElementById('meprmf-floating-panels-pool');
-		if (!pool) {
+	function valueSlots(entry, op) {
+		if (!entry.pair) {
+			return [ 'value' ];
+		}
+		if (op === 'after' || op === 'at_least') {
+			return [ 'from' ];
+		}
+		if (op === 'before' || op === 'at_most') {
+			return [ 'to' ];
+		}
+		// `is` on a pair pins both bounds to the same value, which is an exact-day match.
+		return [ 'from', 'to' ];
+	}
+
+	function rowIsActive(row) {
+		if (VALUELESS_OPS[row.op]) {
+			return true;
+		}
+		return String(row.v1 || '').trim() !== '' || String(row.v2 || '').trim() !== '';
+	}
+
+	/**
+	 * GET params one row writes; empty when the row has no value to apply.
+	 */
+	function writesForRow(entry, row) {
+		var p = entry.params || {};
+		var out = {};
+		var v1 = String(row.v1 || '').trim();
+		var v2 = String(row.v2 || '').trim();
+
+		if (VALUELESS_OPS[row.op]) {
+			if (p.op) {
+				out[p.op] = row.op;
+			}
+			return out;
+		}
+
+		if (RELATIVE_OPS[row.op]) {
+			if (v1 === '') {
+				return {};
+			}
+			if (p.op) {
+				out[p.op] = row.op;
+			}
+			if (p.n) {
+				out[p.n] = v1;
+			}
+			if (p.u) {
+				out[p.u] = v2 !== '' ? v2 : 'days';
+			}
+			return out;
+		}
+
+		if (row.op === 'between') {
+			if (v1 === '' && v2 === '') {
+				return {};
+			}
+			if (p.op) {
+				out[p.op] = row.op;
+			}
+			if (v1 !== '' && p.from) {
+				out[p.from] = v1;
+			}
+			if (v2 !== '' && p.to) {
+				out[p.to] = v2;
+			}
+			return out;
+		}
+
+		if (v1 === '') {
+			return {};
+		}
+		if (p.op && row.op !== '') {
+			out[p.op] = row.op;
+		}
+		valueSlots(entry, row.op).forEach(function (slot) {
+			if (p[slot]) {
+				out[p[slot]] = v1;
+			}
+		});
+
+		return out;
+	}
+
+	function rowFromParams(entry, read) {
+		var p = entry.params || {};
+		var tokens = opTokens(entry);
+		var rawOp = p.op ? read(p.op) : '';
+		var op = tokens.indexOf(rawOp) === -1 ? '' : rawOp;
+
+		var value = p.value ? read(p.value) : '';
+		var from = p.from ? read(p.from) : '';
+		var to = p.to ? read(p.to) : '';
+		var n = p.n ? read(p.n) : '';
+		var unit = p.u ? read(p.u) : '';
+
+		if (VALUELESS_OPS[op]) {
+			return makeRow(entry, op, '', '');
+		}
+		if (RELATIVE_OPS[op]) {
+			return n !== '' ? makeRow(entry, op, n, unit || 'days') : null;
+		}
+		if (op === 'between') {
+			return (from !== '' || to !== '') ? makeRow(entry, op, from, to) : null;
+		}
+		if (op === 'after') {
+			var afterVal = value !== '' ? value : from;
+			return afterVal !== '' ? makeRow(entry, op, afterVal, '') : null;
+		}
+		if (op === 'before') {
+			var beforeVal = value !== '' ? value : to;
+			return beforeVal !== '' ? makeRow(entry, op, beforeVal, '') : null;
+		}
+		if (op !== '') {
+			var single = value !== '' ? value : (op === 'at_most' ? to : from);
+			return single !== '' ? makeRow(entry, op, single, '') : null;
+		}
+
+		// Pre-2.1 URL with no operator: infer the row from the params that carry a value.
+		if (value !== '') {
+			return makeRow(entry, defaultOp(entry), value, '');
+		}
+		if (from !== '' && to !== '') {
+			return makeRow(entry, pickOp(entry, 'between'), from, to);
+		}
+		if (from !== '') {
+			return makeRow(entry, pickOp(entry, entry.kind === 'number' ? 'at_least' : 'after'), from, '');
+		}
+		if (to !== '') {
+			return makeRow(entry, pickOp(entry, entry.kind === 'number' ? 'at_most' : 'before'), to, '');
+		}
+		if (n !== '') {
+			return makeRow(entry, pickOp(entry, 'in_last'), n, unit || 'days');
+		}
+
+		return null;
+	}
+
+	function rowsFromMap(map) {
+		var rows = [];
+		var read = function (key) {
+			var raw = map[key];
+			return typeof raw === 'string' ? raw.trim() : '';
+		};
+		catalog().forEach(function (entry) {
+			var row = rowFromParams(entry, read);
+			if (row) {
+				rows.push(row);
+			}
+		});
+		return rows;
+	}
+
+	function rowsFromUrl() {
+		var sp = new URL(window.location.href).searchParams;
+		var map = {};
+		knownKeys().forEach(function (key) {
+			var v = sp.get(key);
+			if (v !== null) {
+				map[key] = v;
+			}
+		});
+		return rowsFromMap(map);
+	}
+
+	function signature(rows, match) {
+		return rows
+			.filter(rowIsActive)
+			.map(function (row) {
+				return row.param + '|' + row.op + '|' + row.v1 + '|' + row.v2;
+			})
+			.sort()
+			.join(';') + '#' + match;
+	}
+
+	/* ---------------------------------------------------------------- small DOM helpers */
+
+	function el(tag, className) {
+		var node = document.createElement(tag);
+		if (className) {
+			node.className = className;
+		}
+		return node;
+	}
+
+	function textNode(tag, className, text) {
+		var node = el(tag, className);
+		node.textContent = String(text);
+		return node;
+	}
+
+	function clear(node) {
+		while (node.firstChild) {
+			node.removeChild(node.firstChild);
+		}
+	}
+
+	function optionNode(value, label, selected) {
+		var opt = document.createElement('option');
+		opt.value = String(value);
+		opt.textContent = String(label);
+		if (selected) {
+			opt.selected = true;
+		}
+		return opt;
+	}
+
+	/* ---------------------------------------------------------------- card controller */
+
+	function initCard(card) {
+		var keys = lsKeys();
+		var disclosure = card.querySelector('.meprmf-qb__disclosure');
+		var countBadge = card.querySelector('[data-meprmf-count]');
+		var addBtn = card.querySelector('.meprmf-qb__add');
+		var popover = card.querySelector('.meprmf-qb__popover');
+		var popoverList = card.querySelector('[data-meprmf-popover-list]');
+		var searchInput = card.querySelector('.meprmf-qb__search');
+		var viewsSelect = card.querySelector('[data-meprmf-views]');
+		var deleteViewBtn = card.querySelector('[data-meprmf-delete-view]');
+		var body = card.querySelector('.meprmf-qb__body');
+		var footer = card.querySelector('.meprmf-qb__footer');
+		var matchWrap = card.querySelector('[data-meprmf-match]');
+		var rowsWrap = card.querySelector('[data-meprmf-rows]');
+		var emptyWrap = card.querySelector('[data-meprmf-empty]');
+		var chipsWrap = card.querySelector('[data-meprmf-chips]');
+		var statusEl = card.querySelector('[data-meprmf-status]');
+		var applyBtn = card.querySelector('[data-meprmf-apply]');
+		var clearBtn = card.querySelector('[data-meprmf-clear]');
+		var saveBtn = card.querySelector('[data-meprmf-save-view]');
+
+		if (!disclosure || !addBtn || !popover || !popoverList || !body || !rowsWrap || !emptyWrap) {
 			return;
 		}
-		document.querySelectorAll('.meprmf-floating-root').forEach(function (root) {
-			var toggle = root.querySelector('.meprmf-toggle-btn[aria-controls]');
-			if (!toggle) {
+
+		var applied = rowsFromUrl();
+		var state = {
+			rows: applied.map(function (row) {
+				return { id: row.id, param: row.param, op: row.op, v1: row.v1, v2: row.v2 };
+			}),
+			appliedSignature: signature(applied, appliedMatchMode()),
+			match: appliedMatchMode(),
+			open: safeGet(keys.open) !== 'false',
+			popoverOpen: false,
+			query: ''
+		};
+
+		/* ---- chips: only meaningful while the rows are hidden ---- */
+
+		var chips = document.querySelector('.meprmf-active-filters');
+		if (chips && chipsWrap) {
+			chipsWrap.appendChild(chips);
+		}
+
+		function syncChips() {
+			if (!chipsWrap) {
 				return;
 			}
-			var id = toggle.getAttribute('aria-controls');
+			var show = !state.open && !!chips && chips.children.length > 0;
+			chipsWrap.hidden = !show;
+		}
+
+		/* ---- disclosure ---- */
+
+		function syncOpen() {
+			disclosure.setAttribute('aria-expanded', state.open ? 'true' : 'false');
+			var caret = disclosure.querySelector('.meprmf-qb__caret');
+			if (caret) {
+				caret.textContent = state.open ? GLYPH_CARET_OPEN : GLYPH_CARET_CLOSED;
+			}
+			body.hidden = !state.open;
+			if (footer) {
+				footer.hidden = !state.open;
+			}
+			card.classList.toggle('meprmf-qb--collapsed', !state.open);
+			syncChips();
+		}
+
+		function setOpen(open) {
+			state.open = !!open;
+			safeSet(keys.open, state.open ? 'true' : 'false');
+			if (!state.open) {
+				closePopover();
+			}
+			syncOpen();
+		}
+
+		disclosure.addEventListener('click', function () {
+			setOpen(!state.open);
+		});
+
+		/* ---- rows ---- */
+
+		function unitGlyph(entry) {
+			return entry.unit ? textNode('span', 'meprmf-qb__unit', entry.unit) : null;
+		}
+
+		function onValueChange(row, slot) {
+			return function (ev) {
+				row[slot] = String(ev.target.value || '');
+				syncFooter();
+			};
+		}
+
+		function valueInput(entry, row, slot, ariaLabel, extraClass) {
+			var input = el('input', 'meprmf-qb__input ' + extraClass);
+			if (entry.kind === 'date') {
+				input.type = 'date';
+			} else if (entry.kind === 'number') {
+				input.type = 'number';
+				input.step = 'any';
+			} else {
+				input.type = 'text';
+				input.placeholder = i18n('valuePlaceholder', 'Type a value…');
+			}
+			input.value = row[slot] || '';
+			input.setAttribute('aria-label', ariaLabel);
+			input.addEventListener('input', onValueChange(row, slot));
+			input.addEventListener('change', onValueChange(row, slot));
+			input.addEventListener('keydown', function (ev) {
+				if (ev.key === 'Enter') {
+					ev.preventDefault();
+					applyFilters();
+				}
+			});
+			return input;
+		}
+
+		function choiceSelect(entry, row) {
+			var select = el('select', 'meprmf-qb__input meprmf-qb__input--choice');
+			select.setAttribute('aria-label', sprintf1(i18n('valueFor', 'Value for %s'), entry.label));
+			select.appendChild(optionNode('', i18n('anyValue', 'Any value'), row.v1 === ''));
+			(entry.options || []).forEach(function (opt) {
+				select.appendChild(optionNode(opt.v, opt.l, String(row.v1) === String(opt.v)));
+			});
+			select.addEventListener('change', onValueChange(row, 'v1'));
+			return select;
+		}
+
+		function relativeControls(entry, row, target) {
+			var n = el('input', 'meprmf-qb__input meprmf-qb__input--n');
+			n.type = 'number';
+			n.min = '1';
+			n.value = row.v1 || '';
+			// Two controls, so two names: sharing one leaves a screen reader announcing the
+			// amount and the unit identically.
+			n.setAttribute('aria-label', sprintf1(i18n('windowAmountFor', '%s window length'), entry.label));
+			n.addEventListener('input', onValueChange(row, 'v1'));
+			target.appendChild(n);
+
+			var unit = el('select', 'meprmf-qb__input meprmf-qb__input--unit');
+			unit.setAttribute('aria-label', sprintf1(i18n('windowUnitFor', '%s window unit'), entry.label));
+			relativeUnits().forEach(function (choice) {
+				unit.appendChild(optionNode(choice.v, choice.l, String(row.v2 || 'days') === String(choice.v)));
+			});
+			unit.addEventListener('change', onValueChange(row, 'v2'));
+			target.appendChild(unit);
+		}
+
+		function buildValueControls(entry, row, target) {
+			clear(target);
+			var shape = shapeFor(entry, row.op);
+
+			if (shape === 'none') {
+				target.appendChild(textNode('span', 'meprmf-qb__no-value', i18n('noValueNeeded', 'no value needed')));
+				return;
+			}
+
+			if (shape === 'relative') {
+				relativeControls(entry, row, target);
+				return;
+			}
+
+			if (shape === 'two') {
+				var glyph = unitGlyph(entry);
+				if (glyph) {
+					target.appendChild(glyph);
+				}
+				target.appendChild(
+					valueInput(entry, row, 'v1', sprintf1(i18n('valueFromFor', '%s from'), entry.label), 'meprmf-qb__input--bound')
+				);
+				target.appendChild(textNode('span', 'meprmf-qb__joiner', i18n('andJoiner', 'and')));
+				target.appendChild(
+					valueInput(entry, row, 'v2', sprintf1(i18n('valueToFor', '%s to'), entry.label), 'meprmf-qb__input--bound')
+				);
+				return;
+			}
+
+			if (entry.kind === 'choice') {
+				target.appendChild(choiceSelect(entry, row));
+				return;
+			}
+
+			var single = unitGlyph(entry);
+			if (single) {
+				target.appendChild(single);
+			}
+			target.appendChild(
+				valueInput(
+					entry,
+					row,
+					'v1',
+					sprintf1(i18n('valueFor', 'Value for %s'), entry.label),
+					entry.kind === 'date' ? 'meprmf-qb__input--date' : (entry.kind === 'number' ? 'meprmf-qb__input--number' : 'meprmf-qb__input--text')
+				)
+			);
+		}
+
+		function buildRow(row) {
+			var entry = entryByParam(row.param);
+			if (!entry) {
+				return null;
+			}
+
+			var wrap = el('div', 'meprmf-qb__row');
+			wrap.setAttribute('role', 'group');
+			wrap.setAttribute('aria-label', entry.label);
+			wrap.setAttribute('data-meprmf-row-id', row.id);
+
+			wrap.appendChild(textNode('span', 'meprmf-qb__row-field', entry.label));
+
+			var ops = entry.ops || [];
+			if (ops.length > 1) {
+				var opSelect = el('select', 'meprmf-qb__op');
+				opSelect.setAttribute('aria-label', sprintf1(i18n('operatorFor', 'Comparison for %s'), entry.label));
+				ops.forEach(function (op) {
+					opSelect.appendChild(optionNode(op.v, op.l, op.v === row.op));
+				});
+				opSelect.addEventListener('change', function (ev) {
+					var next = String(ev.target.value || '');
+					if (shapeFor(entry, next) !== shapeFor(entry, row.op)) {
+						row.v1 = '';
+						row.v2 = '';
+					}
+					row.op = next;
+					buildValueControls(entry, row, valueCell);
+					syncFooter();
+				});
+				wrap.appendChild(opSelect);
+			} else {
+				// A single operator (or none, as for a checkbox) is a statement, not a choice.
+				wrap.appendChild(textNode('span', 'meprmf-qb__op-static', ops.length === 1 ? ops[0].l : i18n('opIs', 'is')));
+			}
+
+			var valueCell = el('span', 'meprmf-qb__row-value');
+			buildValueControls(entry, row, valueCell);
+			wrap.appendChild(valueCell);
+
+			var remove = el('button', 'meprmf-qb__remove');
+			remove.type = 'button';
+			remove.setAttribute('aria-label', sprintf1(i18n('removeFilter', 'Remove %s filter'), entry.label));
+			var glyph = textNode('span', null, GLYPH_REMOVE);
+			glyph.setAttribute('aria-hidden', 'true');
+			remove.appendChild(glyph);
+			remove.addEventListener('click', function () {
+				state.rows = state.rows.filter(function (candidate) {
+					return candidate.id !== row.id;
+				});
+				renderRows();
+				syncFooter();
+				addBtn.focus();
+			});
+			wrap.appendChild(remove);
+
+			return wrap;
+		}
+
+		function renderRows() {
+			clear(rowsWrap);
+			state.rows.forEach(function (row) {
+				var node = buildRow(row);
+				if (node) {
+					rowsWrap.appendChild(node);
+				}
+			});
+			var hasRows = rowsWrap.children.length > 0;
+			emptyWrap.hidden = hasRows;
+			if (matchWrap) {
+				matchWrap.hidden = !hasRows;
+			}
+		}
+
+		/* ---- match toggle ---- */
+
+		var segments = Array.prototype.slice.call(card.querySelectorAll('[data-meprmf-match-mode]'));
+
+		function setMatch(mode) {
+			state.match = mode === 'any' ? 'any' : 'all';
+			syncMatch();
+			syncFooter();
+		}
+
+		segments.forEach(function (segment) {
+			segment.addEventListener('click', function () {
+				setMatch(segment.getAttribute('data-meprmf-match-mode'));
+			});
+		});
+
+		// role="radio" carries arrow-key expectations: the arrows move focus and selection
+		// together, and only the selected segment is a tab stop.
+		if (matchWrap) {
+			matchWrap.addEventListener('keydown', function (ev) {
+				var step = 0;
+				if (ev.key === 'ArrowRight' || ev.key === 'ArrowDown') {
+					step = 1;
+				} else if (ev.key === 'ArrowLeft' || ev.key === 'ArrowUp') {
+					step = -1;
+				}
+				if (step === 0 || segments.length === 0) {
+					return;
+				}
+				ev.preventDefault();
+				var index = segments.indexOf(document.activeElement);
+				if (index === -1) {
+					index = state.match === 'any' ? 1 : 0;
+				}
+				var next = segments[(index + step + segments.length) % segments.length];
+				setMatch(next.getAttribute('data-meprmf-match-mode'));
+				next.focus();
+			});
+		}
+
+		function syncMatch() {
+			segments.forEach(function (segment) {
+				var selected = segment.getAttribute('data-meprmf-match-mode') === state.match;
+				segment.setAttribute('aria-checked', selected ? 'true' : 'false');
+				segment.classList.toggle('is-selected', selected);
+				segment.tabIndex = selected ? 0 : -1;
+			});
+		}
+
+		/* ---- footer / badge ---- */
+
+		function syncFooter() {
+			var active = state.rows.filter(rowIsActive).length;
+			if (countBadge) {
+				countBadge.textContent = String(active);
+				countBadge.hidden = active === 0;
+			}
+			if (statusEl) {
+				statusEl.hidden = signature(state.rows, state.match) === state.appliedSignature;
+			}
+			syncChips();
+		}
+
+		/* ---- add-filter popover ---- */
+
+		function usedParams() {
+			var used = {};
+			state.rows.forEach(function (row) {
+				used[row.param] = true;
+			});
+			return used;
+		}
+
+		function renderPopoverList() {
+			clear(popoverList);
+			var used = usedParams();
+			var query = state.query.toLowerCase();
+			var groupLabels = cfg().groupLabels || {};
+			var buckets = {};
+			var order = [];
+
+			catalog().forEach(function (entry) {
+				if (used[entry.param]) {
+					return;
+				}
+				if (query !== '' && String(entry.label).toLowerCase().indexOf(query) === -1) {
+					return;
+				}
+				var group = String(entry.group || '');
+				if (!buckets[group]) {
+					buckets[group] = [];
+					order.push(group);
+				}
+				buckets[group].push(entry);
+			});
+
+			// Group order follows the localized label map, so it stays stable across screens.
+			var known = Object.keys(groupLabels).filter(function (group) {
+				return !!buckets[group];
+			});
+			order.forEach(function (group) {
+				if (known.indexOf(group) === -1) {
+					known.push(group);
+				}
+			});
+
+			if (known.length === 0) {
+				popoverList.appendChild(textNode('p', 'meprmf-qb__popover-empty', i18n('noFilterMatches', 'No filters match.')));
+				return;
+			}
+
+			known.forEach(function (group) {
+				popoverList.appendChild(
+					textNode('div', 'meprmf-qb__opt-group', groupLabels[group] || group)
+				);
+				buckets[group].forEach(function (entry) {
+					var item = el('button', 'meprmf-qb__opt');
+					item.type = 'button';
+					item.setAttribute('data-meprmf-add', entry.param);
+					item.appendChild(textNode('span', 'meprmf-qb__opt-label', entry.label));
+					item.appendChild(textNode('span', 'meprmf-qb__opt-kind', kindLabel(entry.kind)));
+					item.addEventListener('click', function () {
+						addRow(entry);
+					});
+					popoverList.appendChild(item);
+				});
+			});
+		}
+
+		function addRow(entry) {
+			var tokens = opTokens(entry);
+			state.rows.push(makeRow(entry, tokens.length > 0 ? tokens[0] : '', '', ''));
+			state.query = '';
+			if (searchInput) {
+				searchInput.value = '';
+			}
+			closePopover();
+			renderRows();
+			syncFooter();
+			var last = rowsWrap.lastElementChild;
+			var focusTarget = last ? last.querySelector('select, input') : null;
+			if (focusTarget) {
+				focusTarget.focus();
+			}
+		}
+
+		function openPopover() {
+			state.popoverOpen = true;
+			popover.hidden = false;
+			addBtn.setAttribute('aria-expanded', 'true');
+			renderPopoverList();
+			if (searchInput) {
+				searchInput.focus();
+			}
+		}
+
+		function closePopover() {
+			if (!state.popoverOpen) {
+				popover.hidden = true;
+				addBtn.setAttribute('aria-expanded', 'false');
+				return;
+			}
+			state.popoverOpen = false;
+			popover.hidden = true;
+			addBtn.setAttribute('aria-expanded', 'false');
+		}
+
+		addBtn.addEventListener('click', function () {
+			if (state.popoverOpen) {
+				closePopover();
+				return;
+			}
+			if (!state.open) {
+				setOpen(true);
+			}
+			openPopover();
+		});
+
+		if (searchInput) {
+			searchInput.addEventListener('input', function () {
+				state.query = String(searchInput.value || '').trim();
+				renderPopoverList();
+			});
+		}
+
+		popover.addEventListener('keydown', function (ev) {
+			if (ev.key === 'Escape') {
+				ev.stopPropagation();
+				closePopover();
+				addBtn.focus();
+				return;
+			}
+			if (ev.key !== 'ArrowDown' && ev.key !== 'ArrowUp') {
+				return;
+			}
+			var items = Array.prototype.slice.call(popover.querySelectorAll('.meprmf-qb__opt'));
+			if (items.length === 0) {
+				return;
+			}
+			ev.preventDefault();
+			var index = items.indexOf(document.activeElement);
+			if (ev.key === 'ArrowDown') {
+				items[index === -1 || index === items.length - 1 ? 0 : index + 1].focus();
+			} else {
+				items[index <= 0 ? items.length - 1 : index - 1].focus();
+			}
+		});
+
+		document.addEventListener('click', function (ev) {
+			if (!state.popoverOpen || popover.contains(ev.target) || addBtn.contains(ev.target)) {
+				return;
+			}
+			closePopover();
+		});
+
+		/* ---- apply / clear ---- */
+
+		function pendingParams() {
+			var out = {};
+			state.rows.forEach(function (row) {
+				var entry = entryByParam(row.param);
+				if (!entry) {
+					return;
+				}
+				var writes = writesForRow(entry, row);
+				Object.keys(writes).forEach(function (key) {
+					out[key] = writes[key];
+				});
+			});
+			if (state.match === 'any') {
+				out[matchParam()] = 'any';
+			}
+			return out;
+		}
+
+		function applyFilters() {
+			if (applyBtn) {
+				applyBtn.disabled = true;
+			}
+			var u = new URL(window.location.href);
+			// Only this plugin's params and the native toolbar params are managed here; page,
+			// screen, orderby and MemberPress's own search keys are left exactly as they are.
+			stripKnownParams(u);
+			// Any change to the filter set invalidates the current offset.
+			u.searchParams.delete('paged');
+
+			var params = pendingParams();
+			var native = stripInactiveTransactionDateParams(collectNativeToolbarParams());
+			Object.keys(native).forEach(function (key) {
+				params[key] = native[key];
+			});
+			Object.keys(params).forEach(function (key) {
+				u.searchParams.set(key, params[key]);
+			});
+
+			window.location.assign(u.toString());
+		}
+
+		if (applyBtn) {
+			applyBtn.addEventListener('click', applyFilters);
+		}
+
+		if (clearBtn) {
+			clearBtn.addEventListener('click', function () {
+				state.rows = [];
+				state.match = 'all';
+				if (viewsSelect) {
+					viewsSelect.value = '';
+					syncDeleteView();
+				}
+				setOpen(true);
+				renderRows();
+				syncMatch();
+				syncFooter();
+			});
+		}
+
+		/* ---- saved views ---- */
+
+		function presets() {
+			var list = cfg().presets;
+			if (Array.isArray(list)) {
+				return list;
+			}
+			if (list && typeof list === 'object') {
+				return Object.keys(list).map(function (key) {
+					return list[key];
+				});
+			}
+			return [];
+		}
+
+		function presetById(id) {
+			var target = String(id || '');
+			var list = presets();
+			for (var i = 0; i < list.length; i++) {
+				if (list[i] && String(list[i].id) === target) {
+					return list[i];
+				}
+			}
+			return null;
+		}
+
+		function presetParamsMap(preset) {
+			var known = {};
+			knownKeys().forEach(function (key) {
+				known[key] = true;
+			});
+			var map = {};
+			Object.keys((preset && preset.params) || {}).forEach(function (key) {
+				if (known[key]) {
+					map[key] = String(preset.params[key] || '');
+				}
+			});
+			return map;
+		}
+
+		/**
+		 * The view the current URL is, if it is one. Selecting a view navigates, so nothing marks
+		 * the select afterwards — match the applied filters against each saved view instead.
+		 */
+		function matchingPresetId(rows) {
+			if (rows.length === 0) {
+				return '';
+			}
+			var current = signature(rows, appliedMatchMode());
+			var list = presets();
+			for (var i = 0; i < list.length; i++) {
+				if (!list[i] || !list[i].id) {
+					continue;
+				}
+				var map = presetParamsMap(list[i]);
+				if (signature(rowsFromMap(map), map[matchParam()] === 'any' ? 'any' : 'all') === current) {
+					return String(list[i].id);
+				}
+			}
+			return '';
+		}
+
+		function applyPreset(preset) {
+			if (!preset || !preset.params) {
+				return;
+			}
+			var map = presetParamsMap(preset);
+			state.rows = rowsFromMap(map);
+			state.match = map[matchParam()] === 'any' ? 'any' : 'all';
+			renderRows();
+			syncMatch();
+			syncFooter();
+			applyFilters();
+		}
+
+		function syncDeleteView() {
+			if (deleteViewBtn) {
+				deleteViewBtn.hidden = !viewsSelect || viewsSelect.value === '';
+			}
+		}
+
+		if (viewsSelect) {
+			viewsSelect.value = matchingPresetId(applied);
+			viewsSelect.addEventListener('change', function () {
+				syncDeleteView();
+				var preset = presetById(viewsSelect.value);
+				if (preset) {
+					applyPreset(preset);
+				}
+			});
+		}
+		syncDeleteView();
+
+		function forgetPreset(id) {
+			cfg().presets = presets().filter(function (preset) {
+				return preset && String(preset.id) !== String(id);
+			});
+			if (viewsSelect) {
+				Array.prototype.slice.call(viewsSelect.options).forEach(function (option) {
+					if (option.value === String(id) && option.parentNode) {
+						option.parentNode.removeChild(option);
+					}
+				});
+				viewsSelect.value = '';
+			}
+			card.querySelectorAll('[data-meprmf-preset-id]').forEach(function (pill) {
+				if (pill.getAttribute('data-meprmf-preset-id') === String(id) && pill.parentNode) {
+					pill.parentNode.removeChild(pill);
+				}
+			});
+			syncDeleteView();
+		}
+
+		if (deleteViewBtn && viewsSelect) {
+			deleteViewBtn.addEventListener('click', function () {
+				var preset = presetById(viewsSelect.value);
+				var conf = cfg();
+				if (!preset) {
+					return;
+				}
+				if (!conf.ajaxUrl || !conf.presetsNonce) {
+					window.alert(i18n('deleteViewError', 'Could not delete the saved view. Please try again.'));
+					return;
+				}
+				// Views are site-wide, so this is not only the current admin's list.
+				if (!window.confirm(sprintf1(i18n('deleteViewConfirm', 'Delete the saved view “%s”?'), preset.name))) {
+					return;
+				}
+
+				deleteViewBtn.disabled = true;
+
+				var payload = new URLSearchParams();
+				payload.set('action', 'meprmf_delete_filter_preset');
+				payload.set('nonce', conf.presetsNonce);
+				payload.set('screen', conf.storageId || storageNs());
+				payload.set('id', String(preset.id));
+
+				fetch(conf.ajaxUrl, {
+					method: 'POST',
+					credentials: 'same-origin',
+					headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+					body: payload.toString()
+				})
+					.then(function (res) {
+						return res.json().then(function (data) {
+							return { ok: res.ok, data: data };
+						});
+					})
+					.then(function (result) {
+						var data = result.data;
+						if (!result.ok || !data || !data.success) {
+							var message = (data && data.data && data.data.message)
+								? data.data.message
+								: i18n('deleteViewError', 'Could not delete the saved view. Please try again.');
+							throw new Error(message);
+						}
+						forgetPreset(preset.id);
+						if (data.data && Array.isArray(data.data.presets)) {
+							cfg().presets = data.data.presets;
+						}
+					})
+					.catch(function (err) {
+						window.alert(err && err.message ? err.message : i18n('deleteViewError', 'Could not delete the saved view. Please try again.'));
+					})
+					.finally(function () {
+						deleteViewBtn.disabled = false;
+					});
+			});
+		}
+
+		card.querySelectorAll('[data-meprmf-preset-id]').forEach(function (pill) {
+			pill.addEventListener('click', function () {
+				var preset = presetById(pill.getAttribute('data-meprmf-preset-id'));
+				if (preset) {
+					applyPreset(preset);
+				}
+			});
+		});
+
+		if (saveBtn) {
+			saveBtn.addEventListener('click', function () {
+				var params = pendingParams();
+				if (Object.keys(params).length === 0) {
+					window.alert(i18n('noActiveFilters', 'Apply at least one filter before saving a preset.'));
+					return;
+				}
+				var conf = cfg();
+				if (!conf.ajaxUrl || !conf.presetsNonce) {
+					window.alert(i18n('saveError', 'Could not save the preset. Please try again.'));
+					return;
+				}
+				var name = window.prompt(i18n('savePrompt', 'Preset name'), '');
+				if (name === null) {
+					return;
+				}
+				name = String(name).trim();
+				if (name === '') {
+					return;
+				}
+
+				saveBtn.disabled = true;
+
+				var payload = new URLSearchParams();
+				payload.set('action', 'meprmf_save_filter_preset');
+				payload.set('nonce', conf.presetsNonce);
+				payload.set('screen', conf.storageId || storageNs());
+				payload.set('name', name);
+				payload.set('params', JSON.stringify(params));
+
+				fetch(conf.ajaxUrl, {
+					method: 'POST',
+					credentials: 'same-origin',
+					headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+					body: payload.toString()
+				})
+					.then(function (res) {
+						return res.json().then(function (data) {
+							return { ok: res.ok, data: data };
+						});
+					})
+					.then(function (result) {
+						var data = result.data;
+						if (!result.ok || !data || !data.success) {
+							var message = (data && data.data && data.data.message)
+								? data.data.message
+								: i18n('saveError', 'Could not save the preset. Please try again.');
+							throw new Error(message);
+						}
+						var saved = data.data && data.data.preset ? data.data.preset : null;
+						if (Array.isArray(data.data.presets)) {
+							cfg().presets = data.data.presets;
+						}
+						if (saved && viewsSelect) {
+							var existing = viewsSelect.querySelector('option[value="' + String(saved.id).replace(/"/g, '') + '"]');
+							if (!existing) {
+								viewsSelect.appendChild(optionNode(saved.id, saved.name, false));
+							}
+							viewsSelect.value = String(saved.id);
+							syncDeleteView();
+						}
+					})
+					.catch(function (err) {
+						window.alert(err && err.message ? err.message : i18n('saveError', 'Could not save the preset. Please try again.'));
+					})
+					.finally(function () {
+						saveBtn.disabled = false;
+					});
+			});
+		}
+
+		/* ---- first paint ---- */
+
+		card.addEventListener('keydown', function (ev) {
+			if (ev.key === 'Escape' && state.popoverOpen) {
+				closePopover();
+				addBtn.focus();
+			}
+		});
+
+		renderRows();
+		syncMatch();
+		syncFooter();
+		syncOpen();
+		card.removeAttribute('hidden');
+	}
+
+	/**
+	 * Card markup is printed in admin_footer (block markup is invalid inside MemberPress's
+	 * `<p class="mepr-search-box">`). Move it above the tablenav before wiring handlers.
+	 */
+	function relocateCardsFromPool() {
+		var pool = document.getElementById('meprmf-floating-panels-pool');
+		document.querySelectorAll('[data-meprmf-panel-id]').forEach(function (anchor) {
+			var id = anchor.getAttribute('data-meprmf-panel-id');
 			if (!id) {
 				return;
 			}
-			var panel = document.getElementById(id);
-			if (panel && panel.parentNode === pool) {
-				root.appendChild(panel);
+			var card = document.getElementById(id);
+			// A second anchor (bottom tablenav) must not drag the card down the page.
+			if (!card || card.getAttribute('data-meprmf-mounted') === '1') {
+				return;
+			}
+			card.setAttribute('data-meprmf-mounted', '1');
+			var target = anchor.closest('.tablenav') || anchor.closest('p.mepr-search-box') || anchor;
+			if (target.parentNode) {
+				target.parentNode.insertBefore(card, target);
 			}
 		});
-		if (pool.parentNode) {
+		if (pool && pool.parentNode) {
 			pool.parentNode.removeChild(pool);
 		}
 	}
 
 	function boot() {
 		canonicalizeLegacyAccessParam();
-		relocateFloatingPanelsFromPool();
-		document.querySelectorAll('.meprmf-floating-root').forEach(function (root) {
-			initRoot(root);
+		relocateCardsFromPool();
+		document.querySelectorAll('.meprmf-qb').forEach(function (card) {
+			initCard(card);
 		});
 	}
 

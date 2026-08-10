@@ -40,50 +40,50 @@ class Meprmf_Active_Filters
     /**
      * Phrase appended to a field label for each operator.
      *
-     * `is` and `contains` return an empty phrase: they are the plain reading of
-     * "Label: value" and adding words would only make the chip longer.
+     * Every operator keeps its word, because a text field offers both `is` and `contains`
+     * and dropping the word would render two different filters as the same chip. Wording
+     * comes from the query builder's own operator labels, so a chip and the row that
+     * produced it read the same.
      *
-     * @param string $operator Operator key.
-     * @return array{phrase: string, needs_value: bool}
+     * @param string $operator Operator token.
+     * @return string
      */
     private static function operator_phrase($operator)
     {
-        switch ($operator) {
-            case 'is_not':
-                return [ 'phrase' => __('is not', 'admin-filters-for-memberpress'), 'needs_value' => true ];
-            case 'not_contains':
-                return [ 'phrase' => __('does not contain', 'admin-filters-for-memberpress'), 'needs_value' => true ];
-            case 'is_empty':
-                return [ 'phrase' => __('is empty', 'admin-filters-for-memberpress'), 'needs_value' => false ];
-            case 'is_not_empty':
-                return [ 'phrase' => __('is not empty', 'admin-filters-for-memberpress'), 'needs_value' => false ];
-            case 'is_one_of':
-                return [ 'phrase' => __('is one of', 'admin-filters-for-memberpress'), 'needs_value' => true ];
-            default:
-                return [ 'phrase' => '', 'needs_value' => true ];
+        $operator = (string) $operator;
+        if ('' === $operator) {
+            return '';
         }
+
+        $labels = Meprmf_Util::get_operator_labels();
+
+        return isset($labels[ $operator ]) ? (string) $labels[ $operator ] : '';
     }
 
     /**
-     * Map a raw value to its display label using a field's options, when it has any.
+     * Map a raw value to its display label using a catalog entry's options, when it has any.
      *
-     * @param array<string, mixed> $field Field definition.
+     * @since 2.1.0
+     * @param array<string, mixed> $entry Catalog entry.
      * @param string               $value Raw value.
      * @return string
      */
-    private static function value_label(array $field, $value)
+    private static function option_label(array $entry, $value)
     {
-        if (empty($field['options']) || ! is_array($field['options'])) {
-            return $value;
+        if (empty($entry['options']) || ! is_array($entry['options'])) {
+            return (string) $value;
         }
 
-        foreach ($field['options'] as $opt_value => $opt_label) {
-            if ((string) $opt_value === $value) {
-                return (string) $opt_label;
+        foreach ($entry['options'] as $option) {
+            if (! is_array($option) || ! isset($option['v'])) {
+                continue;
+            }
+            if ((string) $option['v'] === (string) $value) {
+                return isset($option['l']) ? (string) $option['l'] : (string) $value;
             }
         }
 
-        return $value;
+        return (string) $value;
     }
 
     /**
@@ -92,95 +92,49 @@ class Meprmf_Active_Filters
      * Pure: everything it needs arrives as arguments, so the grouping and labelling
      * rules can be tested without a request or a database.
      *
+     * The rows are read from the same field catalog the query builder is built from, so a
+     * chip covers exactly the params one row owns — value, both bounds, the operator and the
+     * relative window — and removing the chip therefore removes the whole filter.
+     *
      * @param array<int, array<string, mixed>> $valid       Normalized field definitions.
      * @param array<int, string>               $native_keys Native toolbar param keys.
      * @param array<string, mixed>             $request     Request map (usually $_GET).
-     * @return array<int, array{label: string, value: string, params: array<int, string>}>
+     * @return array<int, array{label: string, value: string, text: string, params: array<int, string>}>
      */
     public static function build_chips(array $valid, array $native_keys, array $request)
     {
-        $chips       = [];
-        $range_seen  = [];
-        $handled     = [];
+        $catalog = Meprmf_Toolbar_Renderer::build_field_catalog($valid);
+        $chips   = [];
+        $handled = [];
 
+        // One field per catalog entry, for operator gating: which operators the engine will
+        // actually honour depends on the field's type, not on what the row selector offers.
+        $by_base = [];
         foreach ($valid as $field) {
-            $param = Meprmf_Util::sanitize_param(isset($field['param']) ? $field['param'] : '');
-            if ('' === $param) {
+            if (! is_array($field)) {
                 continue;
             }
+            $base = Meprmf_Util::range_base_param($field);
+            if ('' !== $base && ! isset($by_base[ $base ])) {
+                $by_base[ $base ] = $field;
+            }
+        }
 
-            $label = isset($field['label']) ? (string) $field['label'] : $param;
-            $type  = isset($field['type']) ? (string) $field['type'] : 'text';
-
-            // A date range renders as one chip even though it owns two params.
-            $group = isset($field['date_range_of']) ? (string) $field['date_range_of'] : '';
-            if ('' !== $group) {
-                if (isset($range_seen[ $group ])) {
-                    continue;
-                }
-                $chip = self::build_range_chip($valid, $group, $request);
-                if (null !== $chip) {
-                    $range_seen[ $group ] = true;
-                    $chips[]              = $chip;
-                }
+        foreach ($catalog as $entry) {
+            if (! is_array($entry)) {
                 continue;
             }
-
-            if ('date_range' === $type) {
-                $range = Meprmf_Util::date_range_param_names($param);
-                $chip  = self::range_chip_from_params($label, $range['from'], $range['to'], $request);
-                if (null !== $chip) {
-                    $chips[] = $chip;
-                }
-                continue;
+            foreach (self::entry_params($entry) as $param) {
+                $handled[ $param ] = true;
             }
 
-            $op_param = Meprmf_Util::field_supports_operators($field)
-                ? Meprmf_Util::operator_param_name($param)
-                : '';
-            $operator = ('' !== $op_param && isset($request[ $op_param ]))
-                ? (string) $request[ $op_param ]
-                : '';
-            if (! in_array($operator, Meprmf_Util::get_operators(), true)) {
-                $operator = '';
+            $base  = isset($entry['param']) ? (string) $entry['param'] : '';
+            $field = isset($by_base[ $base ]) ? $by_base[ $base ] : [];
+
+            $chip = self::build_entry_chip($entry, $field, $request);
+            if (null !== $chip) {
+                $chips[] = $chip;
             }
-
-            $raw = isset($request[ $param ]) && is_scalar($request[ $param ])
-                ? trim((string) $request[ $param ])
-                : '';
-
-            $meta = self::operator_phrase($operator);
-
-            // "is empty" / "is not empty" constrain the list with no value at all.
-            if (! $meta['needs_value'] && '' === $raw) {
-                $chips[]             = [
-                    'label'  => trim($label . ' ' . $meta['phrase']),
-                    'value'  => '',
-                    'params' => array_values(array_filter([ $param, $op_param ])),
-                ];
-                $handled[ $param ]   = true;
-                continue;
-            }
-
-            if ('' === $raw) {
-                continue;
-            }
-
-            $value = ('is_one_of' === $operator)
-                ? implode(', ', array_map(
-                    static function ($one) use ($field) {
-                        return self::value_label($field, $one);
-                    },
-                    array_filter(array_map('trim', explode(',', $raw)), 'strlen')
-                ))
-                : self::value_label($field, $raw);
-
-            $chips[]           = [
-                'label'  => trim($label . ('' !== $meta['phrase'] ? ' ' . $meta['phrase'] : '')),
-                'value'  => $value,
-                'params' => array_values(array_filter([ $param, $op_param ])),
-            ];
-            $handled[ $param ] = true;
         }
 
         foreach ($native_keys as $key) {
@@ -188,10 +142,7 @@ class Meprmf_Active_Filters
             if ('' === $key || isset($handled[ $key ])) {
                 continue;
             }
-            if (! isset($request[ $key ]) || ! is_scalar($request[ $key ])) {
-                continue;
-            }
-            $raw = trim((string) $request[ $key ]);
+            $raw = self::read_param($request, $key);
             if ('' === $raw) {
                 continue;
             }
@@ -199,120 +150,423 @@ class Meprmf_Active_Filters
             $labels = self::native_param_labels();
             $label  = isset($labels[ $key ]) ? $labels[ $key ] : ucfirst(str_replace('_', ' ', $key));
 
-            $chips[] = [
-                'label'  => $label,
-                'value'  => self::resolve_native_value($valid, $key, $raw),
-                'params' => [ $key ],
-            ];
+            // A native toolbar control only ever means equality, so it reads with the `is` word
+            // the builder rows use rather than a punctuation style of its own.
+            $chips[] = self::chip(
+                $label,
+                self::operator_phrase('is'),
+                self::resolve_native_value($catalog, $key, $raw),
+                [ $key ]
+            );
+        }
+
+        // The mode changes what the whole row means, so it is only worth saying next to
+        // filters it is actually combining — and it has to be removable with them.
+        if (! empty($chips) && 'any' === self::read_param($request, Meprmf_Util::MATCH_MODE_PARAM)) {
+            array_unshift(
+                $chips,
+                self::chip(
+                    __('Matching any filter', 'admin-filters-for-memberpress'),
+                    '',
+                    '',
+                    [ Meprmf_Util::MATCH_MODE_PARAM ]
+                )
+            );
         }
 
         return $chips;
     }
 
     /**
-     * Resolve a native param value to a friendlier label when a panel field knows it.
+     * Build one chip for one catalog entry, or null when the entry has no active filter.
+     *
+     * @since 2.1.0
+     * @param array<string, mixed> $entry   Catalog entry.
+     * @param array<string, mixed> $field   Field definition behind the entry, for operator gating.
+     * @param array<string, mixed> $request Request map.
+     * @return array{label: string, value: string, text: string, params: array<int, string>}|null
+     */
+    private static function build_entry_chip(array $entry, array $field, array $request)
+    {
+        $names = self::entry_params($entry);
+        $label = isset($entry['label']) ? trim((string) $entry['label']) : '';
+        if (empty($names) || '' === $label) {
+            return null;
+        }
+
+        $kind  = isset($entry['kind']) ? (string) $entry['kind'] : 'text';
+        $unit  = isset($entry['unit']) ? (string) $entry['unit'] : '';
+        $slots = isset($entry['params']) && is_array($entry['params']) ? $entry['params'] : [];
+
+        $value = self::read_slot($slots, 'value', $request);
+        $from  = self::read_slot($slots, 'from', $request);
+        $to    = self::read_slot($slots, 'to', $request);
+        $n     = self::read_slot($slots, 'n', $request);
+
+        $operator = self::read_operator($slots, $field, $request);
+        if ('' === $operator) {
+            $operator = self::infer_operator($kind, $value, $from, $to, $n);
+        }
+
+        // "is empty" / "is not empty" constrain the list with no value at all.
+        if (in_array($operator, Meprmf_Util::VALUELESS_OPERATORS, true)) {
+            return self::chip($label, self::operator_phrase($operator), '', $names);
+        }
+
+        if (in_array($operator, Meprmf_Util::RELATIVE_OPERATORS, true)) {
+            if (! is_numeric($n) || (int) $n < 1) {
+                return null;
+            }
+
+            return self::chip(
+                $label,
+                self::operator_phrase($operator),
+                self::relative_value((int) $n, self::read_slot($slots, 'u', $request)),
+                $names
+            );
+        }
+
+        if ('between' === $operator && ( '' !== $from || '' !== $to )) {
+            return self::chip($label, '', self::bounds_value($kind, $unit, $from, $to), $names);
+        }
+
+        // A single-input row writes its one value to whichever bound the operator names.
+        $raw = $value;
+        if ('' === $raw) {
+            $raw = in_array($operator, [ 'before', 'at_most' ], true) ? $to : $from;
+        }
+        if ('' === $raw) {
+            return null;
+        }
+
+        return self::chip(
+            $label,
+            self::operator_phrase($operator),
+            self::format_value($entry, $kind, $unit, $operator, $raw),
+            $names
+        );
+    }
+
+    /**
+     * Assemble one chip and its display reading.
+     *
+     * @since 2.1.0
+     * @param string             $label  Field label.
+     * @param string             $phrase Operator phrase, or ''.
+     * @param string             $value  Formatted value, or ''.
+     * @param array<int, string> $params GET params the chip owns.
+     * @return array{label: string, value: string, text: string, params: array<int, string>}
+     */
+    private static function chip($label, $phrase, $value, array $params)
+    {
+        $full = trim($label . ('' !== $phrase ? ' ' . $phrase : ''));
+        $text = ('' === $value) ? $full : $full . ' ' . $value;
+
+        return [
+            'label'  => $full,
+            'value'  => $value,
+            'text'   => $text,
+            'params' => $params,
+        ];
+    }
+
+    /**
+     * Every GET param one catalog entry owns, sanitized and deduped.
+     *
+     * @since 2.1.0
+     * @param array<string, mixed> $entry Catalog entry.
+     * @return array<int, string>
+     */
+    private static function entry_params(array $entry)
+    {
+        $slots = isset($entry['params']) && is_array($entry['params']) ? $entry['params'] : [];
+        $out   = [];
+
+        foreach ($slots as $name) {
+            $name = Meprmf_Util::sanitize_param(is_scalar($name) ? (string) $name : '');
+            if ('' !== $name && ! in_array($name, $out, true)) {
+                $out[] = $name;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Read one of an entry's param slots from the request.
+     *
+     * @since 2.1.0
+     * @param array<string, mixed> $slots   Entry param map.
+     * @param string               $slot    Slot key (value, from, to, n, u, op).
+     * @param array<string, mixed> $request Request map.
+     * @return string
+     */
+    private static function read_slot(array $slots, $slot, array $request)
+    {
+        return self::read_param($request, isset($slots[ $slot ]) ? (string) $slots[ $slot ] : '');
+    }
+
+    /**
+     * Read one request param as a trimmed string, joining a multi-value param with commas.
+     *
+     * `?p[]=a&p[]=b` and `?p=a,b` mean the same thing to the engine, so they must mean the
+     * same thing to a chip.
+     *
+     * @since 2.1.0
+     * @param array<string, mixed> $request Request map.
+     * @param string               $param   Param name.
+     * @return string
+     */
+    private static function read_param(array $request, $param)
+    {
+        $param = (string) $param;
+        if ('' === $param || ! isset($request[ $param ])) {
+            return '';
+        }
+
+        $raw = $request[ $param ];
+
+        if (is_array($raw)) {
+            $parts = [];
+            foreach ($raw as $one) {
+                if (! is_scalar($one)) {
+                    continue;
+                }
+                $one = trim((string) $one);
+                if ('' !== $one) {
+                    $parts[] = $one;
+                }
+            }
+
+            return implode(',', $parts);
+        }
+
+        return is_scalar($raw) ? trim((string) $raw) : '';
+    }
+
+    /**
+     * Read the operator for an entry, rejecting anything the engine would not honour.
+     *
+     * @since 2.1.0
+     * @param array<string, mixed> $slots   Entry param map.
+     * @param array<string, mixed> $field   Field definition, or [] when the entry has none.
+     * @param array<string, mixed> $request Request map.
+     * @return string Operator token, or ''.
+     */
+    private static function read_operator(array $slots, array $field, array $request)
+    {
+        $raw = self::read_slot($slots, 'op', $request);
+        if ('' === $raw) {
+            return '';
+        }
+
+        // A catalog entry added through the `meprmf_field_catalog` filter has no field to gate
+        // against, so fall back to the whole vocabulary rather than dropping its operator.
+        $allowed = empty($field) ? Meprmf_Util::get_operators() : Meprmf_Util::get_operators_for_field($field);
+
+        return in_array($raw, $allowed, true) ? $raw : '';
+    }
+
+    /**
+     * Operator implied by a pre-2.1 URL, which carries values but no operator param.
+     *
+     * Mirrors the query builder's own fallback so a bookmarked URL chips the way its row reads.
+     *
+     * @since 2.1.0
+     * @param string $kind  Value-control family.
+     * @param string $value Value param.
+     * @param string $from  Lower bound param.
+     * @param string $to    Upper bound param.
+     * @param string $n     Relative magnitude param.
+     * @return string
+     */
+    private static function infer_operator($kind, $value, $from, $to, $n)
+    {
+        if ('' !== $value) {
+            return 'is';
+        }
+        if ('' !== $from && '' !== $to) {
+            return 'between';
+        }
+        if ('' !== $from) {
+            return ('number' === $kind) ? 'at_least' : 'after';
+        }
+        if ('' !== $to) {
+            return ('number' === $kind) ? 'at_most' : 'before';
+        }
+        if ('' !== $n) {
+            return 'in_last';
+        }
+
+        return '';
+    }
+
+    /**
+     * Reading for a two-bound filter, including a half-open one.
+     *
+     * @since 2.1.0
+     * @param string $kind Value-control family.
+     * @param string $unit Unit glyph, or ''.
+     * @param string $from Lower bound.
+     * @param string $to   Upper bound.
+     * @return string
+     */
+    private static function bounds_value($kind, $unit, $from, $to)
+    {
+        $a = ('' !== $from) ? self::format_bound($kind, $unit, $from) : '';
+        $b = ('' !== $to) ? self::format_bound($kind, $unit, $to) : '';
+
+        if ('' !== $a && '' !== $b) {
+            $format = ('number' === $kind)
+                /* translators: 1: lower bound, 2: upper bound. */
+                ? __('%1$s–%2$s', 'admin-filters-for-memberpress')
+                /* translators: 1: start date, 2: end date. */
+                : __('%1$s – %2$s', 'admin-filters-for-memberpress');
+
+            return sprintf($format, $a, $b);
+        }
+
+        if ('' !== $a) {
+            /* translators: %s: lower bound. */
+            return sprintf(__('from %s', 'admin-filters-for-memberpress'), $a);
+        }
+
+        /* translators: %s: upper bound. */
+        return sprintf(__('until %s', 'admin-filters-for-memberpress'), $b);
+    }
+
+    /**
+     * Reading for one bound value.
+     *
+     * @since 2.1.0
+     * @param string $kind Value-control family.
+     * @param string $unit Unit glyph, or ''.
+     * @param string $raw  Raw bound value.
+     * @return string
+     */
+    private static function format_bound($kind, $unit, $raw)
+    {
+        if ('date' === $kind) {
+            return self::format_date($raw);
+        }
+        if ('number' === $kind) {
+            return $unit . $raw;
+        }
+
+        return (string) $raw;
+    }
+
+    /**
+     * Reading for a single-value filter.
+     *
+     * @since 2.1.0
+     * @param array<string, mixed> $entry    Catalog entry.
+     * @param string               $kind     Value-control family.
+     * @param string               $unit     Unit glyph, or ''.
+     * @param string               $operator Operator token.
+     * @param string               $raw      Raw value.
+     * @return string
+     */
+    private static function format_value(array $entry, $kind, $unit, $operator, $raw)
+    {
+        if ('is_one_of' === $operator) {
+            $out = [];
+            foreach (explode(',', $raw) as $one) {
+                $one = trim($one);
+                if ('' !== $one) {
+                    $out[] = self::option_label($entry, $one);
+                }
+            }
+
+            return implode(', ', $out);
+        }
+
+        if ('date' === $kind) {
+            return self::format_date($raw);
+        }
+        if ('number' === $kind) {
+            return $unit . $raw;
+        }
+
+        return self::option_label($entry, $raw);
+    }
+
+    /**
+     * Reading for a relative window ("30 days").
+     *
+     * @since 2.1.0
+     * @param int    $n    Magnitude.
+     * @param string $unit Raw unit param.
+     * @return string
+     */
+    private static function relative_value($n, $unit)
+    {
+        $labels = Meprmf_Util::get_relative_unit_labels();
+        $label  = isset($labels[ $unit ]) ? $labels[ $unit ] : $labels['days'];
+
+        /* translators: 1: number of units, 2: unit name (days, weeks, months, years). */
+        return sprintf(__('%1$d %2$s', 'admin-filters-for-memberpress'), (int) $n, $label);
+    }
+
+    /**
+     * Render a Y-m-d filter value in the site date format, or pass it through unchanged.
+     *
+     * A value that does not parse is shown raw: turning unrecognised input into a date would
+     * claim the list is filtered by something it is not.
+     *
+     * @since 2.1.0
+     * @param string $raw Raw value.
+     * @return string
+     */
+    private static function format_date($raw)
+    {
+        $ymd = Meprmf_Util::parse_date_param($raw);
+        if (null === $ymd || ! function_exists('mysql2date')) {
+            return (string) $raw;
+        }
+
+        $format = function_exists('get_option') ? get_option('date_format') : '';
+        if (! is_string($format) || '' === $format) {
+            $format = 'F j, Y';
+        }
+
+        $out = mysql2date($format, $ymd);
+
+        return (is_string($out) && '' !== $out) ? $out : (string) $raw;
+    }
+
+    /**
+     * Resolve a native param value to a friendlier label when a catalog entry knows it.
      *
      * The native `membership` param carries a product id; the panel's own membership
      * field already holds id => name options for the same screen, so reuse them rather
      * than showing a bare number.
      *
-     * @param array<int, array<string, mixed>> $valid Field definitions.
-     * @param string                           $key   Native param key.
-     * @param string                           $raw   Raw value.
+     * @param array<int, array<string, mixed>> $catalog Field catalog.
+     * @param string                           $key     Native param key.
+     * @param string                           $raw     Raw value.
      * @return string
      */
-    private static function resolve_native_value(array $valid, $key, $raw)
+    private static function resolve_native_value(array $catalog, $key, $raw)
     {
         if ('membership' !== $key) {
             return $raw;
         }
 
-        foreach ($valid as $field) {
-            $param = isset($field['param']) ? (string) $field['param'] : '';
-            if (! preg_match('/_product$/', $param)) {
+        foreach ($catalog as $entry) {
+            if (! is_array($entry) || ! isset($entry['param'])) {
                 continue;
             }
-            $label = self::value_label($field, $raw);
+            if (! preg_match('/_product$/', (string) $entry['param'])) {
+                continue;
+            }
+            $label = self::option_label($entry, $raw);
             if ($label !== $raw) {
                 return $label;
             }
         }
 
         return $raw;
-    }
-
-    /**
-     * Build one chip for a from/to pair sharing a date_range_of group.
-     *
-     * @param array<int, array<string, mixed>> $valid   Field definitions.
-     * @param string                           $group   date_range_of value.
-     * @param array<string, mixed>             $request Request map.
-     * @return array{label: string, value: string, params: array<int, string>}|null
-     */
-    private static function build_range_chip(array $valid, $group, array $request)
-    {
-        $label = $group;
-        $from  = '';
-        $to    = '';
-
-        foreach ($valid as $field) {
-            if (! isset($field['date_range_of']) || (string) $field['date_range_of'] !== $group) {
-                continue;
-            }
-            $param = Meprmf_Util::sanitize_param(isset($field['param']) ? $field['param'] : '');
-            $part  = isset($field['date_range_part']) ? (string) $field['date_range_part'] : '';
-            if ('from' === $part) {
-                $from = $param;
-            } elseif ('to' === $part) {
-                $to = $param;
-            }
-            if (isset($field['label']) && '' !== (string) $field['label']) {
-                // Strip the " from" / " to" suffix the expanded fields carry.
-                $label = trim(preg_replace('/\s+(from|to)$/i', '', (string) $field['label']));
-            }
-        }
-
-        return self::range_chip_from_params($label, $from, $to, $request);
-    }
-
-    /**
-     * Build one chip from an explicit from/to param pair.
-     *
-     * @param string               $label   Display label.
-     * @param string               $from    From param name.
-     * @param string               $to      To param name.
-     * @param array<string, mixed> $request Request map.
-     * @return array{label: string, value: string, params: array<int, string>}|null
-     */
-    private static function range_chip_from_params($label, $from, $to, array $request)
-    {
-        $from_val = ('' !== $from && isset($request[ $from ]) && is_scalar($request[ $from ]))
-            ? trim((string) $request[ $from ])
-            : '';
-        $to_val   = ('' !== $to && isset($request[ $to ]) && is_scalar($request[ $to ]))
-            ? trim((string) $request[ $to ])
-            : '';
-
-        if ('' === $from_val && '' === $to_val) {
-            return null;
-        }
-
-        if ('' !== $from_val && '' !== $to_val) {
-            /* translators: 1: start date, 2: end date. */
-            $value = sprintf(__('%1$s to %2$s', 'admin-filters-for-memberpress'), $from_val, $to_val);
-        } elseif ('' !== $from_val) {
-            /* translators: %s: start date. */
-            $value = sprintf(__('from %s', 'admin-filters-for-memberpress'), $from_val);
-        } else {
-            /* translators: %s: end date. */
-            $value = sprintf(__('until %s', 'admin-filters-for-memberpress'), $to_val);
-        }
-
-        return [
-            'label'  => $label,
-            'value'  => $value,
-            'params' => array_values(array_filter([ $from, $to ])),
-        ];
     }
 
     /**
@@ -324,8 +578,6 @@ class Meprmf_Active_Filters
      */
     public static function render(array $valid, Meprmf_Screen_Context $ctx)
     {
-        $valid = self::with_country_options($valid);
-
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only filter query args on admin list screens.
         $request = wp_unslash($_GET);
         if (! is_array($request)) {
@@ -354,17 +606,12 @@ class Meprmf_Active_Filters
         );
 
         foreach ($chips as $chip) {
-            $text = ('' !== $chip['value'])
-                /* translators: 1: filter label, 2: filter value. */
-                ? sprintf(__('%1$s: %2$s', 'admin-filters-for-memberpress'), $chip['label'], $chip['value'])
-                : $chip['label'];
-
             printf(
                 '<a class="meprmf-active-filters__chip" href="%1$s"><span class="meprmf-active-filters__chip-text">%2$s</span><span class="meprmf-active-filters__chip-x" aria-hidden="true">&times;</span><span class="screen-reader-text">%3$s</span></a>',
                 esc_url(remove_query_arg($chip['params'])),
-                esc_html($text),
+                esc_html($chip['text']),
                 /* translators: %s: filter description. */
-                esc_html(sprintf(__('Remove filter %s', 'admin-filters-for-memberpress'), $text))
+                esc_html(sprintf(__('Remove filter %s', 'admin-filters-for-memberpress'), $chip['text']))
             );
         }
 
@@ -377,34 +624,5 @@ class Meprmf_Active_Filters
         }
 
         echo '</span>';
-    }
-
-    /**
-     * Fill country fields with the MemberPress country list so chips show names, not codes.
-     *
-     * @param array<int, array<string, mixed>> $valid Field definitions.
-     * @return array<int, array<string, mixed>>
-     */
-    private static function with_country_options(array $valid)
-    {
-        if (! class_exists('MeprUtils') || ! method_exists('MeprUtils', 'countries')) {
-            return $valid;
-        }
-
-        $countries = null;
-        foreach ($valid as $i => $field) {
-            $type = isset($field['type']) ? (string) $field['type'] : '';
-            if ('country' !== $type || ! empty($field['options'])) {
-                continue;
-            }
-            if (null === $countries) {
-                $countries = MeprUtils::countries(true);
-            }
-            if (is_array($countries)) {
-                $valid[ $i ]['options'] = $countries;
-            }
-        }
-
-        return $valid;
     }
 }

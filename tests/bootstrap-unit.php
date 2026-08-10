@@ -214,6 +214,34 @@ if (! function_exists('wp_date')) {
     }
 }
 
+if (! function_exists('mysql2date')) {
+    /**
+     * @param string $format    Format.
+     * @param string $date      MySQL date string.
+     * @param bool   $translate Translate month/day names.
+     * @return string|false
+     */
+    function mysql2date($format, $date, $translate = true)
+    {
+        unset($translate);
+        $timestamp = strtotime((string) $date . ' UTC');
+        if (false === $timestamp) {
+            return false;
+        }
+        return gmdate((string) $format, $timestamp);
+    }
+}
+
+if (! function_exists('wp_timezone')) {
+    /**
+     * @return DateTimeZone
+     */
+    function wp_timezone()
+    {
+        return new DateTimeZone('UTC');
+    }
+}
+
 if (! function_exists('esc_sql')) {
     /**
      * @param string $data Data.

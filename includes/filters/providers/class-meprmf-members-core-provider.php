@@ -30,6 +30,7 @@ class Meprmf_Members_Core_Provider
                 'type'     => 'select',
                 'source'   => 'mepr_transaction',
                 'predicate' => 'product',
+                'group'    => Meprmf_Util::GROUP_MEMBERSHIP,
                 'options'  => $products,
             ],
             [
@@ -38,6 +39,7 @@ class Meprmf_Members_Core_Provider
                 'type'     => 'select',
                 'source'   => 'mepr_transaction',
                 'predicate' => 'access',
+                'group'    => Meprmf_Util::GROUP_MEMBERSHIP,
                 'options'  => [
                     'active'   => __('Active', 'admin-filters-for-memberpress'),
                     'inactive' => __('Inactive', 'admin-filters-for-memberpress'),
@@ -49,6 +51,7 @@ class Meprmf_Members_Core_Provider
                 'type'     => 'select',
                 'source'   => 'mepr_subscription',
                 'predicate' => 'sub_status',
+                'group'    => Meprmf_Util::GROUP_MEMBERSHIP,
                 'options'  => [
                     MeprSubscription::$active_str     => __('Active subscription', 'admin-filters-for-memberpress'),
                     MeprSubscription::$pending_str    => __('Pending subscription', 'admin-filters-for-memberpress'),
@@ -62,6 +65,9 @@ class Meprmf_Members_Core_Provider
                 'type'     => 'date',
                 'source'   => 'mepr_transaction',
                 'predicate' => 'exp_from',
+                'group'    => Meprmf_Util::GROUP_DATES,
+                'range_of'  => 'mpm_exp',
+                'range_part' => 'from',
             ],
             [
                 'param'    => 'mpm_exp_to',
@@ -69,6 +75,9 @@ class Meprmf_Members_Core_Provider
                 'type'     => 'date',
                 'source'   => 'mepr_transaction',
                 'predicate' => 'exp_to',
+                'group'    => Meprmf_Util::GROUP_DATES,
+                'range_of'  => 'mpm_exp',
+                'range_part' => 'to',
             ],
             [
                 'param'    => 'mpm_member_from',
@@ -76,6 +85,9 @@ class Meprmf_Members_Core_Provider
                 'type'     => 'date',
                 'source'   => 'mepr_member',
                 'predicate' => 'member_from',
+                'group'    => Meprmf_Util::GROUP_DATES,
+                'range_of'  => 'mpm_member',
+                'range_part' => 'from',
             ],
             [
                 'param'    => 'mpm_member_to',
@@ -83,6 +95,9 @@ class Meprmf_Members_Core_Provider
                 'type'     => 'date',
                 'source'   => 'mepr_member',
                 'predicate' => 'member_to',
+                'group'    => Meprmf_Util::GROUP_DATES,
+                'range_of'  => 'mpm_member',
+                'range_part' => 'to',
             ],
         ];
 
@@ -168,6 +183,7 @@ class Meprmf_Members_Core_Provider
                 'type'      => 'select',
                 'source'    => 'mepr_member',
                 'predicate' => 'member_status',
+                'group'     => Meprmf_Util::GROUP_MEMBERSHIP,
                 'options'   => [
                     'active'   => __('Active members', 'admin-filters-for-memberpress'),
                     'inactive' => __('Inactive members', 'admin-filters-for-memberpress'),
@@ -183,6 +199,7 @@ class Meprmf_Members_Core_Provider
                     'type'      => 'select',
                     'source'    => 'mepr_member',
                     'predicate' => 'corp_type',
+                    'group'     => Meprmf_Util::GROUP_MEMBERSHIP,
                     'options'   => [
                         'owner'       => __('Corp account owner', 'admin-filters-for-memberpress'),
                         'sub_account' => __('Sub account', 'admin-filters-for-memberpress'),
@@ -202,6 +219,7 @@ class Meprmf_Members_Core_Provider
                 'type'      => 'select',
                 'source'    => $ctx->is_subscriptions_recurring() ? 'mepr_subscription' : 'mepr_transaction',
                 'predicate' => 'gateway',
+                'group'     => Meprmf_Util::GROUP_MEMBERSHIP,
                 'options'   => $gateways,
             ];
         }
@@ -215,6 +233,7 @@ class Meprmf_Members_Core_Provider
                     'type'      => 'select',
                     'source'    => 'mepr_transaction',
                     'predicate' => 'txn_status',
+                    'group'     => Meprmf_Util::GROUP_MEMBERSHIP,
                     'options'   => $txn_statuses,
                 ];
             }
@@ -225,6 +244,9 @@ class Meprmf_Members_Core_Provider
                 'type'      => 'date',
                 'source'    => 'mepr_transaction',
                 'predicate' => 'created_from',
+                'group'     => Meprmf_Util::GROUP_DATES,
+                'range_of'   => $prefix . 'created',
+                'range_part' => 'from',
             ];
             $fields[] = [
                 'param'     => $prefix . 'created_to',
@@ -232,6 +254,9 @@ class Meprmf_Members_Core_Provider
                 'type'      => 'date',
                 'source'    => 'mepr_transaction',
                 'predicate' => 'created_to',
+                'group'     => Meprmf_Util::GROUP_DATES,
+                'range_of'   => $prefix . 'created',
+                'range_part' => 'to',
             ];
         }
 
@@ -244,6 +269,7 @@ class Meprmf_Members_Core_Provider
                     'type'      => 'select',
                     'source'    => 'mepr_transaction',
                     'predicate' => 'coupon',
+                    'group'     => Meprmf_Util::GROUP_MEMBERSHIP,
                     'options'   => $coupons,
                 ];
             }
@@ -327,8 +353,11 @@ class Meprmf_Members_Core_Provider
         $out        = [];
         $old_len    = strlen('mpm_');
         foreach ($fields as $field) {
-            if (! empty($field['param']) && is_string($field['param']) && 0 === strpos($field['param'], 'mpm_')) {
-                $field['param'] = $new_prefix . substr($field['param'], $old_len);
+            // `range_of` groups a from/to pair, so it carries the screen prefix as well.
+            foreach ([ 'param', 'range_of' ] as $key) {
+                if (! empty($field[ $key ]) && is_string($field[ $key ]) && 0 === strpos($field[ $key ], 'mpm_')) {
+                    $field[ $key ] = $new_prefix . substr($field[ $key ], $old_len);
+                }
             }
             $out[] = $field;
         }
