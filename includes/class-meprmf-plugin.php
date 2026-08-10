@@ -193,23 +193,6 @@ class Meprmf_Plugin
             MEPRMF_VERSION
         );
 
-        /**
-         * Whether to make MemberPress's own CSV export links carry the active filters.
-         *
-         * @since 2.1.0
-         * @param bool                  $enabled Default true.
-         * @param Meprmf_Screen_Context $ctx     Screen context.
-         */
-        if (apply_filters('meprmf_filter_aware_export_links', true, $ctx)) {
-            wp_enqueue_script(
-                'meprmf-export-links',
-                meprmf_plugin_url("assets/meprmf-export-links{$suffix}.js"),
-                [],
-                MEPRMF_VERSION,
-                true
-            );
-        }
-
         if (self::use_floating_filter_panel($ctx)) {
             wp_enqueue_script(
                 'meprmf-members-floating-panel',
