@@ -4,7 +4,7 @@ Tags: memberpress, members, admin, filters, membership
 Requires at least: 5.6
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 2.0.0
+Stable tag: 2.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -82,6 +82,15 @@ Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-m
 * Source and issues: see **Plugin URI** and **GitHub URI** in the main plugin file header (`admin-filters-for-memberpress.php`).
 
 == Changelog ==
+
+= 2.1.0 =
+
+* **Query-builder Filters card** on all four list screens: add one filter at a time as a field, comparison, and value row instead of scanning a grid of every available field.
+* **Comparisons per field type:** choice (is, is not, is empty), text (contains, does not contain, is, is empty), date (is after, is before, is between, is in the last, is not in the last), number (is at least, is at most, is between).
+* **Match all or any:** rows can require every filter or just one of them.
+* **Saved presets are now Saved views,** with the same site-wide storage and hooks.
+* Active-filter chips read the same wording as the row that produced them, so an exact match and a substring match are no longer shown identically.
+* Filters stay bookmarkable: each row reads from and writes to plain query parameters.
 
 = 2.0.0 =
 
@@ -193,6 +202,10 @@ Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-m
 * Compact collapsible filter layout when many filters are active (threshold filterable in later releases).
 
 == Upgrade Notice ==
+
+= 2.1.0 =
+
+Redesigned Filters card: filters are now added one at a time as field, comparison, and value. Existing bookmarked filter URLs and saved presets keep working. No database migration.
 
 = 2.0.0 =
 

@@ -25,7 +25,7 @@
 | --- | --- |
 | **Contributors** | Omar ElHawary — [WordPress.org profile](https://profiles.wordpress.org/omarelhawary/) |
 | **Requires** | WordPress 5.6+, PHP 8.1+, active [MemberPress](https://memberpress.com/) |
-| **Current release** | 2.0.0 (see plugin header in `admin-filters-for-memberpress.php`) |
+| **Current release** | 2.1.0 (see plugin header in `admin-filters-for-memberpress.php`) |
 | **Text domain** | `admin-filters-for-memberpress` (matches the plugin slug) |
 | **License** | GPLv2 or later |
 
@@ -210,6 +210,15 @@ Uses `tests/bootstrap-unit.php` (no full WordPress test database). CI runs on PH
 
 ## Changelog
 
+### 2.1.0
+
+- **Query-builder Filters card** on all four list screens: filters are added one at a time as a `field · comparison · value` row instead of a grid of every available field.
+- **Comparisons per field type:** choice (`is`, `is not`, `is empty`), text (`contains`, `does not contain`, `is`, `is empty`), date (`is after`, `is before`, `is between`, `is in the last`, `is not in the last`), number (`is at least`, `is at most`, `is between`).
+- **Match all or any** across the added filters.
+- **Saved presets are now Saved views**, with unchanged site-wide storage and hooks.
+- Active-filter chips use the same wording as the row that produced them, so `is` and `contains` no longer render identically.
+- Filters remain plain query parameters, so filtered lists stay bookmarkable.
+
 ### 2.0.0
 
 - **Saved filter presets** (floating panel): site-wide named presets on all four list screens; presets now include **native MemberPress toolbar** params (`status`, `membership`, `gateway`, transaction date fields, gifting `type`) in addition to plugin panel params.
@@ -323,6 +332,10 @@ Uses `tests/bootstrap-unit.php` (no full WordPress test database). CI runs on PH
 - Compact collapsible filter layout when many filters are active (threshold filterable in later releases).
 
 ## Upgrade notices
+
+### 2.1.0
+
+Redesigned Filters card: filters are added one at a time as field, comparison, and value. Bookmarked filter URLs and saved presets keep working. No database migration.
 
 ### 2.0.0
 
