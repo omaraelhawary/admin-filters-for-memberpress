@@ -392,6 +392,13 @@ class Meprmf_Toolbar_Renderer
         }
         echo '</select>';
 
+        // Presets are site-wide and capped per screen, so a view has to be removable; stays
+        // hidden until JS knows which view (if any) the current URL is.
+        printf(
+            '<button type="button" class="button-link meprmf-qb__delete-view" data-meprmf-delete-view hidden>%s</button>',
+            esc_html__('Delete view', 'admin-filters-for-memberpress')
+        );
+
         echo '<span class="meprmf-qb__spacer"></span>';
         echo '<span class="meprmf-qb__chips" data-meprmf-chips hidden></span>';
         echo '</div>';
@@ -639,6 +646,15 @@ class Meprmf_Toolbar_Renderer
             $shared .= $a_chars[ $i ];
         }
 
+        // Never end mid-word: "Total spent (min)" and "Total spent (max)" diverge inside a word
+        // and share "Total spent (m", so the fragment after the last boundary has to go.
+        if ($i < count($a_chars) && $i < count($b_chars)) {
+            $cut = preg_replace('/[\p{L}\p{N}]+$/u', '', $shared);
+            if (is_string($cut) && '' !== trim($cut)) {
+                $shared = $cut;
+            }
+        }
+
         $shared = trim($shared);
         $shared = rtrim($shared, " \t([{-–—/,:;");
         $shared = trim($shared);
@@ -702,7 +718,9 @@ class Meprmf_Toolbar_Renderer
         $type = isset($field['type']) ? (string) $field['type'] : '';
         $out  = [];
 
-        if ('country' === $type && class_exists('MeprUtils')) {
+        // Both guards matter: the chip row resolves country codes through this catalog, so a
+        // MemberPress without the country list has to degrade to raw codes rather than fatal.
+        if ('country' === $type && class_exists('MeprUtils') && method_exists('MeprUtils', 'countries')) {
             foreach (MeprUtils::countries(true) as $code => $name) {
                 $out[] = [
                     'v' => (string) $code,

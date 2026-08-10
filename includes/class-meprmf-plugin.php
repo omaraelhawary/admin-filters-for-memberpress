@@ -212,18 +212,11 @@ class Meprmf_Plugin
      */
     private static function relative_unit_choices()
     {
-        $labels = [
-            'days'   => __('days', 'admin-filters-for-memberpress'),
-            'weeks'  => __('weeks', 'admin-filters-for-memberpress'),
-            'months' => __('months', 'admin-filters-for-memberpress'),
-            'years'  => __('years', 'admin-filters-for-memberpress'),
-        ];
-
         $out = [];
-        foreach (Meprmf_Util::RELATIVE_UNITS as $unit) {
+        foreach (Meprmf_Util::get_relative_unit_labels() as $unit => $label) {
             $out[] = [
                 'v' => $unit,
-                'l' => isset($labels[ $unit ]) ? $labels[ $unit ] : $unit,
+                'l' => $label,
             ];
         }
 
@@ -312,6 +305,9 @@ class Meprmf_Plugin
                         'savePrompt'         => __('Preset name', 'admin-filters-for-memberpress'),
                         'saveError'          => __('Could not save the preset. Please try again.', 'admin-filters-for-memberpress'),
                         'noActiveFilters'    => __('Apply at least one filter before saving a preset.', 'admin-filters-for-memberpress'),
+                        /* translators: %s: saved view name. */
+                        'deleteViewConfirm'  => __('Delete the saved view “%s”? This removes it for everyone.', 'admin-filters-for-memberpress'),
+                        'deleteViewError'    => __('Could not delete the saved view. Please try again.', 'admin-filters-for-memberpress'),
                         'anyValue'           => __('Any value', 'admin-filters-for-memberpress'),
                         'valuePlaceholder'   => __('Type a value…', 'admin-filters-for-memberpress'),
                         'noValueNeeded'      => __('no value needed', 'admin-filters-for-memberpress'),

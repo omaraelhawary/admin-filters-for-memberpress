@@ -464,8 +464,13 @@
 }
 
 .meprmf-qb__clear,
-.meprmf-qb__save-view {
+.meprmf-qb__save-view,
+.meprmf-qb__delete-view {
 	font-size: 13px;
+}
+
+.meprmf-qb__delete-view {
+	color: #b32d2e;
 }
 
 .meprmf-qb__status {
@@ -495,28 +500,28 @@
 .meprmf-active-filters__chip {
 	display: inline-flex;
 	align-items: center;
-	gap: 5px;
-	padding: 2px 8px;
-	border: 1px solid #c3c4c7;
-	border-radius: 12px;
-	background: #f6f7f7;
-	color: #1d2327;
+	gap: 6px;
+	padding: 3px 6px 3px 9px;
+	border: 1px solid #b9d3e8;
+	border-radius: 3px;
+	background: #f0f6fc;
+	color: #0a4b78;
 	font-size: 12px;
-	line-height: 1.8;
+	line-height: 1.6;
 	text-decoration: none;
 }
 
 .meprmf-active-filters__chip:hover,
 .meprmf-active-filters__chip:focus {
-	background: #f0f0f1;
-	border-color: #8c8f94;
-	color: #1d2327;
+	background: #dcecf9;
+	border-color: #7fa9cd;
+	color: #0a4b78;
 }
 
 .meprmf-active-filters__chip-x {
 	font-size: 14px;
 	line-height: 1;
-	color: #646970;
+	color: #0a4b78;
 }
 
 .meprmf-active-filters__chip:hover .meprmf-active-filters__chip-x,
@@ -525,6 +530,7 @@
 }
 
 .meprmf-active-filters__clear {
+	margin-left: 4px;
 	font-size: 12px;
 	text-decoration: underline;
 }

@@ -146,6 +146,14 @@ class FieldCatalogTest extends TestCase
         $this->assertSame('mpf_joined_to', $entry['params']['to']);
     }
 
+    public function test_a_pair_label_is_not_cut_mid_word()
+    {
+        $catalog = Meprmf_Toolbar_Renderer::build_field_catalog($this->spent_pair());
+
+        // "(min)" / "(max)" share their opening "(m", which is not a label.
+        $this->assertSame('Total spent', $catalog[0]['label']);
+    }
+
     public function test_a_multibyte_pair_label_is_not_cut_mid_character()
     {
         $fields = $this->birthday_pair();

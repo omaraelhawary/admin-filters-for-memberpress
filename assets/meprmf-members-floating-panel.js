@@ -447,6 +447,7 @@
 		var popoverList = card.querySelector('[data-meprmf-popover-list]');
 		var searchInput = card.querySelector('.meprmf-qb__search');
 		var viewsSelect = card.querySelector('[data-meprmf-views]');
+		var deleteViewBtn = card.querySelector('[data-meprmf-delete-view]');
 		var body = card.querySelector('.meprmf-qb__body');
 		var footer = card.querySelector('.meprmf-qb__footer');
 		var matchWrap = card.querySelector('[data-meprmf-match]');
@@ -709,19 +710,50 @@
 
 		/* ---- match toggle ---- */
 
-		card.querySelectorAll('[data-meprmf-match-mode]').forEach(function (segment) {
+		var segments = Array.prototype.slice.call(card.querySelectorAll('[data-meprmf-match-mode]'));
+
+		function setMatch(mode) {
+			state.match = mode === 'any' ? 'any' : 'all';
+			syncMatch();
+			syncFooter();
+		}
+
+		segments.forEach(function (segment) {
 			segment.addEventListener('click', function () {
-				state.match = segment.getAttribute('data-meprmf-match-mode') === 'any' ? 'any' : 'all';
-				syncMatch();
-				syncFooter();
+				setMatch(segment.getAttribute('data-meprmf-match-mode'));
 			});
 		});
 
+		// role="radio" carries arrow-key expectations: the arrows move focus and selection
+		// together, and only the selected segment is a tab stop.
+		if (matchWrap) {
+			matchWrap.addEventListener('keydown', function (ev) {
+				var step = 0;
+				if (ev.key === 'ArrowRight' || ev.key === 'ArrowDown') {
+					step = 1;
+				} else if (ev.key === 'ArrowLeft' || ev.key === 'ArrowUp') {
+					step = -1;
+				}
+				if (step === 0 || segments.length === 0) {
+					return;
+				}
+				ev.preventDefault();
+				var index = segments.indexOf(document.activeElement);
+				if (index === -1) {
+					index = state.match === 'any' ? 1 : 0;
+				}
+				var next = segments[(index + step + segments.length) % segments.length];
+				setMatch(next.getAttribute('data-meprmf-match-mode'));
+				next.focus();
+			});
+		}
+
 		function syncMatch() {
-			card.querySelectorAll('[data-meprmf-match-mode]').forEach(function (segment) {
+			segments.forEach(function (segment) {
 				var selected = segment.getAttribute('data-meprmf-match-mode') === state.match;
 				segment.setAttribute('aria-checked', selected ? 'true' : 'false');
 				segment.classList.toggle('is-selected', selected);
+				segment.tabIndex = selected ? 0 : -1;
 			});
 		}
 
@@ -944,6 +976,7 @@
 				state.match = 'all';
 				if (viewsSelect) {
 					viewsSelect.value = '';
+					syncDeleteView();
 				}
 				setOpen(true);
 				renderRows();
@@ -978,20 +1011,47 @@
 			return null;
 		}
 
-		function applyPreset(preset) {
-			if (!preset || !preset.params) {
-				return;
-			}
+		function presetParamsMap(preset) {
 			var known = {};
 			knownKeys().forEach(function (key) {
 				known[key] = true;
 			});
 			var map = {};
-			Object.keys(preset.params).forEach(function (key) {
+			Object.keys((preset && preset.params) || {}).forEach(function (key) {
 				if (known[key]) {
 					map[key] = String(preset.params[key] || '');
 				}
 			});
+			return map;
+		}
+
+		/**
+		 * The view the current URL is, if it is one. Selecting a view navigates, so nothing marks
+		 * the select afterwards — match the applied filters against each saved view instead.
+		 */
+		function matchingPresetId(rows) {
+			if (rows.length === 0) {
+				return '';
+			}
+			var current = signature(rows, appliedMatchMode());
+			var list = presets();
+			for (var i = 0; i < list.length; i++) {
+				if (!list[i] || !list[i].id) {
+					continue;
+				}
+				var map = presetParamsMap(list[i]);
+				if (signature(rowsFromMap(map), map[matchParam()] === 'any' ? 'any' : 'all') === current) {
+					return String(list[i].id);
+				}
+			}
+			return '';
+		}
+
+		function applyPreset(preset) {
+			if (!preset || !preset.params) {
+				return;
+			}
+			var map = presetParamsMap(preset);
 			state.rows = rowsFromMap(map);
 			state.match = map[matchParam()] === 'any' ? 'any' : 'all';
 			renderRows();
@@ -1000,12 +1060,98 @@
 			applyFilters();
 		}
 
+		function syncDeleteView() {
+			if (deleteViewBtn) {
+				deleteViewBtn.hidden = !viewsSelect || viewsSelect.value === '';
+			}
+		}
+
 		if (viewsSelect) {
+			viewsSelect.value = matchingPresetId(applied);
 			viewsSelect.addEventListener('change', function () {
+				syncDeleteView();
 				var preset = presetById(viewsSelect.value);
 				if (preset) {
 					applyPreset(preset);
 				}
+			});
+		}
+		syncDeleteView();
+
+		function forgetPreset(id) {
+			cfg().presets = presets().filter(function (preset) {
+				return preset && String(preset.id) !== String(id);
+			});
+			if (viewsSelect) {
+				Array.prototype.slice.call(viewsSelect.options).forEach(function (option) {
+					if (option.value === String(id) && option.parentNode) {
+						option.parentNode.removeChild(option);
+					}
+				});
+				viewsSelect.value = '';
+			}
+			card.querySelectorAll('[data-meprmf-preset-id]').forEach(function (pill) {
+				if (pill.getAttribute('data-meprmf-preset-id') === String(id) && pill.parentNode) {
+					pill.parentNode.removeChild(pill);
+				}
+			});
+			syncDeleteView();
+		}
+
+		if (deleteViewBtn && viewsSelect) {
+			deleteViewBtn.addEventListener('click', function () {
+				var preset = presetById(viewsSelect.value);
+				var conf = cfg();
+				if (!preset) {
+					return;
+				}
+				if (!conf.ajaxUrl || !conf.presetsNonce) {
+					window.alert(i18n('deleteViewError', 'Could not delete the saved view. Please try again.'));
+					return;
+				}
+				// Views are site-wide, so this is not only the current admin's list.
+				if (!window.confirm(sprintf1(i18n('deleteViewConfirm', 'Delete the saved view “%s”?'), preset.name))) {
+					return;
+				}
+
+				deleteViewBtn.disabled = true;
+
+				var payload = new URLSearchParams();
+				payload.set('action', 'meprmf_delete_filter_preset');
+				payload.set('nonce', conf.presetsNonce);
+				payload.set('screen', conf.storageId || storageNs());
+				payload.set('id', String(preset.id));
+
+				fetch(conf.ajaxUrl, {
+					method: 'POST',
+					credentials: 'same-origin',
+					headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+					body: payload.toString()
+				})
+					.then(function (res) {
+						return res.json().then(function (data) {
+							return { ok: res.ok, data: data };
+						});
+					})
+					.then(function (result) {
+						var data = result.data;
+						if (!result.ok || !data || !data.success) {
+							var message = (data && data.data && data.data.message)
+								? data.data.message
+								: i18n('deleteViewError', 'Could not delete the saved view. Please try again.');
+							throw new Error(message);
+						}
+						forgetPreset(preset.id);
+						if (data.data && Array.isArray(data.data.presets)) {
+							cfg().presets = data.data.presets;
+						}
+					})
+					.catch(function (err) {
+						window.alert(err && err.message ? err.message : i18n('deleteViewError', 'Could not delete the saved view. Please try again.'));
+					})
+					.finally(function () {
+						deleteViewBtn.disabled = false;
+					});
 			});
 		}
 
@@ -1077,6 +1223,7 @@
 								viewsSelect.appendChild(optionNode(saved.id, saved.name, false));
 							}
 							viewsSelect.value = String(saved.id);
+							syncDeleteView();
 						}
 					})
 					.catch(function (err) {

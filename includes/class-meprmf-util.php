@@ -260,6 +260,37 @@ class Meprmf_Util
     }
 
     /**
+     * Translated names for the relative window units, keyed by token.
+     *
+     * @since 2.1.0
+     * @return array<string, string>
+     */
+    public static function get_relative_unit_labels()
+    {
+        $labels = [
+            'days'   => __('days', 'admin-filters-for-memberpress'),
+            'weeks'  => __('weeks', 'admin-filters-for-memberpress'),
+            'months' => __('months', 'admin-filters-for-memberpress'),
+            'years'  => __('years', 'admin-filters-for-memberpress'),
+        ];
+
+        /**
+         * Labels shown in the relative window unit selector.
+         *
+         * @since 2.1.0
+         * @param array<string, string> $labels Unit token => label.
+         */
+        $labels = apply_filters('meprmf_relative_unit_labels', $labels);
+
+        $out = [];
+        foreach (self::RELATIVE_UNITS as $unit) {
+            $out[ $unit ] = isset($labels[ $unit ]) ? (string) $labels[ $unit ] : $unit;
+        }
+
+        return $out;
+    }
+
+    /**
      * Whether a field accepts an operator selector at all.
      *
      * @param array<string, mixed> $field Field definition.
