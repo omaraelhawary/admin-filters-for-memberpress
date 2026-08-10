@@ -8,6 +8,7 @@
 namespace Meprmf\Tests\Unit;
 
 use Meprmf_Active_Filters;
+use Meprmf_Screen_Context;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -21,6 +22,21 @@ class ActiveFiltersTest extends TestCase
         parent::setUp();
         require_once dirname(__DIR__, 2) . '/includes/class-meprmf-util.php';
         require_once dirname(__DIR__, 2) . '/includes/ui/class-meprmf-active-filters.php';
+        require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen-context.php';
+        require_once dirname(__DIR__, 2) . '/includes/class-meprmf-native-params.php';
+    }
+
+    public function test_render_emits_no_block_element_inside_the_memberpress_paragraph()
+    {
+        $_GET = [ 'mpf_country' => 'DE' ];
+        ob_start();
+        Meprmf_Active_Filters::render($this->fields(), new Meprmf_Screen_Context('memberpress-members', 'u.ID'));
+        $html = (string) ob_get_clean();
+        $_GET = [];
+
+        $this->assertStringContainsString('<span class="meprmf-active-filters">', $html);
+        // MemberPress fires the hook inside a `<p>`, and a block element there is ejected by the parser.
+        $this->assertDoesNotMatchRegularExpression('/<(div|p|ul|ol|li|table|section)[\s>]/', $html);
     }
 
     /**

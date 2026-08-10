@@ -344,7 +344,10 @@ class Meprmf_Active_Filters
             }
         }
 
-        echo '<div class="meprmf-active-filters">';
+        // A <span> is required: this hook fires inside MemberPress's `<p class="mepr-search-box">`,
+        // and the HTML parser ejects a block element from a `<p>`, which both drops the row into
+        // `.tablenav` (zero width beside a full-width float) and splits the search box apart.
+        echo '<span class="meprmf-active-filters">';
         printf(
             '<span class="meprmf-active-filters__label">%s</span>',
             esc_html__('Filtering by:', 'admin-filters-for-memberpress')
@@ -373,7 +376,7 @@ class Meprmf_Active_Filters
             );
         }
 
-        echo '</div>';
+        echo '</span>';
     }
 
     /**

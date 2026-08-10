@@ -233,13 +233,15 @@ class Meprmf_Predicate_Builder
     private static function append_operator_exists(array $args, $wpdb, $uid, $alias, $meta_key, $param, $operator, array $field)
     {
         // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Alias, uid and the EXISTS keyword are fixed SQL fragments; values use placeholders.
-        $subject = "SELECT 1 FROM {$wpdb->usermeta} AS {$alias} WHERE {$alias}.user_id = {$uid} AND {$alias}.meta_key = %s";
+        // The meta_key placeholder stays in each prepare() literal below so the placeholder
+        // count is visible to WordPress.DB.PreparedSQLPlaceholders, which cannot see into $subject.
+        $subject = "SELECT 1 FROM {$wpdb->usermeta} AS {$alias} WHERE {$alias}.user_id = {$uid} AND {$alias}.meta_key =";
 
         if (in_array($operator, Meprmf_Util::VALUELESS_OPERATORS, true)) {
             // "Empty" deliberately covers both no usermeta row at all and a row holding
             // an empty string, which is what an admin means by "has no value set".
             $keyword = ('is_empty' === $operator) ? 'NOT EXISTS' : 'EXISTS';
-            $sql     = $wpdb->prepare("{$keyword} ( {$subject} AND {$alias}.meta_value <> '' )", $meta_key);
+            $sql     = $wpdb->prepare("{$keyword} ( {$subject} %s AND {$alias}.meta_value <> '' )", $meta_key);
 
             return self::push_fragment($args, $sql);
         }
@@ -253,7 +255,7 @@ class Meprmf_Predicate_Builder
             $placeholders = implode(', ', array_fill(0, count($values), '%s'));
             $prepare_args = array_merge([ $meta_key ], $values);
             $sql          = $wpdb->prepare(
-                "EXISTS ( {$subject} AND {$alias}.meta_value IN ({$placeholders}) )",
+                "EXISTS ( {$subject} %s AND {$alias}.meta_value IN ({$placeholders}) )",
                 ...$prepare_args
             );
 
@@ -267,7 +269,7 @@ class Meprmf_Predicate_Builder
 
         if ('is' === $operator || 'is_not' === $operator) {
             $keyword = ('is_not' === $operator) ? 'NOT EXISTS' : 'EXISTS';
-            $sql     = $wpdb->prepare("{$keyword} ( {$subject} AND {$alias}.meta_value = %s )", $meta_key, $raw);
+            $sql     = $wpdb->prepare("{$keyword} ( {$subject} %s AND {$alias}.meta_value = %s )", $meta_key, $raw);
 
             return self::push_fragment($args, $sql);
         }
@@ -279,7 +281,7 @@ class Meprmf_Predicate_Builder
         if ('contains' === Meprmf_Util::get_field_match_mode($field)) {
             $serialized_needle = 's:' . strlen($raw) . ':"' . $wpdb->esc_like($raw) . '";';
             $sql               = $wpdb->prepare(
-                "{$keyword} ( {$subject} AND ( {$alias}.meta_value = %s OR {$alias}.meta_value LIKE %s ) )",
+                "{$keyword} ( {$subject} %s AND ( {$alias}.meta_value = %s OR {$alias}.meta_value LIKE %s ) )",
                 $meta_key,
                 $raw,
                 '%' . $serialized_needle . '%'
@@ -289,7 +291,7 @@ class Meprmf_Predicate_Builder
         }
 
         $sql = $wpdb->prepare(
-            "{$keyword} ( {$subject} AND {$alias}.meta_value LIKE %s )",
+            "{$keyword} ( {$subject} %s AND {$alias}.meta_value LIKE %s )",
             $meta_key,
             '%' . $wpdb->esc_like($raw) . '%'
         );

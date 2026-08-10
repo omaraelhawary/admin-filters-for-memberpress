@@ -87,6 +87,50 @@ if (! function_exists('__')) {
     }
 }
 
+if (! function_exists('esc_html')) {
+    /**
+     * @param string $text Text.
+     * @return string
+     */
+    function esc_html($text)
+    {
+        return htmlspecialchars((string) $text, ENT_QUOTES);
+    }
+}
+
+if (! function_exists('esc_html__')) {
+    /**
+     * @param string $text Text.
+     * @return string
+     */
+    function esc_html__($text)
+    {
+        return htmlspecialchars((string) $text, ENT_QUOTES);
+    }
+}
+
+if (! function_exists('esc_url')) {
+    /**
+     * @param string $url URL.
+     * @return string
+     */
+    function esc_url($url)
+    {
+        return htmlspecialchars((string) $url, ENT_QUOTES);
+    }
+}
+
+if (! function_exists('remove_query_arg')) {
+    /**
+     * @param array<int, string>|string $keys Query args to drop.
+     * @return string
+     */
+    function remove_query_arg($keys)
+    {
+        return 'admin.php?page=memberpress-members';
+    }
+}
+
 if (! function_exists('is_admin')) {
     /**
      * @return bool
