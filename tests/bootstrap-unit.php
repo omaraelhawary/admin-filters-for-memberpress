@@ -214,6 +214,16 @@ if (! function_exists('wp_date')) {
     }
 }
 
+if (! function_exists('wp_timezone')) {
+    /**
+     * @return DateTimeZone
+     */
+    function wp_timezone()
+    {
+        return new DateTimeZone('UTC');
+    }
+}
+
 if (! function_exists('esc_sql')) {
     /**
      * @param string $data Data.

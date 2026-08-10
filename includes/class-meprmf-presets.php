@@ -229,22 +229,13 @@ class Meprmf_Presets
         }
 
         $fields = Meprmf_Filter_Registry::get_normalized_fields_for_context($ctx);
-        $params = [];
+        // Presets must carry each field's operator and relative-window params too, or a saved
+        // "is not empty" reloads as a plain contains-match against an empty value.
+        $params = [ Meprmf_Util::MATCH_MODE_PARAM ];
         foreach ($fields as $field) {
-            if (empty($field['param'])) {
-                continue;
-            }
-            $param = Meprmf_Util::sanitize_param((string) $field['param']);
-            if ('' !== $param) {
-                $params[] = $param;
-
-                // Presets must carry the operator too, or a saved "is not empty" reloads
-                // as a plain contains-match against an empty value.
-                if (Meprmf_Util::field_supports_operators($field)) {
-                    $op_param = Meprmf_Util::operator_param_name($param);
-                    if ('' !== $op_param && $op_param !== $param) {
-                        $params[] = $op_param;
-                    }
+            foreach (Meprmf_Util::collect_field_request_params($field) as $param) {
+                if ('' !== $param) {
+                    $params[] = $param;
                 }
             }
         }

@@ -42,7 +42,10 @@ class Meprmf_Toolbar_Renderer
 
         // Operator selector, only in the compact (floating panel) layout: the inline
         // toolbar is already cramped and its fields keep their default match mode.
-        if ($compact && Meprmf_Util::field_supports_operators($field)) {
+        // Date and number operators need the query-builder row UI, so they stay out of
+        // this text-oriented selector for now.
+        $text_operators = ! in_array($field['type'], [ 'date', 'date_range', 'number' ], true);
+        if ($compact && $text_operators && Meprmf_Util::field_supports_operators($field)) {
             self::render_operator_select($param, $label, $omit_name);
         }
 

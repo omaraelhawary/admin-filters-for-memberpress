@@ -100,16 +100,12 @@ class Meprmf_Mepr_Predicate_Builder
         $product_id  = self::int_param($values, self::param_for_predicate($valid, 'product'));
         $access      = self::string_param($values, self::param_for_predicate($valid, 'access'));
         $sub_status  = self::string_param($values, self::param_for_predicate($valid, 'sub_status'));
-        $exp_from    = self::date_param($values, self::param_for_predicate($valid, 'exp_from'));
-        $exp_to      = self::date_param($values, self::param_for_predicate($valid, 'exp_to'));
-        $member_from   = self::date_param($values, self::param_for_predicate($valid, 'member_from'));
-        $member_to     = self::date_param($values, self::param_for_predicate($valid, 'member_to'));
+        $expires       = self::range_bounds($valid, $values, 'exp_from', 'exp_to');
+        $member_since  = self::range_bounds($valid, $values, 'member_from', 'member_to');
+        $registered    = self::range_bounds($valid, $values, 'registered_from', 'registered_to');
+        $last_login    = self::range_bounds($valid, $values, 'last_login_from', 'last_login_to');
         $member_status = self::string_param($values, self::param_for_predicate($valid, 'member_status'));
         $corp_type     = self::string_param($values, self::param_for_predicate($valid, 'corp_type'));
-        $registered_from = self::date_param($values, self::param_for_predicate($valid, 'registered_from'));
-        $registered_to   = self::date_param($values, self::param_for_predicate($valid, 'registered_to'));
-        $last_login_from = self::date_param($values, self::param_for_predicate($valid, 'last_login_from'));
-        $last_login_to   = self::date_param($values, self::param_for_predicate($valid, 'last_login_to'));
         $spent_min       = self::float_param($values, self::param_for_predicate($valid, 'spent_min'));
         $spent_max       = self::float_param($values, self::param_for_predicate($valid, 'spent_max'));
         $trial           = self::string_param($values, self::param_for_predicate($valid, 'trial'));
@@ -122,27 +118,20 @@ class Meprmf_Mepr_Predicate_Builder
             }
         }
 
-        if (null !== $registered_from) {
-            $sql                    = $wpdb->prepare('u.user_registered >= %s', $registered_from . ' 00:00:00');
-            $args[]                 = $sql;
-            self::$last_fragments[] = $sql;
-        }
-        if (null !== $registered_to) {
-            $sql                    = $wpdb->prepare('u.user_registered <= %s', $registered_to . ' 23:59:59');
-            $args[]                 = $sql;
-            self::$last_fragments[] = $sql;
-        }
+        // Each date pair is one fragment: a range must stay intact when fragments are ORed
+        // together under match=any, and negation has to invert both bounds at once.
+        $args = self::push_range(
+            $args,
+            self::build_column_range('u.user_registered', $registered['from'], $registered['to']),
+            $registered['negate']
+        );
 
-        if (null !== $last_login_from) {
-            $sql                    = $wpdb->prepare('last_login.created_at >= %s', $last_login_from . ' 00:00:00');
-            $args[]                 = $sql;
-            self::$last_fragments[] = $sql;
-        }
-        if (null !== $last_login_to) {
-            $sql                    = $wpdb->prepare('last_login.created_at <= %s', $last_login_to . ' 23:59:59');
-            $args[]                 = $sql;
-            self::$last_fragments[] = $sql;
-        }
+        $args = self::push_range(
+            $args,
+            self::build_column_range('last_login.created_at', $last_login['from'], $last_login['to']),
+            $last_login['negate'],
+            'last_login.created_at'
+        );
 
         if (null !== $spent_min) {
             $sql                    = $wpdb->prepare('m.total_spent >= %f', $spent_min);
@@ -169,21 +158,17 @@ class Meprmf_Mepr_Predicate_Builder
             }
         }
 
-        if (null !== $member_from || null !== $member_to) {
-            $sql = self::build_member_since_exists($mepr_db->members, $uid, $member_from, $member_to);
-            if ('' !== $sql) {
-                $args[]                 = $sql;
-                self::$last_fragments[] = $sql;
-            }
-        }
+        $args = self::push_range(
+            $args,
+            self::build_member_since_exists($mepr_db->members, $uid, $member_since['from'], $member_since['to']),
+            $member_since['negate']
+        );
 
-        if (null !== $exp_from || null !== $exp_to) {
-            $sql = self::build_expires_range_exists($mepr_db->transactions, $uid, $product_id, $exp_from, $exp_to);
-            if ('' !== $sql) {
-                $args[]                 = $sql;
-                self::$last_fragments[] = $sql;
-            }
-        }
+        $args = self::push_range(
+            $args,
+            self::build_expires_range_exists($mepr_db->transactions, $uid, $product_id, $expires['from'], $expires['to']),
+            $expires['negate']
+        );
 
         if ('active' === $access) {
             $sql = self::build_active_access_exists($mepr_db->transactions, $uid, $product_id);
@@ -249,12 +234,9 @@ class Meprmf_Mepr_Predicate_Builder
         $product_id  = self::int_param($values, self::param_for_predicate($valid, 'product'));
         $access        = self::string_param($values, self::param_for_predicate($valid, 'access'));
         $sub_status    = self::string_param($values, self::param_for_predicate($valid, 'sub_status'));
-        $exp_from      = self::date_param($values, self::param_for_predicate($valid, 'exp_from'));
-        $exp_to        = self::date_param($values, self::param_for_predicate($valid, 'exp_to'));
-        $member_from   = self::date_param($values, self::param_for_predicate($valid, 'member_from'));
-        $member_to     = self::date_param($values, self::param_for_predicate($valid, 'member_to'));
-        $created_from  = self::date_param($values, self::param_for_predicate($valid, 'created_from'));
-        $created_to    = self::date_param($values, self::param_for_predicate($valid, 'created_to'));
+        $expires       = self::range_bounds($valid, $values, 'exp_from', 'exp_to');
+        $member_since  = self::range_bounds($valid, $values, 'member_from', 'member_to');
+        $created       = self::range_bounds($valid, $values, 'created_from', 'created_to');
         $txn_status    = self::string_param($values, self::param_for_predicate($valid, 'txn_status'));
         $gateway       = self::string_param($values, self::param_for_predicate($valid, 'gateway'));
         $coupon_id     = self::int_param($values, self::param_for_predicate($valid, 'coupon'));
@@ -280,29 +262,23 @@ class Meprmf_Mepr_Predicate_Builder
             self::$last_fragments[] = $sql;
         }
 
-        if (null !== $created_from || null !== $created_to) {
-            $sql = self::build_row_created_range($row_alias, $created_from, $created_to);
-            if ('' !== $sql) {
-                $args[]                 = $sql;
-                self::$last_fragments[] = $sql;
-            }
-        }
+        $args = self::push_range(
+            $args,
+            self::build_column_range("{$row_alias}.created_at", $created['from'], $created['to']),
+            $created['negate']
+        );
 
-        if (null !== $member_from || null !== $member_to) {
-            $sql = self::build_member_since_exists($mepr_db->members, $uid, $member_from, $member_to);
-            if ('' !== $sql) {
-                $args[]                 = $sql;
-                self::$last_fragments[] = $sql;
-            }
-        }
+        $args = self::push_range(
+            $args,
+            self::build_member_since_exists($mepr_db->members, $uid, $member_since['from'], $member_since['to']),
+            $member_since['negate']
+        );
 
-        if (null !== $exp_from || null !== $exp_to) {
-            $sql = self::build_row_expires_range($expires_alias, $product_id, $exp_from, $exp_to, $row_alias);
-            if ('' !== $sql) {
-                $args[]                 = $sql;
-                self::$last_fragments[] = $sql;
-            }
-        }
+        $args = self::push_range(
+            $args,
+            self::build_row_expires_range($expires_alias, $product_id, $expires['from'], $expires['to'], $row_alias),
+            $expires['negate']
+        );
 
         if ('active' === $access) {
             $sql = self::build_row_active_access($expires_alias, $product_id, $row_alias);
@@ -572,23 +548,25 @@ class Meprmf_Mepr_Predicate_Builder
     }
 
     /**
-     * @param string      $alias Row alias (tr or txn).
-     * @param string|null $from  Y-m-d from.
-     * @param string|null $to    Y-m-d to.
+     * One parenthesized fragment bounding a datetime column.
+     *
+     * @param string      $column Fully qualified column (alias.column), a fixed SQL fragment.
+     * @param string|null $from   Y-m-d lower bound.
+     * @param string|null $to     Y-m-d upper bound.
      * @return string
      */
-    private static function build_row_created_range($alias, $from, $to)
+    private static function build_column_range($column, $from, $to)
     {
         global $wpdb;
 
         $bits = [];
 
-        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table alias is a fixed SQL fragment from screen context.
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Column/alias is a fixed SQL fragment from screen context; values use placeholders.
         if (null !== $from) {
-            $bits[] = $wpdb->prepare("{$alias}.created_at >= %s", $from . ' 00:00:00');
+            $bits[] = $wpdb->prepare("{$column} >= %s", $from . ' 00:00:00');
         }
         if (null !== $to) {
-            $bits[] = $wpdb->prepare("{$alias}.created_at <= %s", $to . ' 23:59:59');
+            $bits[] = $wpdb->prepare("{$column} <= %s", $to . ' 23:59:59');
         }
         // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
@@ -597,6 +575,77 @@ class Meprmf_Mepr_Predicate_Builder
         }
 
         return '(' . implode(' AND ', $bits) . ')';
+    }
+
+    /**
+     * Effective bounds for one core date pair, after applying the pair's operator.
+     *
+     * Field rows without `range_of` (third-party definitions) keep the pre-2.1 behaviour:
+     * the two params are read as plain from/to values with no operator.
+     *
+     * @param array<int, array<string, mixed>> $valid          Normalized core field definitions.
+     * @param array<string, string>            $values         Active request values.
+     * @param string                           $from_predicate Predicate key of the lower bound.
+     * @param string                           $to_predicate   Predicate key of the upper bound.
+     * @return array{from: string|null, to: string|null, negate: bool}
+     */
+    private static function range_bounds(array $valid, array $values, $from_predicate, $to_predicate)
+    {
+        $field = self::field_for_predicate($valid, $from_predicate);
+
+        if (! empty($field['range_of'])) {
+            return Meprmf_Util::resolve_range_bounds((string) $field['range_of'], $field);
+        }
+
+        return [
+            'from'   => self::date_param($values, self::param_for_predicate($valid, $from_predicate)),
+            'to'     => self::date_param($values, self::param_for_predicate($valid, $to_predicate)),
+            'negate' => false,
+        ];
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $valid     Field definitions.
+     * @param string                           $predicate Predicate key.
+     * @return array<string, mixed> Field row or empty array.
+     */
+    private static function field_for_predicate(array $valid, $predicate)
+    {
+        foreach ($valid as $field) {
+            if (! empty($field['predicate']) && $predicate === $field['predicate']) {
+                return $field;
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * Record a range fragment, inverting it for `not_in_last`.
+     *
+     * @param array<int, string> $args       WHERE fragments.
+     * @param string             $sql        Range fragment, or empty for "no bounds".
+     * @param bool               $negate     Whether the operator negated the window.
+     * @param string             $null_guard Nullable column that means "no date recorded";
+     *                                       a negated window has to keep those rows.
+     * @return array<int, string>
+     */
+    private static function push_range(array $args, $sql, $negate, $null_guard = '')
+    {
+        if (! is_string($sql) || '' === $sql) {
+            return $args;
+        }
+
+        if ($negate) {
+            $sql = '' !== $null_guard
+                ? "( {$null_guard} IS NULL OR NOT ( {$sql} ) )"
+                : "NOT ( {$sql} )";
+        }
+
+        $args[]                 = $sql;
+        self::$last_fragments[] = $sql;
+
+        return $args;
     }
 
     /**

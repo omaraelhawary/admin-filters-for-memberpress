@@ -81,6 +81,7 @@ class Meprmf_Addon_Provider
                     'label'  => __('Course', 'admin-filters-for-memberpress'),
                     'type'   => 'select',
                     'source' => 'native',
+                    'group'  => Meprmf_Util::GROUP_CONTENT_ACCESS,
                     'options' => $courses,
                 ];
             }
@@ -94,6 +95,7 @@ class Meprmf_Addon_Provider
                     'label'  => __('Circle', 'admin-filters-for-memberpress'),
                     'type'   => 'select',
                     'source' => 'native',
+                    'group'  => Meprmf_Util::GROUP_CONTENT_ACCESS,
                     'options' => $circles,
                 ];
             }
@@ -107,6 +109,7 @@ class Meprmf_Addon_Provider
                     'label'  => __('Directory', 'admin-filters-for-memberpress'),
                     'type'   => 'select',
                     'source' => 'native',
+                    'group'  => Meprmf_Util::GROUP_CONTENT_ACCESS,
                     'options' => $directories,
                 ];
             }
@@ -129,6 +132,7 @@ class Meprmf_Addon_Provider
                 'label'  => __('Coupon', 'admin-filters-for-memberpress'),
                 'type'   => 'select',
                 'source' => 'native',
+                'group'  => Meprmf_Util::GROUP_MEMBERSHIP,
                 'options' => $coupons,
             ];
         }
@@ -139,6 +143,7 @@ class Meprmf_Addon_Provider
                 'label'  => __('Gift type', 'admin-filters-for-memberpress'),
                 'type'   => 'select',
                 'source' => 'native',
+                'group'  => Meprmf_Util::GROUP_MEMBERSHIP,
                 'options' => [
                     'purchased' => __('Gifts purchased', 'admin-filters-for-memberpress'),
                     'claimed'   => __('Gifts claimed', 'admin-filters-for-memberpress'),

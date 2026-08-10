@@ -145,7 +145,50 @@ class Meprmf_Plugin
             $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists($args, $ctx, $core_valid);
         }
 
-        return $args;
+        return self::apply_match_mode($args, $ctx);
+    }
+
+    /**
+     * Join this plugin's own fragments with OR when match=any.
+     *
+     * Only fragments this request's builders reported are touched: MemberPress core and
+     * third-party fragments must keep their AND, or the list's own scoping breaks.
+     *
+     * @param array<int, string>    $args WHERE fragments.
+     * @param Meprmf_Screen_Context $ctx  Screen context.
+     * @return array<int, string>
+     */
+    public static function apply_match_mode(array $args, Meprmf_Screen_Context $ctx)
+    {
+        if ('any' !== Meprmf_Util::get_match_mode($ctx)) {
+            return $args;
+        }
+
+        $pool = array_merge(
+            (array) Meprmf_Predicate_Builder::get_last_fragments(),
+            (array) Meprmf_Mepr_Predicate_Builder::get_last_fragments()
+        );
+
+        $kept     = [];
+        $branches = [];
+        foreach ($args as $fragment) {
+            $found = array_search($fragment, $pool, true);
+            if (false === $found) {
+                $kept[] = $fragment;
+                continue;
+            }
+            // Drop one occurrence only: two filters can produce the same fragment.
+            unset($pool[ $found ]);
+            $branches[] = '( ' . $fragment . ' )';
+        }
+
+        if (count($branches) < 2) {
+            return $args;
+        }
+
+        $kept[] = '( ' . implode(' OR ', $branches) . ' )';
+
+        return $kept;
     }
 
     /**
@@ -201,7 +244,8 @@ class Meprmf_Plugin
                 MEPRMF_VERSION,
                 true
             );
-            $known = [];
+            // The match mode is a known param too, so Apply does not drop it from the URL.
+            $known = [ Meprmf_Util::MATCH_MODE_PARAM ];
             foreach (Meprmf_Filter_Registry::get_normalized_fields_for_context($ctx) as $field) {
                 foreach (Meprmf_Util::collect_field_request_params($field) as $p) {
                     if ('' !== $p) {

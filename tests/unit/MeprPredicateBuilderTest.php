@@ -449,10 +449,69 @@ class MeprPredicateBuilderTest extends TestCase
         $ctx  = new Meprmf_Screen_Context('memberpress-members', 'u.ID');
         $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists([], $ctx, $this->activity_field_defs());
 
-        $this->assertGreaterThanOrEqual(3, count($args));
+        // A from/to pair is one fragment, so registered + trial is two.
+        $this->assertGreaterThanOrEqual(2, count($args));
         $combined = implode("\n", $args);
         $this->assertStringContainsString('u.user_registered', $combined);
         $this->assertStringContainsString('trial_txn_count', $combined);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function range_activity_field_defs()
+    {
+        return [
+            [ 'param' => 'mpm_registered_from', 'label' => 'RF', 'type' => 'date', 'source' => 'mepr_member', 'predicate' => 'registered_from', 'range_of' => 'mpm_registered', 'range_part' => 'from' ],
+            [ 'param' => 'mpm_registered_to', 'label' => 'RT', 'type' => 'date', 'source' => 'mepr_member', 'predicate' => 'registered_to', 'range_of' => 'mpm_registered', 'range_part' => 'to' ],
+            [ 'param' => 'mpm_last_login_from', 'label' => 'LF', 'type' => 'date', 'source' => 'mepr_member', 'predicate' => 'last_login_from', 'range_of' => 'mpm_last_login', 'range_part' => 'from' ],
+            [ 'param' => 'mpm_last_login_to', 'label' => 'LT', 'type' => 'date', 'source' => 'mepr_member', 'predicate' => 'last_login_to', 'range_of' => 'mpm_last_login', 'range_part' => 'to' ],
+        ];
+    }
+
+    public function test_registered_after_fills_only_the_lower_bound_in_one_fragment()
+    {
+        $_GET['mpm_registered_from'] = '2025-01-01';
+        $_GET['mpm_registered_to']   = '2025-12-31';
+        $_GET['mpm_registered__op']  = 'after';
+
+        $ctx  = new Meprmf_Screen_Context('memberpress-members', 'u.ID');
+        $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists([], $ctx, $this->range_activity_field_defs());
+
+        $this->assertCount(1, $args);
+        $this->assertStringContainsString("u.user_registered >= '2025-01-01 00:00:00'", $args[0]);
+        $this->assertStringNotContainsString('<=', $args[0]);
+    }
+
+    public function test_last_login_not_in_last_keeps_members_who_never_logged_in()
+    {
+        $_GET['mpm_last_login__op'] = 'not_in_last';
+        $_GET['mpm_last_login__n']  = '90';
+        $_GET['mpm_last_login__u']  = 'days';
+
+        $ctx  = new Meprmf_Screen_Context('memberpress-members', 'u.ID');
+        $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists([], $ctx, $this->range_activity_field_defs());
+
+        $this->assertCount(1, $args);
+        $this->assertStringContainsString('last_login.created_at IS NULL OR NOT (', $args[0]);
+
+        $from = \Meprmf_Util::resolve_relative_bounds(90, 'days');
+        $this->assertStringContainsString($from['from'] . ' 00:00:00', $args[0]);
+    }
+
+    public function test_registered_in_last_is_not_negated()
+    {
+        $_GET['mpm_registered__op'] = 'in_last';
+        $_GET['mpm_registered__n']  = '7';
+        $_GET['mpm_registered__u']  = 'days';
+
+        $ctx  = new Meprmf_Screen_Context('memberpress-members', 'u.ID');
+        $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists([], $ctx, $this->range_activity_field_defs());
+
+        $this->assertCount(1, $args);
+        $this->assertStringNotContainsString('NOT (', $args[0]);
+        $this->assertStringContainsString('u.user_registered >=', $args[0]);
+        $this->assertStringContainsString('u.user_registered <=', $args[0]);
     }
 
     public function test_members_corp_type_sub_account_predicate()
