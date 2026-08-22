@@ -260,6 +260,67 @@ class Meprmf_Members_Core_Provider
             ];
         }
 
+        if ($ctx->is_transactions()) {
+            $currency = Meprmf_Util::currency_symbol();
+
+            $fields[] = [
+                'param'      => $prefix . 'amount_min',
+                'label'      => __('Amount (min)', 'admin-filters-for-memberpress'),
+                'type'       => 'number',
+                'source'     => 'mepr_transaction',
+                'predicate'  => 'amount_min',
+                'group'      => Meprmf_Util::GROUP_ACTIVITY,
+                'range_of'   => $prefix . 'amount',
+                'range_part' => 'min',
+                'unit'       => $currency,
+            ];
+            $fields[] = [
+                'param'      => $prefix . 'amount_max',
+                'label'      => __('Amount (max)', 'admin-filters-for-memberpress'),
+                'type'       => 'number',
+                'source'     => 'mepr_transaction',
+                'predicate'  => 'amount_max',
+                'group'      => Meprmf_Util::GROUP_ACTIVITY,
+                'range_of'   => $prefix . 'amount',
+                'range_part' => 'max',
+                'unit'       => $currency,
+            ];
+
+            // The gateway subscription id, which is what the list's Subscr. column shows.
+            $fields[] = [
+                'param'         => $prefix . 'subscription',
+                'label'         => __('Subscription', 'admin-filters-for-memberpress'),
+                'type'          => 'text',
+                'source'        => 'mepr_subscription',
+                'predicate'     => 'subscr_id',
+                'group'         => Meprmf_Util::GROUP_MEMBERSHIP,
+                'operator_aware' => true,
+            ];
+        }
+
+        if ($ctx->is_subscriptions_recurring()) {
+            $fields[] = [
+                'param'      => $prefix . 'txn_count_min',
+                'label'      => __('Transaction count (min)', 'admin-filters-for-memberpress'),
+                'type'       => 'number',
+                'source'     => 'mepr_subscription',
+                'predicate'  => 'txn_count_min',
+                'group'      => Meprmf_Util::GROUP_ACTIVITY,
+                'range_of'   => $prefix . 'txn_count',
+                'range_part' => 'min',
+            ];
+            $fields[] = [
+                'param'      => $prefix . 'txn_count_max',
+                'label'      => __('Transaction count (max)', 'admin-filters-for-memberpress'),
+                'type'       => 'number',
+                'source'     => 'mepr_subscription',
+                'predicate'  => 'txn_count_max',
+                'group'      => Meprmf_Util::GROUP_ACTIVITY,
+                'range_of'   => $prefix . 'txn_count',
+                'range_part' => 'max',
+            ];
+        }
+
         if ($ctx->is_lifetimes()) {
             $coupons = self::fetch_coupon_options();
             if (! empty($coupons)) {

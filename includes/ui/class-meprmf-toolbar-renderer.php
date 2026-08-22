@@ -679,9 +679,15 @@ class Meprmf_Toolbar_Renderer
 
         // MemberPress-column and native params are read as plain values: the SQL builders never
         // look at the operator for them, so only `is` would be truthful. Their date and number
-        // pairs are the exception — those do go through the operator-aware range resolver.
-        if (! empty($field['source']) && 'date' !== $kind && 'number' !== $kind) {
+        // pairs are the exception — those do go through the operator-aware range resolver — as
+        // is a column whose builder reads the operator itself and says so with `operator_aware`.
+        if (! empty($field['source']) && 'date' !== $kind && 'number' !== $kind && empty($field['operator_aware'])) {
             $tokens = array_intersect($tokens, [ 'is' ]);
+        }
+
+        // One input cannot express a list of values, whatever the field is backed by.
+        if (! empty($field['operator_aware'])) {
+            $tokens = array_diff($tokens, [ 'is_one_of' ]);
         }
 
         // The numeric pair is two independent bounds (`>= min`, `<= max`); it has no param that

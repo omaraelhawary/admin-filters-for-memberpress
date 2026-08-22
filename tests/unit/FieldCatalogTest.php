@@ -310,4 +310,96 @@ class FieldCatalogTest extends TestCase
         $this->assertCount(1, $catalog);
         $GLOBALS['meprmf_test_filters']['meprmf_field_catalog'] = [];
     }
+
+    public function test_an_operator_aware_core_text_field_keeps_its_text_operators()
+    {
+        $catalog = Meprmf_Toolbar_Renderer::build_field_catalog(
+            [
+                [
+                    'param'          => 'mpmt_subscription',
+                    'label'          => 'Subscription',
+                    'type'           => 'text',
+                    'source'         => 'mepr_subscription',
+                    'operator_aware' => true,
+                ],
+            ]
+        );
+
+        $tokens = array_column($catalog[0]['ops'], 'v');
+
+        $this->assertContains('contains', $tokens);
+        $this->assertContains('not_contains', $tokens);
+        $this->assertContains('is', $tokens);
+        $this->assertContains('is_not', $tokens);
+        $this->assertContains('is_empty', $tokens);
+        $this->assertContains('is_not_empty', $tokens);
+        // One input cannot hold a list of values, whatever backs the field.
+        $this->assertNotContains('is_one_of', $tokens);
+        $this->assertFalse($catalog[0]['pair']);
+        $this->assertSame('mpmt_subscription', $catalog[0]['params']['value']);
+        $this->assertSame('mpmt_subscription__op', $catalog[0]['params']['op']);
+    }
+
+    public function test_the_transactions_amount_pair_reads_as_one_money_row()
+    {
+        $catalog = Meprmf_Toolbar_Renderer::build_field_catalog(
+            [
+                [
+                    'param'      => 'mpmt_amount_min',
+                    'label'      => 'Amount (min)',
+                    'type'       => 'number',
+                    'source'     => 'mepr_transaction',
+                    'range_of'   => 'mpmt_amount',
+                    'range_part' => 'min',
+                    'unit'       => '$',
+                ],
+                [
+                    'param'      => 'mpmt_amount_max',
+                    'label'      => 'Amount (max)',
+                    'type'       => 'number',
+                    'source'     => 'mepr_transaction',
+                    'range_of'   => 'mpmt_amount',
+                    'range_part' => 'max',
+                    'unit'       => '$',
+                ],
+            ]
+        );
+
+        $this->assertCount(1, $catalog);
+        $this->assertSame('Amount', $catalog[0]['label']);
+        $this->assertSame('number', $catalog[0]['kind']);
+        $this->assertTrue($catalog[0]['pair']);
+        $this->assertSame('$', $catalog[0]['unit']);
+        $this->assertSame('mpmt_amount_min', $catalog[0]['params']['from']);
+        $this->assertSame('mpmt_amount_max', $catalog[0]['params']['to']);
+        $this->assertSame([ 'between', 'at_least', 'at_most' ], array_values(array_column($catalog[0]['ops'], 'v')));
+    }
+
+    public function test_the_transaction_count_pair_has_no_currency_unit()
+    {
+        $catalog = Meprmf_Toolbar_Renderer::build_field_catalog(
+            [
+                [
+                    'param'      => 'mpms_txn_count_min',
+                    'label'      => 'Transaction count (min)',
+                    'type'       => 'number',
+                    'source'     => 'mepr_subscription',
+                    'range_of'   => 'mpms_txn_count',
+                    'range_part' => 'min',
+                ],
+                [
+                    'param'      => 'mpms_txn_count_max',
+                    'label'      => 'Transaction count (max)',
+                    'type'       => 'number',
+                    'source'     => 'mepr_subscription',
+                    'range_of'   => 'mpms_txn_count',
+                    'range_part' => 'max',
+                ],
+            ]
+        );
+
+        $this->assertCount(1, $catalog);
+        $this->assertSame('Transaction count', $catalog[0]['label']);
+        $this->assertArrayNotHasKey('unit', $catalog[0]);
+    }
 }

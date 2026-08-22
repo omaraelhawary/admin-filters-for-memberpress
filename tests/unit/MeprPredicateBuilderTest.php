@@ -70,6 +70,15 @@ class MeprPredicateBuilderTest extends TestCase
             public $usermeta = 'wp_usermeta';
 
             /**
+             * @param string $text Text.
+             * @return string
+             */
+            public function esc_like($text)
+            {
+                return addcslashes((string) $text, '_%\\');
+            }
+
+            /**
              * @param string $query Query.
              * @param mixed  ...$args Args.
              * @return string
@@ -568,5 +577,162 @@ class MeprPredicateBuilderTest extends TestCase
         $this->assertCount(1, $args);
         $this->assertStringContainsString('txn.coupon_id', $args[0]);
         $this->assertStringContainsString('5', $args[0]);
+    }
+
+    /**
+     * Amount pair, Subscription text field, and the subscriptions Transaction count pair (#25).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function transactions_amount_field_defs()
+    {
+        return [
+            [ 'param' => 'mpmt_amount_min', 'label' => 'Amount (min)', 'type' => 'number', 'source' => 'mepr_transaction', 'predicate' => 'amount_min', 'range_of' => 'mpmt_amount', 'range_part' => 'min', 'unit' => '$' ],
+            [ 'param' => 'mpmt_amount_max', 'label' => 'Amount (max)', 'type' => 'number', 'source' => 'mepr_transaction', 'predicate' => 'amount_max', 'range_of' => 'mpmt_amount', 'range_part' => 'max', 'unit' => '$' ],
+            [ 'param' => 'mpmt_subscription', 'label' => 'Subscription', 'type' => 'text', 'source' => 'mepr_subscription', 'predicate' => 'subscr_id', 'operator_aware' => true ],
+        ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function subscriptions_txn_count_field_defs()
+    {
+        return [
+            [ 'param' => 'mpms_txn_count_min', 'label' => 'Transaction count (min)', 'type' => 'number', 'source' => 'mepr_subscription', 'predicate' => 'txn_count_min', 'range_of' => 'mpms_txn_count', 'range_part' => 'min' ],
+            [ 'param' => 'mpms_txn_count_max', 'label' => 'Transaction count (max)', 'type' => 'number', 'source' => 'mepr_subscription', 'predicate' => 'txn_count_max', 'range_of' => 'mpms_txn_count', 'range_part' => 'max' ],
+        ];
+    }
+
+    public function test_transactions_amount_between_bounds_the_row_total()
+    {
+        $_GET['mpmt_amount_min']  = '25';
+        $_GET['mpmt_amount_max']  = '100';
+        $_GET['mpmt_amount__op']  = 'between';
+
+        $ctx  = new Meprmf_Screen_Context('memberpress-trans', 'tr.user_id');
+        $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists([], $ctx, $this->transactions_amount_field_defs());
+
+        $this->assertCount(2, $args);
+        $this->assertStringContainsString('tr.total >=', $args[0]);
+        $this->assertStringContainsString('25', $args[0]);
+        $this->assertStringContainsString('tr.total <=', $args[1]);
+        $this->assertStringContainsString('100', $args[1]);
+    }
+
+    public function test_transactions_amount_at_least_leaves_the_upper_bound_open()
+    {
+        $_GET['mpmt_amount_min'] = '50';
+        $_GET['mpmt_amount__op'] = 'at_least';
+
+        $ctx  = new Meprmf_Screen_Context('memberpress-trans', 'tr.user_id');
+        $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists([], $ctx, $this->transactions_amount_field_defs());
+
+        $this->assertCount(1, $args);
+        $this->assertStringContainsString('tr.total >=', $args[0]);
+        $this->assertStringNotContainsString('<=', $args[0]);
+    }
+
+    public function test_amount_bounds_are_ignored_on_a_screen_without_the_field()
+    {
+        $_GET['mpmt_amount_min'] = '50';
+
+        $ctx  = new Meprmf_Screen_Context('memberpress-trans', 'tr.user_id');
+        $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists([], $ctx, $this->transactions_core_field_defs());
+
+        $this->assertSame([], $args);
+    }
+
+    public function test_subscription_field_defaults_to_a_substring_match()
+    {
+        $_GET['mpmt_subscription'] = 'sub_123';
+
+        $ctx  = new Meprmf_Screen_Context('memberpress-trans', 'tr.user_id');
+        $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists([], $ctx, $this->transactions_amount_field_defs());
+
+        $this->assertCount(1, $args);
+        $this->assertStringContainsString('sub.subscr_id LIKE', $args[0]);
+        // esc_like escapes the underscore, so `sub_123` is a literal, not a single-char wildcard.
+        $this->assertStringContainsString('%sub\\_123%', $args[0]);
+    }
+
+    public function test_subscription_is_operator_matches_exactly()
+    {
+        $_GET['mpmt_subscription']      = 'sub_123';
+        $_GET['mpmt_subscription__op']  = 'is';
+
+        $ctx  = new Meprmf_Screen_Context('memberpress-trans', 'tr.user_id');
+        $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists([], $ctx, $this->transactions_amount_field_defs());
+
+        $this->assertCount(1, $args);
+        $this->assertStringContainsString('sub.subscr_id =', $args[0]);
+        $this->assertStringNotContainsString('LIKE', $args[0]);
+    }
+
+    public function test_subscription_negative_operators_keep_rows_with_no_subscription()
+    {
+        $_GET['mpmt_subscription']     = 'sub_123';
+        $_GET['mpmt_subscription__op'] = 'not_contains';
+
+        $ctx  = new Meprmf_Screen_Context('memberpress-trans', 'tr.user_id');
+        $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists([], $ctx, $this->transactions_amount_field_defs());
+
+        $this->assertCount(1, $args);
+        $this->assertStringContainsString('sub.subscr_id IS NULL', $args[0]);
+        $this->assertStringContainsString('NOT LIKE', $args[0]);
+
+        $_GET['mpmt_subscription__op'] = 'is_not';
+        Meprmf_Mepr_Predicate_Builder::reset_last_fragments();
+        $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists([], $ctx, $this->transactions_amount_field_defs());
+
+        $this->assertCount(1, $args);
+        $this->assertStringContainsString('sub.subscr_id IS NULL', $args[0]);
+        $this->assertStringContainsString('<>', $args[0]);
+    }
+
+    public function test_subscription_is_empty_needs_no_value()
+    {
+        $_GET['mpmt_subscription__op'] = 'is_empty';
+
+        $ctx  = new Meprmf_Screen_Context('memberpress-trans', 'tr.user_id');
+        $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists([], $ctx, $this->transactions_amount_field_defs());
+
+        $this->assertCount(1, $args);
+        $this->assertStringContainsString('sub.subscr_id IS NULL', $args[0]);
+
+        $_GET['mpmt_subscription__op'] = 'is_not_empty';
+        Meprmf_Mepr_Predicate_Builder::reset_last_fragments();
+        $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists([], $ctx, $this->transactions_amount_field_defs());
+
+        $this->assertCount(1, $args);
+        $this->assertStringContainsString('sub.subscr_id IS NOT NULL', $args[0]);
+    }
+
+    public function test_transaction_count_counts_only_complete_transactions_of_the_row()
+    {
+        $_GET['mpms_txn_count_min'] = '2';
+
+        $ctx  = new Meprmf_Screen_Context('memberpress-subscriptions', 'sub.user_id');
+        $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists([], $ctx, $this->subscriptions_txn_count_field_defs());
+
+        $this->assertCount(1, $args);
+        $this->assertStringContainsString('SELECT COUNT(*)', $args[0]);
+        $this->assertStringContainsString('wp_mepr_transactions', $args[0]);
+        $this->assertStringContainsString('meprmf_txn_cnt.subscription_id = sub.id', $args[0]);
+        $this->assertStringContainsString("'complete'", $args[0]);
+        $this->assertStringContainsString('>= 2', $args[0]);
+    }
+
+    public function test_transaction_count_between_bounds_both_ends()
+    {
+        $_GET['mpms_txn_count_min'] = '2';
+        $_GET['mpms_txn_count_max'] = '6';
+
+        $ctx  = new Meprmf_Screen_Context('memberpress-subscriptions', 'sub.user_id');
+        $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists([], $ctx, $this->subscriptions_txn_count_field_defs());
+
+        $this->assertCount(2, $args);
+        $this->assertStringContainsString('>= 2', $args[0]);
+        $this->assertStringContainsString('<= 6', $args[1]);
     }
 }

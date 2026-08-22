@@ -502,4 +502,82 @@ class ActiveFiltersTest extends TestCase
         $this->assertCount(1, $chips, 'A param owned by a panel field must not also chip as a native param.');
         $this->assertSame('Subscription status is', $chips[0]['label']);
     }
+
+    /**
+     * The three fields added in 2.2.0 (#25).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function transaction_fields()
+    {
+        return [
+            [
+                'param'      => 'mpmt_amount_min',
+                'label'      => 'Amount (min)',
+                'type'       => 'number',
+                'source'     => 'mepr_transaction',
+                'range_of'   => 'mpmt_amount',
+                'range_part' => 'min',
+                'unit'       => '$',
+            ],
+            [
+                'param'      => 'mpmt_amount_max',
+                'label'      => 'Amount (max)',
+                'type'       => 'number',
+                'source'     => 'mepr_transaction',
+                'range_of'   => 'mpmt_amount',
+                'range_part' => 'max',
+                'unit'       => '$',
+            ],
+            [
+                'param'          => 'mpmt_subscription',
+                'label'          => 'Subscription',
+                'type'           => 'text',
+                'source'         => 'mepr_subscription',
+                'operator_aware' => true,
+            ],
+        ];
+    }
+
+    public function test_amount_between_chips_as_one_currency_range()
+    {
+        $chips = Meprmf_Active_Filters::build_chips(
+            $this->transaction_fields(),
+            [],
+            [ 'mpmt_amount_min' => '25', 'mpmt_amount_max' => '100', 'mpmt_amount__op' => 'between' ]
+        );
+
+        $this->assertCount(1, $chips);
+        $this->assertSame('Amount', $chips[0]['label']);
+        $this->assertSame('$25–$100', $chips[0]['value']);
+        $this->assertContains('mpmt_amount_min', $chips[0]['params']);
+        $this->assertContains('mpmt_amount_max', $chips[0]['params']);
+        $this->assertContains('mpmt_amount__op', $chips[0]['params']);
+    }
+
+    public function test_amount_at_least_chips_the_single_bound()
+    {
+        $chips = Meprmf_Active_Filters::build_chips(
+            $this->transaction_fields(),
+            [],
+            [ 'mpmt_amount_min' => '25', 'mpmt_amount__op' => 'at_least' ]
+        );
+
+        $this->assertCount(1, $chips);
+        $this->assertSame('Amount is at least', $chips[0]['label']);
+        $this->assertSame('$25', $chips[0]['value']);
+    }
+
+    public function test_subscription_contains_chips_with_its_operator()
+    {
+        $chips = Meprmf_Active_Filters::build_chips(
+            $this->transaction_fields(),
+            [],
+            [ 'mpmt_subscription' => 'sub_123', 'mpmt_subscription__op' => 'contains' ]
+        );
+
+        $this->assertCount(1, $chips);
+        $this->assertSame('Subscription contains', $chips[0]['label']);
+        $this->assertSame('sub_123', $chips[0]['value']);
+    }
 }
