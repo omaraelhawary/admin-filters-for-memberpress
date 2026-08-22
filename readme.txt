@@ -4,7 +4,7 @@ Tags: memberpress, members, admin, filters, membership
 Requires at least: 5.6
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 2.2.0
+Stable tag: 2.2.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -83,6 +83,10 @@ Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-m
 * Source and issues: see **Plugin URI** and **GitHub URI** in the main plugin file header (`admin-filters-for-memberpress.php`).
 
 == Changelog ==
+
+= 2.2.1 =
+
+* Performance: opening a Members, Transactions, Subscriptions or Lifetimes list no longer does the work of collecting every filterable field before checking whether you have a default view set. Sites where nobody uses a default view save that work on every list screen load. No change to what the filters do.
 
 = 2.2.0 =
 
@@ -217,6 +221,10 @@ Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-m
 * Compact collapsible filter layout when many filters are active (threshold filterable in later releases).
 
 == Upgrade Notice ==
+
+= 2.2.1 =
+
+Performance only: the default-view check no longer collects every filterable field before reading whether a default view is set. No behaviour changes.
 
 = 2.2.0 =
 

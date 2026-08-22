@@ -216,6 +216,10 @@ Uses `tests/bootstrap-unit.php` (no full WordPress test database). CI runs on PH
 
 ## Changelog
 
+### 2.2.1
+
+- **Perf:** `Meprmf_Presets::maybe_apply_default_view()` reads the admin's default view (one option, one user-meta read) before asking whether the request already carries a filter, which is what builds the whole normalized field registry via `request_filter_params()`. Measured on a 696-member site with the four screens' fields configured: one registry build and ~5 ms per clean list-screen load, down to zero builds and ~0.35 ms. Both are pure guards, so behaviour is unchanged.
+
 ### 2.2.0
 
 - **Transactions: Amount** (`mpmt_amount_min` / `mpmt_amount_max` / `mpmt_amount__op`) on `tr.total`, in the site's MemberPress currency — `is at least`, `is at most`, `is between`.
