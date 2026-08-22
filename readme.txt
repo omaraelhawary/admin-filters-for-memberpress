@@ -2,7 +2,7 @@
 Contributors: omarelhawary
 Tags: memberpress, members, admin, filters, membership
 Requires at least: 5.6
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 8.1
 Stable tag: 2.2.1
 License: GPLv2 or later
