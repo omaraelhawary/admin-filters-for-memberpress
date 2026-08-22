@@ -681,14 +681,14 @@ class Meprmf_Presets
 
         $storage_id = $ctx->get_storage_id();
 
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Presence test only; values sanitized where used.
-        $request = is_array($_GET) ? $_GET : [];
-
-        // Any filter already in the URL is an explicit request, and it wins.
-        if (self::request_asks_for_filters($request, self::request_filter_params($ctx))) {
-            return;
-        }
-
+        /*
+         * This order is load-bearing, so do not tidy it into "read the request, then the view".
+         * Asking whether a default view exists costs two cached reads (one option, one user
+         * meta). Asking whether the request already filters costs the whole normalized field
+         * registry -- product, coupon and gateway options plus every Settings -> Fields custom
+         * field -- via request_filter_params(). An admin who has never marked a default view is
+         * the common case, and they should not pay for that on every list-screen load.
+         */
         $default_id = self::get_default_view_id($storage_id);
         if ('' === $default_id) {
             return;
@@ -702,6 +702,14 @@ class Meprmf_Presets
             }
         }
         if (empty($params)) {
+            return;
+        }
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Presence test only; values sanitized where used.
+        $request = is_array($_GET) ? $_GET : [];
+
+        // Any filter already in the URL is an explicit request, and it wins.
+        if (self::request_asks_for_filters($request, self::request_filter_params($ctx))) {
             return;
         }
 
