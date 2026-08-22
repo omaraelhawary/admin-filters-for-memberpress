@@ -31,7 +31,7 @@ Filtering reads values you or your administrators submit on those admin lists (s
 * On every supported list, additional filters query MemberPress tables (memberships, access, subscriptions, dates) and list-specific fields such as transaction status, gateway, and member status — not only wp_usermeta.
 * Each list still works like MemberPress; this plugin only adds filtering options for administrators.
 * A **Filters** card above the list where you add one filter at a time — pick a field, a comparison (is, contains, is after, is between, is in the last, is empty, ...) and a value — and choose whether rows must match **all** filters or **any** of them.
-* **Saved views** (Filters card): name and reload common filter combinations site-wide on each list screen. Views include plugin panel params and native MemberPress toolbar params (`status`, `membership`, `gateway`, transaction date fields, gifting `type` when applicable).
+* **Saved views** (Filters card): name and reload common filter combinations on each list screen, either shared with the other administrators or private to you, and optionally marked as the view a screen opens with. Views include plugin panel params and native MemberPress toolbar params (`status`, `membership`, `gateway`, transaction date fields, gifting `type` when applicable).
 
 == Installation ==
 
@@ -51,7 +51,7 @@ No. You must purchase and install MemberPress separately. This plugin only adds 
 
 = Where do I use the filters? =
 
-In the WordPress admin, open **MemberPress -> Members** (or **Subscriptions**, **Lifetimes**, or **Transactions**). In the **Filters** card above the table, click **+ Add filter**, pick a field, set the comparison and value, then click **Apply filters** to refresh the list. Use **Saved views** to save or load named filter combinations shared by all admins on that screen.
+In the WordPress admin, open **MemberPress -> Members** (or **Subscriptions**, **Lifetimes**, or **Transactions**). In the **Filters** card above the table, click **+ Add filter**, pick a field, set the comparison and value, then click **Apply filters** to refresh the list. Use **Saved views** to save or load named filter combinations on that screen -- shared with the other administrators, or private to you. **Set as default** makes one of your views the one that screen opens with.
 
 = What can I filter members by? =
 
@@ -88,6 +88,10 @@ Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-m
 
 * **Transactions:** filter by **Amount** (is at least / is at most / is between, in your MemberPress currency) and by **Subscription** — the gateway subscription id shown in the list's Subscr. column, with contains, does not contain, is, is not, is empty and is not empty.
 * **Subscriptions:** filter by **Transaction count** (is at least / is at most / is between). Counts the same completed transactions MemberPress shows in the row's Transactions column, so the filter and the number agree.
+* **Saved views now belong to someone.** A view records the administrator who saved it and whether it is **shared** with the other administrators or **private** to its owner. A private view is not shown to anyone else.
+* **Deleting another administrator's shared view is refused** with a message saying why, instead of silently removing it for everyone. So is saving over one under the same name. Administrators who can manage options may still do both.
+* **Default view:** mark one saved view per screen as the view that screen opens with. It is per administrator, an explicit filter in the address bar always wins, and clearing the filters shows the unfiltered list rather than re-applying the default.
+* Views saved before this release keep working for everyone exactly as they did: they read as shared and unowned, nobody loses a view, and nothing in the database is rewritten.
 
 = 2.1.1 =
 
@@ -216,7 +220,7 @@ Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-m
 
 = 2.2.0 =
 
-Adds Amount and Subscription filters on Transactions and a Transaction count filter on Subscriptions. Existing filter URLs and saved views keep working. No database migration.
+Adds Amount and Subscription filters on Transactions, a Transaction count filter on Subscriptions, and saved views that belong to an administrator (shared or private) with an optional default view per screen. Existing filter URLs and saved views keep working -- older views read as shared and unowned. No database migration.
 
 = 2.1.1 =
 
