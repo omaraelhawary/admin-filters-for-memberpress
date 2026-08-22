@@ -240,6 +240,8 @@ class Meprmf_Mepr_Predicate_Builder
         $txn_status    = self::string_param($values, self::param_for_predicate($valid, 'txn_status'));
         $gateway       = self::string_param($values, self::param_for_predicate($valid, 'gateway'));
         $coupon_id     = self::int_param($values, self::param_for_predicate($valid, 'coupon'));
+        $amount        = self::number_bounds($valid, $values, 'amount_min', 'amount_max');
+        $txn_count     = self::number_bounds($valid, $values, 'txn_count_min', 'txn_count_max');
         $uid           = $ctx->get_user_id_column_sql();
         $expires_alias = $ctx->is_subscriptions_recurring() ? 'expiring_txn' : $row_alias;
 
@@ -260,6 +262,51 @@ class Meprmf_Mepr_Predicate_Builder
             $sql                    = $wpdb->prepare("{$row_alias}.status = %s", $txn_status);
             $args[]                 = $sql;
             self::$last_fragments[] = $sql;
+        }
+
+        if (null !== $amount['min']) {
+            $sql                    = $wpdb->prepare("{$row_alias}.total >= %f", $amount['min']);
+            $args[]                 = $sql;
+            self::$last_fragments[] = $sql;
+        }
+        if (null !== $amount['max']) {
+            $sql                    = $wpdb->prepare("{$row_alias}.total <= %f", $amount['max']);
+            $args[]                 = $sql;
+            self::$last_fragments[] = $sql;
+        }
+
+        // Counts only the transactions MemberPress itself counts in the Transactions column,
+        // so the filter and the number shown on the row agree.
+        if (null !== $txn_count['min']) {
+            $sql = $wpdb->prepare(
+                "(SELECT COUNT(*) FROM {$mepr_db->transactions} AS meprmf_txn_cnt"
+                . " WHERE meprmf_txn_cnt.subscription_id = {$row_alias}.id"
+                . " AND meprmf_txn_cnt.status = %s) >= %d",
+                MeprTransaction::$complete_str,
+                (int) $txn_count['min']
+            );
+            $args[]                 = $sql;
+            self::$last_fragments[] = $sql;
+        }
+        if (null !== $txn_count['max']) {
+            $sql = $wpdb->prepare(
+                "(SELECT COUNT(*) FROM {$mepr_db->transactions} AS meprmf_txn_cnt"
+                . " WHERE meprmf_txn_cnt.subscription_id = {$row_alias}.id"
+                . " AND meprmf_txn_cnt.status = %s) <= %d",
+                MeprTransaction::$complete_str,
+                (int) $txn_count['max']
+            );
+            $args[]                 = $sql;
+            self::$last_fragments[] = $sql;
+        }
+
+        $subscr_sql = self::build_subscr_id_clause(
+            self::field_for_predicate($valid, 'subscr_id'),
+            $values
+        );
+        if ('' !== $subscr_sql) {
+            $args[]                 = $subscr_sql;
+            self::$last_fragments[] = $subscr_sql;
         }
 
         $args = self::push_range(
@@ -602,6 +649,80 @@ class Meprmf_Mepr_Predicate_Builder
             'to'     => self::date_param($values, self::param_for_predicate($valid, $to_predicate)),
             'negate' => false,
         ];
+    }
+
+    /**
+     * Effective bounds for one numeric min/max pair.
+     *
+     * The pair has no param that could carry an equality, so the operator only decides which
+     * bound the typed value lands in — which the UI has already done by the time the value
+     * reaches a GET param. Reading both bounds is therefore the whole of it, and it keeps a
+     * hand-written or bookmarked URL working with no operator present at all.
+     *
+     * @param array<int, array<string, mixed>> $valid         Normalized core field definitions.
+     * @param array<string, string>            $values        Active request values.
+     * @param string                           $min_predicate Predicate key of the lower bound.
+     * @param string                           $max_predicate Predicate key of the upper bound.
+     * @return array{min: float|null, max: float|null}
+     */
+    private static function number_bounds(array $valid, array $values, $min_predicate, $max_predicate)
+    {
+        return [
+            'min' => self::float_param($values, self::param_for_predicate($valid, $min_predicate)),
+            'max' => self::float_param($values, self::param_for_predicate($valid, $max_predicate)),
+        ];
+    }
+
+    /**
+     * Operator-aware clause for the gateway subscription id on the Transactions list.
+     *
+     * `sub` is MemberPress's own LEFT JOIN onto mepr_subscriptions, so a one-off payment has
+     * NULL here. Every negative operator keeps those rows: a transaction with no subscription
+     * really does not contain the needle.
+     *
+     * @param array<string, mixed>  $field  Field row, or empty when the screen has no such field.
+     * @param array<string, string> $values Active request values.
+     * @return string Empty when the filter is not active.
+     */
+    private static function build_subscr_id_clause(array $field, array $values)
+    {
+        global $wpdb;
+
+        $param = isset($field['param']) ? (string) $field['param'] : '';
+        if ('' === $param) {
+            return '';
+        }
+
+        $column   = 'sub.subscr_id';
+        $operator = Meprmf_Util::get_field_operator(Meprmf_Util::range_base_param($field), $field);
+
+        if ('is_empty' === $operator) {
+            return "( {$column} IS NULL OR {$column} = '' )";
+        }
+        if ('is_not_empty' === $operator) {
+            return "( {$column} IS NOT NULL AND {$column} <> '' )";
+        }
+
+        $raw = self::string_param($values, $param);
+        if ('' === $raw) {
+            return '';
+        }
+
+        if ('is' === $operator) {
+            return $wpdb->prepare("{$column} = %s", $raw);
+        }
+        if ('is_not' === $operator) {
+            return $wpdb->prepare("( {$column} IS NULL OR {$column} <> %s )", $raw);
+        }
+
+        $like = '%' . $wpdb->esc_like($raw) . '%';
+
+        if ('not_contains' === $operator) {
+            return $wpdb->prepare("( {$column} IS NULL OR {$column} NOT LIKE %s )", $like);
+        }
+
+        // No operator, or `contains`: a text field's own match mode is a substring match.
+        return $wpdb->prepare("{$column} LIKE %s", $like);
     }
 
     /**

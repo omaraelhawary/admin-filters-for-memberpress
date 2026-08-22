@@ -111,25 +111,12 @@ class Meprmf_Members_Activity_Provider
     }
 
     /**
-     * MemberPress currency symbol, shown as the unit glyph next to a money input.
-     *
-     * Decoded because MemberPress interpolates this option straight into HTML, so a site may
-     * legitimately have `&#36;` stored. The glyph is written with textContent, which would
-     * otherwise print the entity itself.
+     * MemberPress currency symbol for the money inputs on this list.
      *
      * @return string Empty when MemberPress options are unavailable.
      */
     private static function currency_symbol()
     {
-        if (! class_exists('MeprOptions')) {
-            return '';
-        }
-
-        $options = MeprOptions::fetch();
-        if (! is_object($options) || empty($options->currency_symbol)) {
-            return '';
-        }
-
-        return html_entity_decode((string) $options->currency_symbol, ENT_QUOTES, 'UTF-8');
+        return Meprmf_Util::currency_symbol();
     }
 }

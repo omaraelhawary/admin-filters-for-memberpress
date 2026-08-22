@@ -224,4 +224,70 @@ class MembersCoreProviderTest extends TestCase
 
         $this->assertContains('mpml_coupon', $params);
     }
+
+    public function test_transactions_include_amount_pair_and_subscription_field()
+    {
+        require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen-context.php';
+        require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen.php';
+        require_once dirname(__DIR__, 2) . '/includes/filters/providers/class-meprmf-members-core-provider.php';
+
+        $ctx    = new Meprmf_Screen_Context(Meprmf_Screen::PAGE_TRANSACTIONS, 'tr.user_id');
+        $fields = Meprmf_Members_Core_Provider::get_core_filter_fields_for_context($ctx);
+        $by_param = array_column($fields, null, 'param');
+
+        $this->assertArrayHasKey('mpmt_amount_min', $by_param);
+        $this->assertArrayHasKey('mpmt_amount_max', $by_param);
+        $this->assertArrayHasKey('mpmt_subscription', $by_param);
+
+        $this->assertSame('mpmt_amount', $by_param['mpmt_amount_min']['range_of']);
+        $this->assertSame('min', $by_param['mpmt_amount_min']['range_part']);
+        $this->assertSame('max', $by_param['mpmt_amount_max']['range_part']);
+        $this->assertSame('number', $by_param['mpmt_amount_min']['type']);
+        $this->assertSame(Meprmf_Util::GROUP_ACTIVITY, $by_param['mpmt_amount_min']['group']);
+
+        $this->assertSame('text', $by_param['mpmt_subscription']['type']);
+        $this->assertTrue($by_param['mpmt_subscription']['operator_aware']);
+    }
+
+    public function test_subscriptions_include_transaction_count_pair()
+    {
+        require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen-context.php';
+        require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen.php';
+        require_once dirname(__DIR__, 2) . '/includes/filters/providers/class-meprmf-members-core-provider.php';
+
+        $ctx    = new Meprmf_Screen_Context(Meprmf_Screen::PAGE_SUBSCRIPTIONS, 'sub.user_id');
+        $fields = Meprmf_Members_Core_Provider::get_core_filter_fields_for_context($ctx);
+        $params = array_column($fields, 'param');
+
+        $this->assertContains('mpms_txn_count_min', $params);
+        $this->assertContains('mpms_txn_count_max', $params);
+
+        // Only the recurring list has a transaction count; the other lists must not offer it.
+        $lifetimes = Meprmf_Members_Core_Provider::get_core_filter_fields_for_context(
+            new Meprmf_Screen_Context(Meprmf_Screen::PAGE_LIFETIMES, 'txn.user_id')
+        );
+        $this->assertNotContains('mpml_txn_count_min', array_column($lifetimes, 'param'));
+
+        $transactions = Meprmf_Members_Core_Provider::get_core_filter_fields_for_context(
+            new Meprmf_Screen_Context(Meprmf_Screen::PAGE_TRANSACTIONS, 'tr.user_id')
+        );
+        $this->assertNotContains('mpmt_txn_count_min', array_column($transactions, 'param'));
+        $this->assertNotContains('mpmt_amount_min', array_column($lifetimes, 'param'));
+    }
+
+    public function test_new_transaction_fields_survive_normalization()
+    {
+        require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen-context.php';
+        require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen.php';
+        require_once dirname(__DIR__, 2) . '/includes/filters/providers/class-meprmf-members-core-provider.php';
+
+        $ctx    = new Meprmf_Screen_Context(Meprmf_Screen::PAGE_TRANSACTIONS, 'tr.user_id');
+        $valid  = Meprmf_Util::normalize_core_filter_fields(
+            Meprmf_Members_Core_Provider::get_core_filter_fields_for_context($ctx)
+        );
+        $params = array_column($valid, 'param');
+
+        $this->assertContains('mpmt_amount_min', $params);
+        $this->assertContains('mpmt_subscription', $params);
+    }
 }

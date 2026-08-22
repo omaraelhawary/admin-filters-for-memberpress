@@ -4,7 +4,7 @@ Tags: memberpress, members, admin, filters, membership
 Requires at least: 5.6
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 2.1.1
+Stable tag: 2.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -58,6 +58,7 @@ In the WordPress admin, open **MemberPress -> Members** (or **Subscriptions**, *
 * **Address** fields when your site collects them in MemberPress (for example country, city, postal code), including when address is captured on the account page.
 * Every field you configure under **MemberPress -> Settings -> Fields** (registration / profile style fields).
 * **Extra user meta** only if a developer adds filter definitions using the `meprmf_members_meta_filters_fields` filter hook (for data stored in `wp_usermeta` that is not already covered).
+* On **Transactions**, the transaction **Amount** and the **Subscription** it belongs to; on **Subscriptions**, how many completed transactions the subscription has.
 
 = Does this change my public website or checkout? =
 
@@ -82,6 +83,11 @@ Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-m
 * Source and issues: see **Plugin URI** and **GitHub URI** in the main plugin file header (`admin-filters-for-memberpress.php`).
 
 == Changelog ==
+
+= 2.2.0 =
+
+* **Transactions:** filter by **Amount** (is at least / is at most / is between, in your MemberPress currency) and by **Subscription** — the gateway subscription id shown in the list's Subscr. column, with contains, does not contain, is, is not, is empty and is not empty.
+* **Subscriptions:** filter by **Transaction count** (is at least / is at most / is between). Counts the same completed transactions MemberPress shows in the row's Transactions column, so the filter and the number agree.
 
 = 2.1.1 =
 
@@ -207,6 +213,10 @@ Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-m
 * Compact collapsible filter layout when many filters are active (threshold filterable in later releases).
 
 == Upgrade Notice ==
+
+= 2.2.0 =
+
+Adds Amount and Subscription filters on Transactions and a Transaction count filter on Subscriptions. Existing filter URLs and saved views keep working. No database migration.
 
 = 2.1.1 =
 
