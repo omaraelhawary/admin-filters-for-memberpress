@@ -49,7 +49,7 @@ The same **Filters** card appears on **Transactions**, **Subscriptions (Recurrin
 - Filter by the six built-in MemberPress address fields when address capture is enabled for signup/checkout and/or the account page (`meprmf_include_address_filters` to override).
 - Automatically expose every **MemberPress custom field** (MemberPress → Settings → Fields) with control types mapped to exact, contains, or checkbox match behavior.
 - **Query-builder Filters card** above the list on supported screens: one row per filter you add, each reading *field · comparison · value*, with **Match all filters / any filter**. Nothing is rendered until you add a filter, and the card's collapsed state is remembered in the browser (`localStorage`). Filter `meprmf_use_floating_meta_filters_panel` per screen; Members still respects `meprmf_use_floating_members_panel`.
-- **Saved views** (filter card): name and reload common filter combinations **site-wide** on each list screen. Views include plugin panel params **and** MemberPress native toolbar filters (`status`, `membership`, `gateway`, transaction date presets, gifting `type` when applicable). Any admin who can filter may save a view.
+- **Saved views** (filter card): name and reload common filter combinations on each list screen, **shared** with the other admins or **private** to whoever saved it, and optionally marked as the view a screen opens with. Views include plugin panel params **and** MemberPress native toolbar filters (`status`, `membership`, `gateway`, transaction date presets, gifting `type` when applicable). Any admin who can filter may save a view.
 - **Add-on aware passthrough filters** (when the add-on is active): **Course**, **Circle**, and **Directory** on **Members**; **Coupon** and **Gift type** on **Transactions** — these use the same GET params MemberPress add-ons already understand (`course`, `circle_id`, `directory`, `coupon_id`, `type`).
 - **Members activity filters:** registered date range, last login range, total spent min/max, and **On trial** (`mepr_members` / user aggregates).
 - **Corporate type** on **Members** when MemberPress Corporate is active (corp account owner, sub account, not corporate).
@@ -80,13 +80,18 @@ MemberPress **Go** still runs the native search; it does not read the card’s f
 
 ### Saved views
 
-1. Build a filter set and click **Save as view**, then enter a name. Saving the same name again updates that view.
-2. Pick a view from the **Saved views…** dropdown to apply it (same as bookmarking the filter URL).
-3. When a screen has saved views, its first few appear as one-click pills in the card’s empty state.
+1. Build a filter set and click **Save as view**, then enter a name and choose whether to keep the view private to you. Saving one of your own names again updates that view.
+2. Pick a view from the **Saved views…** dropdown to apply it (same as bookmarking the filter URL). A private view is listed as `Name (private)`.
+3. With a view selected, **Set as default** makes it the view that screen opens with for you; the button then offers **Clear default**, which is also how you can tell which view is your default.
+4. When a screen has saved views, its first few appear as one-click pills in the card’s empty state.
 
 Views are stored per screen (Members, Transactions, Subscriptions, Lifetimes) in `wp_options` (`meprmf_filter_presets`). They include plugin panel params (`mpf_*`, `mpm_*`, `mpmt_*`, `mpfs_*`, `mpml_*`) **and** native toolbar params for that screen (`status`, `membership`, `gateway`, transaction date fields, etc.).
 
-Views are **site-wide**: any admin who can filter the list may save or load them for everyone on that screen. Saving the same name again updates that view; concurrent saves from multiple admins are last-write-wins. Deleting a view has no control in the card yet — the `meprmf_delete_filter_preset` endpoint is still there, but nothing calls it.
+Each row records its `owner` (a user id) and its `visibility` (`shared` or `private`). A **shared** view is offered to every admin who can filter that screen; a **private** view is returned only to its owner, filtered in `Meprmf_Presets::get_presets_for_screen()` so the `meprmf_filter_presets` payload never carries it either. Deleting or overwriting another admin's shared view is refused rather than silently applied — `manage_options` overrides that, filterable via `meprmf_can_manage_others_views`. Another admin's private view reads as not found, which does not confirm it exists.
+
+A row saved before 2.2.0 has neither field, so it reads as shared and unowned: still usable and still deletable by anyone, with nothing rewritten in the database.
+
+**Default view.** Each admin may mark one view per screen as the default, stored in user meta (`meprmf_default_view_<screen>`). Opening the screen with no filter param in the URL — ours or a native MemberPress one — redirects to that view's params plus `meprmf_view=<id>`, so the URL still says what the list is filtered by. An explicit filter in the URL always wins, and applying an empty filter set writes `meprmf_view=none` so a cleared list is not immediately re-filtered by the default it was cleared of. Deleting a view clears it as every admin's default, not only the deleter's.
 
 ### Filters by screen
 
@@ -101,6 +106,9 @@ Views are **site-wide**: any admin who can filter the list may save or load them
 | Transaction status | — | ✓ | — | ✓ |
 | Created from / to | — | ✓ | — | ✓ |
 | Gateway | — | ✓ | ✓ | ✓ |
+| Amount (`tr.total`) | — | ✓ | — | — |
+| Subscription (`sub.subscr_id`) | — | ✓ | — | — |
+| Transaction count (completed) | — | — | ✓ | — |
 | Course / Circle / Directory (add-on) | ✓ | — | — | — |
 | Corporate type (Corporate add-on) | ✓ | — | — | — |
 | Registered / last login / spent / trial | ✓ | — | — | — |
@@ -207,6 +215,16 @@ vendor/bin/phpunit
 Uses `tests/bootstrap-unit.php` (no full WordPress test database). CI runs on PHP 8.1–8.3 via `.github/workflows/phpunit.yml`.
 
 ## Changelog
+
+### 2.2.0
+
+- **Transactions: Amount** (`mpmt_amount_min` / `mpmt_amount_max` / `mpmt_amount__op`) on `tr.total`, in the site's MemberPress currency — `is at least`, `is at most`, `is between`.
+- **Transactions: Subscription** (`mpmt_subscription`) on the gateway subscription id MemberPress shows in the Subscr. column (`sub.subscr_id`) — `contains`, `does not contain`, `is`, `is not`, `is empty`, `is not empty`. Every negative operator keeps one-off payments, whose `subscr_id` is NULL.
+- **Subscriptions: Transaction count** (`mpms_txn_count_min` / `_max`) counting the row's **completed** transactions, the same definition MemberPress uses for its Transactions column.
+- **Saved views have an owner and a visibility.** Shared or private; a private view is returned only to its owner. Deleting or overwriting another admin's shared view is refused (`meprmf_can_manage_others_views` overrides).
+- **Default view per admin per screen.** A clean screen load applies it by redirect; an explicit filter URL wins; `meprmf_view=none` suppresses it so filters can be cleared.
+- Pre-2.2.0 views read as shared and unowned. No migration runs and no stored row changes.
+- Uninstall now also removes each screen's `meprmf_default_view_<screen>` user meta.
 
 ### 2.1.1
 
