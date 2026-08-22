@@ -266,8 +266,9 @@ class Meprmf_Plugin
                 MEPRMF_VERSION,
                 true
             );
-            // The match mode is a known param too, so Apply does not drop it from the URL.
-            $known = [ Meprmf_Util::MATCH_MODE_PARAM ];
+            // The match mode is a known param too, so Apply does not drop it from the URL. So is
+            // the default-view suppressor, or a stale one would outlive the Apply that set it.
+            $known = [ Meprmf_Util::MATCH_MODE_PARAM, Meprmf_Presets::SUPPRESS_PARAM ];
             foreach (Meprmf_Filter_Registry::get_normalized_fields_for_context($ctx) as $field) {
                 foreach (Meprmf_Util::collect_field_request_params($field) as $p) {
                     if ('' !== $p) {
@@ -299,6 +300,9 @@ class Meprmf_Plugin
                     'groupLabels'          => Meprmf_Util::get_group_labels(),
                     'relativeUnits'        => self::relative_unit_choices(),
                     'presets'              => Meprmf_Presets::get_presets_for_screen($ctx->get_storage_id()),
+                    'defaultView'          => Meprmf_Presets::get_default_view_id($ctx->get_storage_id()),
+                    'suppressParam'        => Meprmf_Presets::SUPPRESS_PARAM,
+                    'suppressValue'        => Meprmf_Presets::SUPPRESS_VALUE,
                     'presetsNonce'         => wp_create_nonce('meprmf_filter_presets'),
                     'ajaxUrl'              => admin_url('admin-ajax.php'),
                     'i18n'                 => [
@@ -307,7 +311,14 @@ class Meprmf_Plugin
                         'noActiveFilters'    => __('Apply at least one filter before saving a preset.', 'admin-filters-for-memberpress'),
                         /* translators: %s: saved view name. */
                         'deleteViewConfirm'  => __('Delete the saved view “%s”? This removes it for everyone.', 'admin-filters-for-memberpress'),
+                        /* translators: %s: saved view name. */
+                        'deleteViewConfirmPrivate' => __('Delete your private view “%s”?', 'admin-filters-for-memberpress'),
                         'deleteViewError'    => __('Could not delete the saved view. Please try again.', 'admin-filters-for-memberpress'),
+                        'savePrivatePrompt'  => __('Keep this view private to you? Cancel shares it with the other administrators.', 'admin-filters-for-memberpress'),
+                        'savedViewsPlaceholder' => __('Saved views…', 'admin-filters-for-memberpress'),
+                        'setDefaultView'     => __('Set as default', 'admin-filters-for-memberpress'),
+                        'clearDefaultView'   => __('Clear default', 'admin-filters-for-memberpress'),
+                        'defaultViewError'   => __('Could not change the default view. Please try again.', 'admin-filters-for-memberpress'),
                         'anyValue'           => __('Any value', 'admin-filters-for-memberpress'),
                         'valuePlaceholder'   => __('Type a value…', 'admin-filters-for-memberpress'),
                         'noValueNeeded'      => __('no value needed', 'admin-filters-for-memberpress'),
