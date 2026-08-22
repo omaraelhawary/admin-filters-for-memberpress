@@ -15,3 +15,13 @@ delete_option('meprmf_filter_presets');
 
 // Per-admin date-range UI preference (Settings → customize in the floating panel).
 delete_metadata('user', 0, 'meprmf_date_custom_fields_use_range', '', true);
+
+/*
+ * Per-admin default view, one meta key per list screen. The ids are the storage ids of
+ * Meprmf_Screen::supported_page_contexts() -- listed literally so this file stays loadable
+ * with nothing but WordPress, the way the rest of it is.
+ */
+foreach ([ 'memberpress_members', 'memberpress_subscriptions', 'memberpress_lifetimes', 'memberpress_trans' ] as $meprmf_screen_id) {
+    delete_metadata('user', 0, 'meprmf_default_view_' . $meprmf_screen_id, '', true);
+}
+unset($meprmf_screen_id);
