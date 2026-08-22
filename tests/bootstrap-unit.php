@@ -449,6 +449,98 @@ if (! function_exists('get_posts')) {
     }
 }
 
+if (! isset($GLOBALS['meprmf_test_user_caps'])) {
+    $GLOBALS['meprmf_test_user_caps'] = [];
+}
+
+if (! isset($GLOBALS['meprmf_test_redirects'])) {
+    $GLOBALS['meprmf_test_redirects'] = [];
+}
+
+if (! function_exists('delete_user_meta')) {
+    /**
+     * @param int    $user_id User id.
+     * @param string $key     Meta key.
+     * @return true
+     */
+    function delete_user_meta($user_id, $key)
+    {
+        unset($GLOBALS['meprmf_test_user_meta'][ (int) $user_id ][ $key ]);
+        return true;
+    }
+}
+
+if (! function_exists('current_user_can')) {
+    /**
+     * @param string $cap Capability.
+     * @return bool
+     */
+    function current_user_can($cap)
+    {
+        return ! empty($GLOBALS['meprmf_test_user_caps'][ (string) $cap ]);
+    }
+}
+
+if (! function_exists('wp_doing_ajax')) {
+    /**
+     * @return bool
+     */
+    function wp_doing_ajax()
+    {
+        return ! empty($GLOBALS['meprmf_test_doing_ajax']);
+    }
+}
+
+if (! function_exists('wp_doing_cron')) {
+    /**
+     * @return bool
+     */
+    function wp_doing_cron()
+    {
+        return false;
+    }
+}
+
+if (! function_exists('admin_url')) {
+    /**
+     * @param string $path Path.
+     * @return string
+     */
+    function admin_url($path = '')
+    {
+        return 'https://example.test/wp-admin/' . ltrim((string) $path, '/');
+    }
+}
+
+if (! function_exists('add_query_arg')) {
+    /**
+     * Supports only the (array $args, string $url) form this plugin uses.
+     *
+     * @param array<string, string> $args Args.
+     * @param string                $url  Base url.
+     * @return string
+     */
+    function add_query_arg($args, $url = '')
+    {
+        $parts = is_array($args) ? $args : [];
+        return (string) $url . ( false === strpos((string) $url, '?') ? '?' : '&' ) . http_build_query($parts);
+    }
+}
+
+if (! function_exists('wp_safe_redirect')) {
+    /**
+     * Records the redirect instead of sending it, so a test can assert on the target.
+     *
+     * @param string $location Target.
+     * @return true
+     */
+    function wp_safe_redirect($location)
+    {
+        $GLOBALS['meprmf_test_redirects'][] = (string) $location;
+        throw new \RuntimeException('meprmf_test_redirect:' . (string) $location);
+    }
+}
+
 require_once dirname(__DIR__) . '/includes/class-meprmf-util.php';
 require_once dirname(__DIR__) . '/includes/screen/class-meprmf-screen-context.php';
 require_once dirname(__DIR__) . '/includes/screen/class-meprmf-screen.php';

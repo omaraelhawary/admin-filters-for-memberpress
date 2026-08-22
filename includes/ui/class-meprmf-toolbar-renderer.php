@@ -384,10 +384,12 @@ class Meprmf_Toolbar_Renderer
         printf('<select class="meprmf-qb__views" id="%s" data-meprmf-views>', esc_attr($ids['views']));
         printf('<option value="">%s</option>', esc_html__('Saved views…', 'admin-filters-for-memberpress'));
         foreach (self::screen_presets($ctx) as $preset) {
+            // `label` marks a private view; it is built server-side so this list and the JS
+            // re-render after a save cannot word the same view differently.
             printf(
                 '<option value="%1$s">%2$s</option>',
                 esc_attr((string) $preset['id']),
-                esc_html((string) $preset['name'])
+                esc_html(isset($preset['label']) ? (string) $preset['label'] : (string) $preset['name'])
             );
         }
         echo '</select>';
@@ -397,6 +399,13 @@ class Meprmf_Toolbar_Renderer
         printf(
             '<button type="button" class="button-link meprmf-qb__delete-view" data-meprmf-delete-view hidden>%s</button>',
             esc_html__('Delete view', 'admin-filters-for-memberpress')
+        );
+
+        // Which view this screen opens with is per admin, so the button's wording is settled by
+        // JS once it knows which view is selected.
+        printf(
+            '<button type="button" class="button-link meprmf-qb__default-view" data-meprmf-default-view hidden>%s</button>',
+            esc_html__('Set as default', 'admin-filters-for-memberpress')
         );
 
         echo '<span class="meprmf-qb__spacer"></span>';

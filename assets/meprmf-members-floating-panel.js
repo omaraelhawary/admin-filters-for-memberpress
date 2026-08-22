@@ -99,6 +99,18 @@
 		return Array.isArray(cfg().nativeParams) ? cfg().nativeParams : [];
 	}
 
+	function suppressParam() {
+		return cfg().suppressParam ? String(cfg().suppressParam) : 'meprmf_view';
+	}
+
+	function suppressValue() {
+		return cfg().suppressValue ? String(cfg().suppressValue) : 'none';
+	}
+
+	function defaultViewId() {
+		return cfg().defaultView ? String(cfg().defaultView) : '';
+	}
+
 	function storageNs() {
 		return cfg().storageId ? String(cfg().storageId) : 'memberpress_members';
 	}
@@ -458,6 +470,7 @@
 		var applyBtn = card.querySelector('[data-meprmf-apply]');
 		var clearBtn = card.querySelector('[data-meprmf-clear]');
 		var saveBtn = card.querySelector('[data-meprmf-save-view]');
+		var defaultViewBtn = card.querySelector('[data-meprmf-default-view]');
 
 		if (!disclosure || !addBtn || !popover || !popoverList || !body || !rowsWrap || !emptyWrap) {
 			return;
@@ -965,6 +978,12 @@
 				u.searchParams.set(key, params[key]);
 			});
 
+			// Applying nothing has to stay nothing. Without this the resulting clean URL is
+			// exactly the one a default view is applied to, so Clear could never be seen.
+			if (Object.keys(params).length === 0 && defaultViewId() !== '') {
+				u.searchParams.set(suppressParam(), suppressValue());
+			}
+
 			window.location.assign(u.toString());
 		}
 
@@ -1066,6 +1085,53 @@
 			if (deleteViewBtn) {
 				deleteViewBtn.hidden = !viewsSelect || viewsSelect.value === '';
 			}
+			syncDefaultView();
+		}
+
+		/**
+		 * The default-view button says what it will do to the selected view, which is also how
+		 * the current default is shown: select a view and the button offers to clear it.
+		 */
+		function syncDefaultView() {
+			if (!defaultViewBtn) {
+				return;
+			}
+			var selected = viewsSelect ? String(viewsSelect.value) : '';
+			defaultViewBtn.hidden = selected === '';
+			if (selected === '') {
+				return;
+			}
+			var isDefault = selected === defaultViewId();
+			defaultViewBtn.textContent = isDefault
+				? i18n('clearDefaultView', 'Clear default')
+				: i18n('setDefaultView', 'Set as default');
+			defaultViewBtn.setAttribute('aria-pressed', isDefault ? 'true' : 'false');
+		}
+
+		/**
+		 * Rebuild the select from the server's list, so a view saved or deleted in this session
+		 * is worded exactly as a reload would word it (a private view included).
+		 */
+		function renderViewOptions(selectedId) {
+			if (!viewsSelect) {
+				return;
+			}
+			var keep = typeof selectedId === 'string' ? selectedId : String(viewsSelect.value || '');
+			while (viewsSelect.firstChild) {
+				viewsSelect.removeChild(viewsSelect.firstChild);
+			}
+			viewsSelect.appendChild(optionNode('', i18n('savedViewsPlaceholder', 'Saved views…'), false));
+			presets().forEach(function (preset) {
+				if (!preset || !preset.id) {
+					return;
+				}
+				viewsSelect.appendChild(optionNode(preset.id, preset.label || preset.name, false));
+			});
+			viewsSelect.value = keep;
+			if (viewsSelect.value !== keep) {
+				viewsSelect.value = '';
+			}
+			syncDeleteView();
 		}
 
 		if (viewsSelect) {
@@ -1079,6 +1145,61 @@
 			});
 		}
 		syncDeleteView();
+
+		if (defaultViewBtn && viewsSelect) {
+			defaultViewBtn.addEventListener('click', function () {
+				var conf = cfg();
+				var selected = String(viewsSelect.value || '');
+				if (selected === '') {
+					return;
+				}
+				if (!conf.ajaxUrl || !conf.presetsNonce) {
+					window.alert(i18n('defaultViewError', 'Could not change the default view. Please try again.'));
+					return;
+				}
+
+				var clearing = selected === defaultViewId();
+				var payload = new URLSearchParams();
+				payload.set('action', 'meprmf_set_default_view');
+				payload.set('nonce', conf.presetsNonce);
+				payload.set('screen', conf.storageId || storageNs());
+				payload.set('id', clearing ? '' : selected);
+
+				defaultViewBtn.disabled = true;
+
+				fetch(conf.ajaxUrl, {
+					method: 'POST',
+					credentials: 'same-origin',
+					headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+					body: payload.toString()
+				})
+					.then(function (res) {
+						return res.json().then(function (data) {
+							return { ok: res.ok, data: data };
+						});
+					})
+					.then(function (result) {
+						var data = result.data;
+						if (!result.ok || !data || !data.success) {
+							var message = (data && data.data && data.data.message)
+								? data.data.message
+								: i18n('defaultViewError', 'Could not change the default view. Please try again.');
+							throw new Error(message);
+						}
+						cfg().defaultView = (data.data && typeof data.data.default === 'string') ? data.data.default : '';
+						if (data.data && Array.isArray(data.data.presets)) {
+							cfg().presets = data.data.presets;
+						}
+						renderViewOptions(selected);
+					})
+					.catch(function (err) {
+						window.alert(err && err.message ? err.message : i18n('defaultViewError', 'Could not change the default view. Please try again.'));
+					})
+					.finally(function () {
+						defaultViewBtn.disabled = false;
+					});
+			});
+		}
 
 		function forgetPreset(id) {
 			cfg().presets = presets().filter(function (preset) {
@@ -1111,8 +1232,11 @@
 					window.alert(i18n('deleteViewError', 'Could not delete the saved view. Please try again.'));
 					return;
 				}
-				// Views are site-wide, so this is not only the current admin's list.
-				if (!window.confirm(sprintf1(i18n('deleteViewConfirm', 'Delete the saved view “%s”?'), preset.name))) {
+				// A shared view is not only the current admin's list; a private one is.
+				var confirmMessage = preset.visibility === 'private'
+					? i18n('deleteViewConfirmPrivate', 'Delete your private view “%s”?')
+					: i18n('deleteViewConfirm', 'Delete the saved view “%s”?');
+				if (!window.confirm(sprintf1(confirmMessage, preset.name))) {
 					return;
 				}
 
@@ -1147,6 +1271,10 @@
 						if (data.data && Array.isArray(data.data.presets)) {
 							cfg().presets = data.data.presets;
 						}
+						if (data.data && typeof data.data.default === 'string') {
+							cfg().defaultView = data.data.default;
+						}
+						renderViewOptions('');
 					})
 					.catch(function (err) {
 						window.alert(err && err.message ? err.message : i18n('deleteViewError', 'Could not delete the saved view. Please try again.'));
@@ -1187,6 +1315,11 @@
 					return;
 				}
 
+				// Shared stays the default answer, which is what every view saved before 2.2.0 is.
+				var visibility = window.confirm(
+					i18n('savePrivatePrompt', 'Keep this view private to you? Cancel shares it with the other administrators.')
+				) ? 'private' : 'shared';
+
 				saveBtn.disabled = true;
 
 				var payload = new URLSearchParams();
@@ -1194,6 +1327,7 @@
 				payload.set('nonce', conf.presetsNonce);
 				payload.set('screen', conf.storageId || storageNs());
 				payload.set('name', name);
+				payload.set('visibility', visibility);
 				payload.set('params', JSON.stringify(params));
 
 				fetch(conf.ajaxUrl, {
@@ -1219,13 +1353,11 @@
 						if (Array.isArray(data.data.presets)) {
 							cfg().presets = data.data.presets;
 						}
-						if (saved && viewsSelect) {
-							var existing = viewsSelect.querySelector('option[value="' + String(saved.id).replace(/"/g, '') + '"]');
-							if (!existing) {
-								viewsSelect.appendChild(optionNode(saved.id, saved.name, false));
-							}
-							viewsSelect.value = String(saved.id);
-							syncDeleteView();
+						if (data.data && typeof data.data.default === 'string') {
+							cfg().defaultView = data.data.default;
+						}
+						if (saved) {
+							renderViewOptions(String(saved.id));
 						}
 					})
 					.catch(function (err) {

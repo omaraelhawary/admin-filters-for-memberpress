@@ -27,6 +27,9 @@ class PresetsTest extends TestCase
         $GLOBALS['meprmf_test_options']       = [];
         $GLOBALS['meprmf_test_filters']       = [];
         $GLOBALS['meprmf_preset_id_counter']  = 0;
+        $GLOBALS['meprmf_test_user_meta']     = [];
+        $GLOBALS['meprmf_test_user_caps']     = [];
+        $GLOBALS['meprmf_test_current_user_id'] = 0;
 
         require_once dirname(__DIR__, 2) . '/includes/class-meprmf-util.php';
         require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen-context.php';
@@ -39,6 +42,9 @@ class PresetsTest extends TestCase
         $GLOBALS['meprmf_test_options']      = [];
         $GLOBALS['meprmf_test_filters']      = [];
         $GLOBALS['meprmf_preset_id_counter'] = 0;
+        $GLOBALS['meprmf_test_user_meta']    = [];
+        $GLOBALS['meprmf_test_user_caps']    = [];
+        $GLOBALS['meprmf_test_current_user_id'] = 0;
         parent::tearDown();
     }
 
@@ -300,5 +306,266 @@ class PresetsTest extends TestCase
 
         $this->assertTrue($save['success']);
         $this->assertArrayNotHasKey('evil__op', $save['preset']['params']);
+    }
+
+    /* ---------------------------------------------------------- #8 ownership */
+
+    /**
+     * @param int $id User id.
+     * @return void
+     */
+    private function as_user($id)
+    {
+        $GLOBALS['meprmf_test_current_user_id'] = (int) $id;
+    }
+
+    /**
+     * @param string $name       View name.
+     * @param string $visibility shared|private.
+     * @return array<string, mixed>
+     */
+    private function save($name, $visibility = Meprmf_Presets::VISIBILITY_SHARED)
+    {
+        return Meprmf_Presets::save_preset(
+            self::SCREEN,
+            $name,
+            [ 'mpm_access' => 'active' ],
+            $this->known,
+            $visibility
+        );
+    }
+
+    public function test_a_saved_view_records_its_owner_and_visibility()
+    {
+        $this->as_user(7);
+        $save = $this->save('Mine', Meprmf_Presets::VISIBILITY_PRIVATE);
+
+        $this->assertTrue($save['success']);
+        $this->assertSame(7, $save['preset']['owner']);
+        $this->assertSame('private', $save['preset']['visibility']);
+        $this->assertSame('Mine (private)', $save['preset']['label']);
+
+        $shared = $this->save('Ours');
+        $this->assertSame('shared', $shared['preset']['visibility']);
+        $this->assertSame('Ours', $shared['preset']['label']);
+    }
+
+    public function test_a_private_view_is_not_returned_to_another_admin()
+    {
+        $this->as_user(7);
+        $this->save('Mine', Meprmf_Presets::VISIBILITY_PRIVATE);
+        $this->save('Ours');
+
+        $this->assertSame([ 'Mine', 'Ours' ], array_column(Meprmf_Presets::get_presets_for_screen(self::SCREEN), 'name'));
+
+        $this->as_user(8);
+        $seen = Meprmf_Presets::get_presets_for_screen(self::SCREEN);
+        $this->assertSame([ 'Ours' ], array_column($seen, 'name'));
+    }
+
+    public function test_deleting_another_admins_shared_view_is_refused()
+    {
+        $this->as_user(7);
+        $shared = $this->save('Ours');
+
+        $this->as_user(8);
+        $result = Meprmf_Presets::delete_preset(self::SCREEN, $shared['preset']['id']);
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('not_owner', $result['code']);
+        $this->assertCount(1, Meprmf_Presets::get_presets_for_screen(self::SCREEN));
+
+        // The owner still can.
+        $this->as_user(7);
+        $this->assertTrue(Meprmf_Presets::delete_preset(self::SCREEN, $shared['preset']['id'])['success']);
+    }
+
+    public function test_a_higher_capability_may_delete_another_admins_view()
+    {
+        $this->as_user(7);
+        $shared = $this->save('Ours');
+
+        $this->as_user(8);
+        $GLOBALS['meprmf_test_user_caps']['manage_options'] = true;
+
+        $this->assertTrue(Meprmf_Presets::delete_preset(self::SCREEN, $shared['preset']['id'])['success']);
+    }
+
+    public function test_another_admins_private_view_reads_as_missing_not_refused()
+    {
+        $this->as_user(7);
+        $private = $this->save('Mine', Meprmf_Presets::VISIBILITY_PRIVATE);
+
+        $this->as_user(8);
+        $result = Meprmf_Presets::delete_preset(self::SCREEN, $private['preset']['id']);
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('not_found', $result['code']);
+        $this->assertCount(1, $GLOBALS['meprmf_test_options']['meprmf_filter_presets'][ self::SCREEN ]);
+    }
+
+    public function test_saving_over_another_admins_shared_view_is_refused_by_name()
+    {
+        $this->as_user(7);
+        $this->save('Team view');
+
+        $this->as_user(8);
+        $result = $this->save('Team view');
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('name_taken', $result['code']);
+
+        $rows = $GLOBALS['meprmf_test_options']['meprmf_filter_presets'][ self::SCREEN ];
+        $this->assertCount(1, $rows);
+        $this->assertSame(7, (int) $rows[0]['owner']);
+    }
+
+    public function test_two_admins_may_each_have_a_private_view_of_the_same_name()
+    {
+        $this->as_user(7);
+        $this->save('Working set', Meprmf_Presets::VISIBILITY_PRIVATE);
+        $this->as_user(8);
+        $second = $this->save('Working set', Meprmf_Presets::VISIBILITY_PRIVATE);
+
+        $this->assertTrue($second['success']);
+        $this->assertCount(2, $GLOBALS['meprmf_test_options']['meprmf_filter_presets'][ self::SCREEN ]);
+        $this->assertSame([ 'Working set' ], array_column(Meprmf_Presets::get_presets_for_screen(self::SCREEN), 'name'));
+    }
+
+    public function test_the_owner_may_overwrite_and_reclassify_their_own_view()
+    {
+        $this->as_user(7);
+        $first = $this->save('Mine');
+        $again = $this->save('Mine', Meprmf_Presets::VISIBILITY_PRIVATE);
+
+        $this->assertTrue($again['success']);
+        $this->assertSame($first['preset']['id'], $again['preset']['id']);
+        $this->assertSame('private', $again['preset']['visibility']);
+        $this->assertCount(1, $GLOBALS['meprmf_test_options']['meprmf_filter_presets'][ self::SCREEN ]);
+    }
+
+    /* ------------------------------------------------------- #8 migration */
+
+    public function test_a_pre_2_2_row_reads_as_shared_and_ownerless_without_being_rewritten()
+    {
+        $GLOBALS['meprmf_test_options']['meprmf_filter_presets'] = [
+            self::SCREEN => [
+                [
+                    'id'      => 'abc123',
+                    'name'    => 'Legacy',
+                    'params'  => [ 'mpm_access' => 'active' ],
+                    'updated' => 1234,
+                ],
+            ],
+        ];
+
+        $this->as_user(9);
+        $list = Meprmf_Presets::get_presets_for_screen(self::SCREEN);
+
+        $this->assertCount(1, $list);
+        $this->assertSame(0, $list[0]['owner']);
+        $this->assertSame('shared', $list[0]['visibility']);
+        $this->assertSame('Legacy', $list[0]['label']);
+
+        // Reading is not a write: the stored row is untouched, so the upgrade cannot half-apply.
+        $stored = $GLOBALS['meprmf_test_options']['meprmf_filter_presets'][ self::SCREEN ][0];
+        $this->assertArrayNotHasKey('owner', $stored);
+        $this->assertArrayNotHasKey('visibility', $stored);
+
+        // And nobody loses it: any admin may still use and delete it.
+        $this->assertTrue(Meprmf_Presets::delete_preset(self::SCREEN, 'abc123')['success']);
+    }
+
+    public function test_a_private_row_with_no_owner_is_treated_as_shared()
+    {
+        $GLOBALS['meprmf_test_options']['meprmf_filter_presets'] = [
+            self::SCREEN => [
+                [
+                    'id'         => 'orphan1',
+                    'name'       => 'Orphan',
+                    'params'     => [ 'mpm_access' => 'active' ],
+                    'visibility' => 'private',
+                ],
+            ],
+        ];
+
+        $this->as_user(9);
+        $list = Meprmf_Presets::get_presets_for_screen(self::SCREEN);
+
+        // Private to nobody would be invisible to everybody, which is worse than shared.
+        $this->assertCount(1, $list);
+        $this->assertSame('shared', $list[0]['visibility']);
+    }
+
+    /* ----------------------------------------------------- #8 default view */
+
+    public function test_default_view_round_trip_is_per_user_and_per_screen()
+    {
+        $this->as_user(7);
+        $view = $this->save('Churn risk');
+
+        $this->assertSame('', Meprmf_Presets::get_default_view_id(self::SCREEN));
+        $this->assertTrue(Meprmf_Presets::set_default_view(self::SCREEN, $view['preset']['id'])['success']);
+        $this->assertSame($view['preset']['id'], Meprmf_Presets::get_default_view_id(self::SCREEN));
+
+        // Another admin's screen is unaffected.
+        $this->as_user(8);
+        $this->assertSame('', Meprmf_Presets::get_default_view_id(self::SCREEN));
+
+        $this->as_user(7);
+        $this->assertTrue(Meprmf_Presets::set_default_view(self::SCREEN, '')['success']);
+        $this->assertSame('', Meprmf_Presets::get_default_view_id(self::SCREEN));
+    }
+
+    public function test_a_default_view_cannot_be_set_to_a_view_the_user_cannot_see()
+    {
+        $this->as_user(7);
+        $private = $this->save('Mine', Meprmf_Presets::VISIBILITY_PRIVATE);
+
+        $this->as_user(8);
+        $result = Meprmf_Presets::set_default_view(self::SCREEN, $private['preset']['id']);
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('not_found', $result['code']);
+    }
+
+    public function test_deleting_a_view_clears_it_as_everyones_default()
+    {
+        $this->as_user(7);
+        $view = $this->save('Ours');
+        Meprmf_Presets::set_default_view(self::SCREEN, $view['preset']['id']);
+
+        $this->as_user(8);
+        Meprmf_Presets::set_default_view(self::SCREEN, $view['preset']['id']);
+        $this->assertSame($view['preset']['id'], Meprmf_Presets::get_default_view_id(self::SCREEN));
+
+        $this->as_user(7);
+        $this->assertTrue(Meprmf_Presets::delete_preset(self::SCREEN, $view['preset']['id'])['success']);
+
+        $this->as_user(8);
+        $this->assertSame('', Meprmf_Presets::get_default_view_id(self::SCREEN));
+    }
+
+    public function test_a_dangling_default_view_id_resolves_to_nothing()
+    {
+        $this->as_user(7);
+        $GLOBALS['meprmf_test_user_meta'][7]['meprmf_default_view_memberpress_members'] = 'gone123';
+
+        $this->assertSame('', Meprmf_Presets::get_default_view_id(self::SCREEN));
+    }
+
+    public function test_an_explicit_filter_in_the_url_beats_the_default_view()
+    {
+        $params = [ 'mpm_access', 'mpm_product', 'mpm_exp__op', 'status' ];
+
+        $this->assertFalse(Meprmf_Presets::request_asks_for_filters([ 'page' => 'memberpress-members' ], $params));
+        $this->assertFalse(Meprmf_Presets::request_asks_for_filters([ 'mpm_access' => '' ], $params));
+        $this->assertFalse(Meprmf_Presets::request_asks_for_filters([ 'paged' => '3', 'orderby' => 'ID' ], $params));
+
+        $this->assertTrue(Meprmf_Presets::request_asks_for_filters([ 'mpm_access' => 'active' ], $params));
+        // An operator with no value still filters ("is empty").
+        $this->assertTrue(Meprmf_Presets::request_asks_for_filters([ 'mpm_exp__op' => 'is_empty' ], $params));
+        // A native MemberPress toolbar filter is just as explicit as one of ours.
+        $this->assertTrue(Meprmf_Presets::request_asks_for_filters([ 'status' => 'complete' ], $params));
     }
 }
