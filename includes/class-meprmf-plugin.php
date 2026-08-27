@@ -132,24 +132,66 @@ class Meprmf_Plugin
         if (null === $ctx || ! $ctx->supports_meta_filters_list()) {
             return $args;
         }
-        if (! Meprmf_Screen::should_apply_list_table_predicates($ctx)) {
-            return $args;
-        }
         if (! Meprmf_Capabilities::current_user_can_filter()) {
             return $args;
         }
 
-        $meta_valid = Meprmf_Filter_Registry::get_normalized_meta_fields_for_context($ctx);
-        if (! empty($meta_valid)) {
-            $args = Meprmf_Predicate_Builder::append_usermeta_exists($args, $ctx, $meta_valid);
+        $list_ctx = Meprmf_Screen::detect_list_table_context();
+        if (null !== $list_ctx && Meprmf_Subscription_Tabs::is_cross_tab_list_table_request($ctx, $list_ctx)) {
+            if (! Meprmf_Screen::current_wp_screen_matches_context($ctx)) {
+                return $args;
+            }
+
+            return self::apply_list_table_predicates($args, $list_ctx, $ctx);
         }
 
-        $core_valid = Meprmf_Filter_Registry::get_normalized_mepr_predicate_fields_for_context($ctx);
-        if (! empty($core_valid)) {
-            $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists($args, $ctx, $core_valid);
+        if (! Meprmf_Screen::should_apply_list_table_predicates($ctx)) {
+            return $args;
         }
 
-        return self::apply_match_mode($args, $ctx);
+        return self::apply_list_table_predicates($args, $ctx);
+    }
+
+    /**
+     * Applies EXISTS subqueries on wp_usermeta for active filters on supported list screens.
+     *
+     * @param array<int, string>             $args       WHERE fragments for MeprDb::list_table.
+     * @param Meprmf_Screen_Context          $predicate_ctx Context whose SQL shape the predicates target.
+     * @param Meprmf_Screen_Context|null     $request_ctx   Admin page context supplying $_GET (defaults to predicate_ctx).
+     * @return array<int, string>
+     */
+    private static function apply_list_table_predicates(array $args, Meprmf_Screen_Context $predicate_ctx, Meprmf_Screen_Context $request_ctx = null)
+    {
+        if (null === $request_ctx) {
+            $request_ctx = $predicate_ctx;
+        }
+
+        $overrides = [];
+        if ($predicate_ctx->get_page() !== $request_ctx->get_page()) {
+            $overrides = Meprmf_Subscription_Tabs::translate_request_params($request_ctx, $predicate_ctx);
+        }
+
+        if (! empty($overrides)) {
+            Meprmf_Util::push_request_overrides($overrides);
+        }
+
+        try {
+            $meta_valid = Meprmf_Filter_Registry::get_normalized_meta_fields_for_context($predicate_ctx);
+            if (! empty($meta_valid)) {
+                $args = Meprmf_Predicate_Builder::append_usermeta_exists($args, $predicate_ctx, $meta_valid);
+            }
+
+            $core_valid = Meprmf_Filter_Registry::get_normalized_mepr_predicate_fields_for_context($predicate_ctx);
+            if (! empty($core_valid)) {
+                $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists($args, $predicate_ctx, $core_valid);
+            }
+        } finally {
+            if (! empty($overrides)) {
+                Meprmf_Util::pop_request_overrides();
+            }
+        }
+
+        return self::apply_match_mode($args, $predicate_ctx);
     }
 
     /**
@@ -285,6 +327,7 @@ class Meprmf_Plugin
             $known = array_values(array_unique($known));
             sort($known, SORT_STRING);
             $native = Meprmf_Native_Params::for_context($ctx);
+            $tab_link = Meprmf_Subscription_Tabs::tab_link_config($ctx);
             wp_localize_script(
                 'meprmf-members-floating-panel',
                 'meprmfMembersFloating',
@@ -294,6 +337,7 @@ class Meprmf_Plugin
                     'storageId'            => $ctx->get_storage_id(),
                     'matchParam'           => Meprmf_Util::MATCH_MODE_PARAM,
                     'matchMode'            => Meprmf_Util::get_match_mode($ctx),
+                    'subscriptionTab'      => $tab_link,
                     'catalog'              => Meprmf_Toolbar_Renderer::build_field_catalog(
                         Meprmf_Filter_Registry::get_normalized_fields_for_context($ctx)
                     ),

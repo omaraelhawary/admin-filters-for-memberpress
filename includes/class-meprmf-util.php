@@ -15,6 +15,13 @@ if (! defined('ABSPATH')) {
 class Meprmf_Util
 {
 
+    /**
+     * Stack of GET param overrides for predicate builders (cross-tab subscription counts).
+     *
+     * @var array<int, array<string, string|array<int, string>>>
+     */
+    private static $request_override_stack = [];
+
     /** Maximum length for a sanitized filter param (usermeta alias is mpf_um_ + param, MySQL limit 64). */
     const PARAM_MAX_LENGTH = 32;
 
@@ -97,6 +104,58 @@ class Meprmf_Util
     }
 
     /**
+     * Push temporary GET overrides for predicate builders.
+     *
+     * @param array<string, string|array<int, string>> $overrides Param => scalar or list value.
+     * @return void
+     */
+    public static function push_request_overrides(array $overrides)
+    {
+        self::$request_override_stack[] = $overrides;
+    }
+
+    /**
+     * Pop the most recent GET override layer.
+     *
+     * @return void
+     */
+    public static function pop_request_overrides()
+    {
+        array_pop(self::$request_override_stack);
+    }
+
+    /**
+     * Clear all GET override layers (tests).
+     *
+     * @return void
+     */
+    public static function reset_request_overrides()
+    {
+        self::$request_override_stack = [];
+    }
+
+    /**
+     * @param string $param Sanitized param name.
+     * @return string|array<int, string>|null
+     */
+    private static function get_request_override($param)
+    {
+        if (empty(self::$request_override_stack)) {
+            return null;
+        }
+
+        for ($i = count(self::$request_override_stack) - 1; $i >= 0; $i--) {
+            if (! array_key_exists($param, self::$request_override_stack[ $i ])) {
+                continue;
+            }
+
+            return self::$request_override_stack[ $i ][ $param ];
+        }
+
+        return null;
+    }
+
+    /**
      * Read a scalar value from $_GET for the given param.
      *
      * @param string $param Param name.
@@ -106,6 +165,18 @@ class Meprmf_Util
     {
         $param = self::sanitize_param($param);
         if ('' === $param) {
+            return '';
+        }
+
+        $override = self::get_request_override($param);
+        if (null !== $override) {
+            if (is_array($override)) {
+                return isset($override[0]) ? sanitize_text_field((string) $override[0]) : '';
+            }
+            if (is_scalar($override)) {
+                return sanitize_text_field((string) $override);
+            }
+
             return '';
         }
 
@@ -665,6 +736,30 @@ class Meprmf_Util
     {
         $param = self::sanitize_param($param);
         if ('' === $param) {
+            return [];
+        }
+
+        $override = self::get_request_override($param);
+        if (null !== $override) {
+            if (is_array($override)) {
+                $out = [];
+                foreach ($override as $one) {
+                    if (! is_scalar($one)) {
+                        continue;
+                    }
+                    $clean = sanitize_text_field(trim((string) $one));
+                    if ('' !== $clean && ! in_array($clean, $out, true)) {
+                        $out[] = $clean;
+                    }
+                }
+
+                return $out;
+            }
+            if (is_scalar($override)) {
+                $clean = sanitize_text_field(trim((string) $override));
+                return '' !== $clean ? [ $clean ] : [];
+            }
+
             return [];
         }
 

@@ -13,6 +13,7 @@ require_once __DIR__ . '/class-meprmf-util.php';
 require_once __DIR__ . '/class-meprmf-capabilities.php';
 require_once __DIR__ . '/screen/class-meprmf-screen-context.php';
 require_once __DIR__ . '/screen/class-meprmf-screen.php';
+require_once __DIR__ . '/screen/class-meprmf-subscription-tabs.php';
 require_once __DIR__ . '/class-meprmf-native-params.php';
 require_once __DIR__ . '/filters/providers/class-meprmf-members-provider.php';
 require_once __DIR__ . '/filters/providers/class-meprmf-members-core-provider.php';
