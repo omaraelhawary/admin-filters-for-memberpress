@@ -1412,8 +1412,60 @@
 		}
 	}
 
+	function wireSubscriptionTabLinks() {
+		var tab = cfg().subscriptionTab;
+		if (!tab || !tab.peerPage) {
+			return;
+		}
+
+		var drop = {};
+		(tab.dropParams || []).forEach(function (key) {
+			drop[String(key)] = true;
+		});
+
+		var current = new URL(window.location.href);
+		var filters = {};
+		knownKeys().forEach(function (key) {
+			if (!current.searchParams.has(key)) {
+				return;
+			}
+			var all = current.searchParams.getAll(key);
+			filters[key] = all.length > 1 ? all : all[0];
+		});
+
+		document.querySelectorAll('a.nav-tab[href*="page=' + tab.peerPage + '"]').forEach(function (anchor) {
+			var target;
+			try {
+				target = new URL(anchor.href, window.location.origin);
+			} catch (e) {
+				return;
+			}
+
+			Object.keys(filters).forEach(function (key) {
+				if (drop[key]) {
+					return;
+				}
+				var mapped = key;
+				if (tab.coreFromPrefix && tab.coreToPrefix && mapped.indexOf(tab.coreFromPrefix) === 0) {
+					mapped = tab.coreToPrefix + mapped.slice(tab.coreFromPrefix.length);
+				}
+				target.searchParams.delete(mapped);
+				if (Array.isArray(filters[key])) {
+					filters[key].forEach(function (one) {
+						target.searchParams.append(mapped, one);
+					});
+					return;
+				}
+				target.searchParams.set(mapped, filters[key]);
+			});
+
+			anchor.href = target.toString();
+		});
+	}
+
 	function boot() {
 		canonicalizeLegacyAccessParam();
+		wireSubscriptionTabLinks();
 		relocateCardsFromPool();
 		document.querySelectorAll('.meprmf-qb').forEach(function (card) {
 			initCard(card);
