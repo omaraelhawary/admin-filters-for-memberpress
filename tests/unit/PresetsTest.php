@@ -8,6 +8,7 @@
 namespace Meprmf\Tests\Unit;
 
 use Meprmf_Presets;
+use Meprmf_Settings;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -34,7 +35,14 @@ class PresetsTest extends TestCase
         require_once dirname(__DIR__, 2) . '/includes/class-meprmf-util.php';
         require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen-context.php';
         require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen.php';
+        require_once dirname(__DIR__, 2) . '/includes/class-meprmf-settings.php';
         require_once dirname(__DIR__, 2) . '/includes/class-meprmf-presets.php';
+
+        // Creating a shared view needs a capability. Grant a test-only one so these cases keep
+        // testing what they were written for, and manage_options stays ungranted for the
+        // cross-admin ownership checks below.
+        $GLOBALS['meprmf_test_options']['meprmf_settings']      = [ 'shared_preset_capability' => 'meprmf_test_share' ];
+        $GLOBALS['meprmf_test_user_caps']['meprmf_test_share'] = true;
     }
 
     protected function tearDown(): void
@@ -567,5 +575,90 @@ class PresetsTest extends TestCase
         $this->assertTrue(Meprmf_Presets::request_asks_for_filters([ 'mpm_exp__op' => 'is_empty' ], $params));
         // A native MemberPress toolbar filter is just as explicit as one of ours.
         $this->assertTrue(Meprmf_Presets::request_asks_for_filters([ 'status' => 'complete' ], $params));
+    }
+
+    /* --------------------------------------- #17 who may create a shared view */
+
+    public function test_creating_a_shared_view_without_the_capability_is_refused()
+    {
+        unset($GLOBALS['meprmf_test_options']['meprmf_settings']);
+        $GLOBALS['meprmf_test_user_caps'] = [];
+        $this->as_user(7);
+
+        $result = $this->save('Ours');
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('not_allowed', $result['code']);
+        $this->assertSame([], Meprmf_Presets::get_presets_for_screen(self::SCREEN));
+    }
+
+    public function test_creating_a_shared_view_with_the_configured_capability_succeeds()
+    {
+        unset($GLOBALS['meprmf_test_options']['meprmf_settings']);
+        $GLOBALS['meprmf_test_user_caps']['manage_options'] = true;
+        $this->as_user(7);
+
+        $this->assertTrue($this->save('Ours')['success']);
+    }
+
+    public function test_a_private_view_needs_no_shared_capability()
+    {
+        unset($GLOBALS['meprmf_test_options']['meprmf_settings']);
+        $GLOBALS['meprmf_test_user_caps'] = [];
+        $this->as_user(7);
+
+        $save = $this->save('Mine', Meprmf_Presets::VISIBILITY_PRIVATE);
+
+        $this->assertTrue($save['success']);
+        $this->assertSame('private', $save['preset']['visibility']);
+    }
+
+    public function test_promoting_a_private_view_to_shared_without_the_capability_is_refused()
+    {
+        unset($GLOBALS['meprmf_test_options']['meprmf_settings']);
+        $GLOBALS['meprmf_test_user_caps'] = [];
+        $this->as_user(7);
+
+        $private = $this->save('Mine', Meprmf_Presets::VISIBILITY_PRIVATE);
+        $this->assertTrue($private['success']);
+
+        $result = $this->save('Mine', Meprmf_Presets::VISIBILITY_SHARED);
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('not_allowed', $result['code']);
+
+        $list = Meprmf_Presets::get_presets_for_screen(self::SCREEN);
+        $this->assertCount(1, $list);
+        $this->assertSame('private', $list[0]['visibility']);
+    }
+
+    public function test_the_settings_capability_is_what_gets_checked()
+    {
+        $GLOBALS['meprmf_test_options']['meprmf_settings'] = [ 'shared_preset_capability' => 'mepr_admin' ];
+        $GLOBALS['meprmf_test_user_caps']                  = [ 'manage_options' => true ];
+        $this->as_user(7);
+
+        $this->assertSame('not_allowed', $this->save('Ours')['code']);
+
+        $GLOBALS['meprmf_test_user_caps']['mepr_admin'] = true;
+        $this->assertTrue($this->save('Ours')['success']);
+    }
+
+    public function test_overwriting_an_existing_shared_view_is_not_gated_on_the_create_capability()
+    {
+        // The owner keeps editing a view they already have, even after the capability changes.
+        $this->as_user(7);
+        $this->assertTrue($this->save('Ours')['success']);
+
+        $GLOBALS['meprmf_test_user_caps'] = [];
+        $again = Meprmf_Presets::save_preset(
+            self::SCREEN,
+            'Ours',
+            [ 'mpm_product' => '5' ],
+            $this->known
+        );
+
+        $this->assertTrue($again['success']);
+        $this->assertSame([ 'mpm_product' => '5' ], $again['preset']['params']);
     }
 }

@@ -28,5 +28,6 @@ require_once __DIR__ . '/ui/class-meprmf-toolbar-renderer.php';
 require_once __DIR__ . '/ui/class-meprmf-columns.php';
 require_once __DIR__ . '/ui/class-meprmf-debug-panel.php';
 require_once __DIR__ . '/class-meprmf-settings.php';
+require_once __DIR__ . '/admin/class-meprmf-settings-page.php';
 require_once __DIR__ . '/class-meprmf-presets.php';
 require_once __DIR__ . '/class-meprmf-plugin.php';

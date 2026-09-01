@@ -179,6 +179,15 @@ class Meprmf_Presets
                 return [ 'success' => false, 'code' => 'name_taken' ];
             }
 
+            // Promoting a private view to shared needs the same capability as creating one.
+            if (
+                self::VISIBILITY_SHARED === $visibility
+                && self::VISIBILITY_PRIVATE === $row_visibility
+                && ! Meprmf_Settings::current_user_can_create_shared_preset()
+            ) {
+                return [ 'success' => false, 'code' => 'not_allowed' ];
+            }
+
             $id = isset($preset['id']) ? self::sanitize_preset_id((string) $preset['id']) : '';
             if ('' === $id) {
                 $id = self::generate_preset_id();
@@ -200,6 +209,12 @@ class Meprmf_Presets
         }
 
         if (! $found) {
+            // A shared view is gated on the capability set on the Settings page. A private view
+            // is only ever visible to its author, so any filter-capable admin may create one.
+            if (self::VISIBILITY_SHARED === $visibility && ! Meprmf_Settings::current_user_can_create_shared_preset()) {
+                return [ 'success' => false, 'code' => 'not_allowed' ];
+            }
+
             $max = self::max_presets_per_screen();
             if (count($slice) >= $max) {
                 return [ 'success' => false, 'code' => 'limit_reached' ];
@@ -989,6 +1004,8 @@ class Meprmf_Presets
                 return __('That saved view belongs to another administrator, so only they can delete it.', 'admin-filters-for-memberpress');
             case 'name_taken':
                 return __('Another administrator already has a shared view with that name. Choose a different name.', 'admin-filters-for-memberpress');
+            case 'not_allowed':
+                return __('You are not allowed to create shared saved views. Save this one as private instead.', 'admin-filters-for-memberpress');
             case 'forbidden':
                 return __('You are not allowed to change saved views.', 'admin-filters-for-memberpress');
             case 'invalid_screen':

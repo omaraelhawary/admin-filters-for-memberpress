@@ -96,7 +96,7 @@ class Meprmf_Plugin
      */
     public static function use_floating_filter_panel(Meprmf_Screen_Context $ctx)
     {
-        $default = true;
+        $default = Meprmf_Settings::is_floating_panel_enabled();
         if ($ctx->is_members()) {
             /**
              * Whether the filter card is rendered on the Members list.
