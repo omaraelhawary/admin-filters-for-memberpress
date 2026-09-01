@@ -13,6 +13,9 @@ if (! defined('WP_UNINSTALL_PLUGIN')) {
 delete_option('meprmf_additional_filters');
 delete_option('meprmf_filter_presets');
 
+// Site-wide options from the Settings screen (MemberPress -> Admin Filters).
+delete_option('meprmf_settings');
+
 // Per-admin date-range UI preference (Settings → customize in the floating panel).
 delete_metadata('user', 0, 'meprmf_date_custom_fields_use_range', '', true);
 

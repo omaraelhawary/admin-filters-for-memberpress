@@ -107,16 +107,30 @@ class Meprmf_Screen_Context
     }
 
     /**
-     * Screens that support the usermeta EXISTS filters in this plugin.
+     * Screens that support the usermeta EXISTS filters in this plugin, and are turned on.
      *
      * @return bool
      */
     public function supports_meta_filters_list()
     {
-        return $this->is_members()
+        $supported = $this->is_members()
             || $this->is_subscriptions_recurring()
             || $this->is_lifetimes()
             || $this->is_transactions();
+
+        $enabled = $supported && Meprmf_Settings::is_screen_enabled($this->page);
+
+        /**
+         * Whether this plugin's filters run on one list screen.
+         *
+         * Runs after the Settings page choice, so a snippet still has the last word.
+         *
+         * @since 2.3.0
+         * @param bool                 $enabled Settings-page value for this screen.
+         * @param string               $page    Admin page slug.
+         * @param Meprmf_Screen_Context $ctx    Screen context.
+         */
+        return (bool) apply_filters('meprmf_screen_filters_enabled', $enabled, $this->page, $this);
     }
 
     /**

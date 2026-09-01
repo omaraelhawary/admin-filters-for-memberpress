@@ -4,7 +4,7 @@ Tags: memberpress, members, admin, filters, membership
 Requires at least: 5.6
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 2.2.1
+Stable tag: 2.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -76,13 +76,26 @@ The plugin waits quietly. Once MemberPress is active again, the filters show on 
 
 Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-memberpress/) on WordPress.org for **Admin Filters for MemberPress**.
 
+= Where are the plugin settings? =
+
+Open **MemberPress -> Admin Filters**. From there you choose which of the four lists show filters, turn the **Filters** card on or off, set whether custom date fields start as a from / to range, and pick who may create shared saved views. Turning the **Filters** card off removes the filter UI. It does not bring back the inline toolbar used before 2.1.0.
+
 = How do developers extend the filters? =
 
 * Filter hook for extra meta-based filter definitions: `meprmf_members_meta_filters_fields`.
 * Optional UI hook (show or remove the **Filters** card): `meprmf_use_floating_members_panel`.
+* Per-screen on / off hook: `meprmf_screen_filters_enabled`.
+* Code wins over the Settings screen. **MemberPress -> Admin Filters** sets the site-wide value, and the hooks and constants run after it, so a snippet that forces a value keeps that value whatever the screen says.
 * Source and issues: see **Plugin URI** and **GitHub URI** in the main plugin file header (`admin-filters-for-memberpress.php`).
 
 == Changelog ==
+
+= 2.3.0 =
+
+* Settings screen at **MemberPress -> Admin Filters**: choose which of the four lists show filters, turn the **Filters** card on or off, set whether custom date fields start as a from / to range, and pick who may create shared saved views.
+* Turning a list off there stops this plugin on that list, down to the columns and the query conditions. Saved views for that list stay in the database and come back when you turn it on again.
+* Creating a shared saved view now needs the capability chosen on that screen. The default is administrators who can manage options. Private views stay open to any administrator who can use the filters, and views already saved are untouched.
+* Code still wins over the screen: a hook or a constant runs after the saved value and takes precedence.
 
 = 2.2.1 =
 
@@ -221,6 +234,10 @@ Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-m
 * Compact collapsible filter layout when many filters are active (threshold filterable in later releases).
 
 == Upgrade Notice ==
+
+= 2.3.0 =
+
+Adds a Settings screen at MemberPress -> Admin Filters. All four options keep the behavior you have now, with one exception: creating a shared saved view now needs the capability set on that screen, which defaults to administrators who can manage options. Saved views and filter URLs are untouched, and no database migration runs.
 
 = 2.2.1 =
 

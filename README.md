@@ -49,7 +49,7 @@ The same **Filters** card appears on **Transactions**, **Subscriptions (Recurrin
 - Filter by the six built-in MemberPress address fields when address capture is enabled for signup/checkout and/or the account page (`meprmf_include_address_filters` to override).
 - Automatically expose every **MemberPress custom field** (MemberPress → Settings → Fields) with control types mapped to exact, contains, or checkbox match behavior.
 - **Query-builder Filters card** above the list on supported screens: one row per filter you add, each reading *field · comparison · value*, with **Match all filters / any filter**. Nothing is rendered until you add a filter, and the card's collapsed state is remembered in the browser (`localStorage`). Filter `meprmf_use_floating_meta_filters_panel` per screen; Members still respects `meprmf_use_floating_members_panel`.
-- **Saved views** (filter card): name and reload common filter combinations on each list screen, **shared** with the other admins or **private** to whoever saved it, and optionally marked as the view a screen opens with. Views include plugin panel params **and** MemberPress native toolbar filters (`status`, `membership`, `gateway`, transaction date presets, gifting `type` when applicable). Any admin who can filter may save a view.
+- **Saved views** (filter card): name and reload common filter combinations on each list screen, **shared** with the other admins or **private** to whoever saved it, and optionally marked as the view a screen opens with. Views include plugin panel params **and** MemberPress native toolbar filters (`status`, `membership`, `gateway`, transaction date presets, gifting `type` when applicable). Any admin who can filter may save a private view; a shared one needs the capability set on the Settings screen.
 - **Add-on aware passthrough filters** (when the add-on is active): **Course**, **Circle**, and **Directory** on **Members**; **Coupon** and **Gift type** on **Transactions** — these use the same GET params MemberPress add-ons already understand (`course`, `circle_id`, `directory`, `coupon_id`, `type`).
 - **Members activity filters:** registered date range, last login range, total spent min/max, and **On trial** (`mepr_members` / user aggregates).
 - **Corporate type** on **Members** when MemberPress Corporate is active (corp account owner, sub account, not corporate).
@@ -78,6 +78,19 @@ Open **MemberPress → Members** (or **Subscriptions**, **Lifetimes**, or **Tran
 
 MemberPress **Go** still runs the native search; it does not read the card’s fields. For “who has active access on this plan?” style queries on **Members**, prefer **Access** and **Membership** in the card rather than mixing with MemberPress’s native **status** dropdown (they use different rules).
 
+### Settings
+
+**MemberPress → Admin Filters** holds four site-wide options, stored as one autoloaded array in `wp_options` (`meprmf_settings`):
+
+| Option | Key | Default |
+| --- | --- | --- |
+| Which lists show filters | `enabled_screens` | all four page slugs |
+| Filters card on / off | `floating_panel_enabled` | `true` |
+| Custom date fields start as a from / to range | `date_range_default` | `true` |
+| Capability needed to create a shared saved view | `shared_preset_capability` | `manage_options` |
+
+A list you uncheck loses the filter card, the extra columns, and the predicates this plugin adds to its query, because `Meprmf_Screen_Context::supports_meta_filters_list()` is the one gate every site reads. Saved views for that list stay in `meprmf_filter_presets` and read back unchanged once the list is checked again. Turning the Filters card off removes the filter UI; it does not restore the inline toolbar used before 2.1.0.
+
 ### Saved views
 
 1. Build a filter set and click **Save as view**, then enter a name and choose whether to keep the view private to you. Saving one of your own names again updates that view.
@@ -90,6 +103,8 @@ Views are stored per screen (Members, Transactions, Subscriptions, Lifetimes) in
 Each row records its `owner` (a user id) and its `visibility` (`shared` or `private`). A **shared** view is offered to every admin who can filter that screen; a **private** view is returned only to its owner, filtered in `Meprmf_Presets::get_presets_for_screen()` so the `meprmf_filter_presets` payload never carries it either. Deleting or overwriting another admin's shared view is refused rather than silently applied — `manage_options` overrides that, filterable via `meprmf_can_manage_others_views`. Another admin's private view reads as not found, which does not confirm it exists.
 
 A row saved before 2.2.0 has neither field, so it reads as shared and unowned: still usable and still deletable by anyone, with nothing rewritten in the database.
+
+Creating a new **shared** view is checked against `shared_preset_capability` from the Settings screen (`manage_options` by default) in `Meprmf_Presets::save_preset()`, which returns the `not_allowed` code when the check fails. A **private** view needs no such capability, and updating a view you already own is not re-checked. `meprmf_can_manage_others_views` overrides the answer.
 
 **Default view.** Each admin may mark one view per screen as the default, stored in user meta (`meprmf_default_view_<screen>`). Opening the screen with no filter param in the URL — ours or a native MemberPress one — redirects to that view's params plus `meprmf_view=<id>`, so the URL still says what the list is filtered by. An explicit filter in the URL always wins, and applying an empty filter set writes `meprmf_view=none` so a cleared list is not immediately re-filtered by the default it was cleared of. Deleting a view clears it as every admin's default, not only the deleter's.
 
@@ -183,7 +198,9 @@ Pair this with the matching `meprmf_*_core_filters_fields` hook for that screen 
 
 **Security:** Only append SQL you prepare yourself (`$wpdb->prepare()`). Do not concatenate raw request data into fragments.
 
-**Other hooks:** `meprmf_use_floating_meta_filters_panel`, `meprmf_use_floating_members_panel`, `meprmf_include_address_filters`, `meprmf_field_catalog`, `meprmf_operator_labels`, `meprmf_filter_presets`, `meprmf_max_filter_presets_per_screen` (default `25`), `meprmf_use_inactive_access_predicate` (Members list inactive/expired access SQL; default `true`), `meprmf_members_addon_filters_fields`, `meprmf_members_activity_filters_fields`, `meprmf_native_toolbar_params`, `meprmf_corporate_type_predicate`.
+**Settings screen precedence:** the four options under **MemberPress → Admin Filters** set the site-wide value, then the hooks and constants run. `meprmf_screen_filters_enabled` is applied last inside `supports_meta_filters_list()`, `meprmf_use_floating_members_panel` and `meprmf_use_floating_meta_filters_panel` are applied after `floating_panel_enabled` seeds their default, `MEPRMF_DATE_CUSTOM_FIELDS_USE_RANGE` and `meprmf_custom_date_fields_use_range` sit above `date_range_default`, and `meprmf_can_manage_others_views` sits above `shared_preset_capability`. So code that forces a value keeps it whatever is saved on the screen.
+
+**Other hooks:** `meprmf_screen_filters_enabled`, `meprmf_use_floating_meta_filters_panel`, `meprmf_use_floating_members_panel`, `meprmf_include_address_filters`, `meprmf_field_catalog`, `meprmf_operator_labels`, `meprmf_filter_presets`, `meprmf_max_filter_presets_per_screen` (default `25`), `meprmf_use_inactive_access_predicate` (Members list inactive/expired access SQL; default `true`), `meprmf_members_addon_filters_fields`, `meprmf_members_activity_filters_fields`, `meprmf_native_toolbar_params`, `meprmf_corporate_type_predicate`.
 
 ### Performance notes
 
@@ -215,6 +232,14 @@ vendor/bin/phpunit
 Uses `tests/bootstrap-unit.php` (no full WordPress test database). CI runs on PHP 8.1–8.3 via `.github/workflows/phpunit.yml`.
 
 ## Changelog
+
+### 2.3.0
+
+- **Settings screen** at **MemberPress → Admin Filters** (`Meprmf_Settings_Page`, submenu under `memberpress` at `admin_menu` priority 20, `manage_options`). One autoloaded array option, `meprmf_settings`, with `enabled_screens`, `floating_panel_enabled`, `date_range_default`, and `shared_preset_capability`. Accessors merge the stored value over `Meprmf_Settings::defaults()`, so a partial row keeps every other key.
+- **Per-screen toggle** is read in `Meprmf_Screen_Context::supports_meta_filters_list()`, the single gate for the filter registry, columns, toolbar, native params, predicates, and presets. New hook `meprmf_screen_filters_enabled` runs after it.
+- **Shared saved views** now need `shared_preset_capability` (`manage_options` by default) at creation time. `Meprmf_Presets::save_preset()` returns `not_allowed`. Private views and updates to a view you own are unaffected.
+- `date_range_default` slots into the date-range precedence between the per-admin user meta and the built-in `true`.
+- `uninstall.php` deletes `meprmf_settings`.
 
 ### 2.2.1
 

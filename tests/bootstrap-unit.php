@@ -76,6 +76,81 @@ if (! function_exists('apply_filters')) {
     }
 }
 
+if (! function_exists('add_action')) {
+    /**
+     * @param string   $hook_name Hook name.
+     * @param callable $callback  Callback.
+     * @return true
+     */
+    function add_action($hook_name, $callback)
+    {
+        $GLOBALS['meprmf_test_actions'][ $hook_name ][] = $callback;
+        return true;
+    }
+}
+
+if (! function_exists('register_setting')) {
+    /**
+     * @param string               $group   Option group.
+     * @param string               $option  Option name.
+     * @param array<string, mixed> $args    Args.
+     * @return true
+     */
+    function register_setting($group, $option, $args = [])
+    {
+        $GLOBALS['meprmf_test_registered_settings'][ $option ] = [ 'group' => $group, 'args' => $args ];
+        return true;
+    }
+}
+
+if (! function_exists('add_settings_section')) {
+    /**
+     * @param string   $id       Section id.
+     * @param string   $title    Title.
+     * @param callable $callback Render callback.
+     * @param string   $page     Page slug.
+     * @return true
+     */
+    function add_settings_section($id, $title, $callback, $page)
+    {
+        $GLOBALS['meprmf_test_settings_sections'][ $page ][] = $id;
+        return true;
+    }
+}
+
+if (! function_exists('add_settings_field')) {
+    /**
+     * @param string   $id       Field id.
+     * @param string   $title    Title.
+     * @param callable $callback Render callback.
+     * @param string   $page     Page slug.
+     * @param string   $section  Section id.
+     * @return true
+     */
+    function add_settings_field($id, $title, $callback, $page, $section = 'default')
+    {
+        $GLOBALS['meprmf_test_settings_fields'][ $page ][] = $id;
+        return true;
+    }
+}
+
+if (! function_exists('add_submenu_page')) {
+    /**
+     * @param string   $parent_slug Parent menu slug.
+     * @param string   $page_title  Page title.
+     * @param string   $menu_title  Menu title.
+     * @param string   $capability  Capability.
+     * @param string   $menu_slug   Menu slug.
+     * @param callable $callback    Render callback.
+     * @return string
+     */
+    function add_submenu_page($parent_slug, $page_title, $menu_title, $capability, $menu_slug, $callback = null)
+    {
+        $GLOBALS['meprmf_test_submenus'][] = [ 'parent' => $parent_slug, 'cap' => $capability, 'slug' => $menu_slug ];
+        return (string) $menu_slug;
+    }
+}
+
 if (! function_exists('__')) {
     /**
      * @param string $text Text.
@@ -544,3 +619,5 @@ if (! function_exists('wp_safe_redirect')) {
 require_once dirname(__DIR__) . '/includes/class-meprmf-util.php';
 require_once dirname(__DIR__) . '/includes/screen/class-meprmf-screen-context.php';
 require_once dirname(__DIR__) . '/includes/screen/class-meprmf-screen.php';
+// Screen contexts read the site-wide option, so the settings class must be loadable everywhere.
+require_once dirname(__DIR__) . '/includes/class-meprmf-settings.php';
