@@ -336,6 +336,79 @@ if (! isset($GLOBALS['meprmf_test_current_user_id'])) {
     $GLOBALS['meprmf_test_current_user_id'] = 0;
 }
 
+/** @var array<int, int> Member ids whose update_user_meta() call returns false. */
+if (! isset($GLOBALS['meprmf_test_user_meta_fail'])) {
+    $GLOBALS['meprmf_test_user_meta_fail'] = [];
+}
+
+if (! isset($GLOBALS['meprmf_test_transients'])) {
+    $GLOBALS['meprmf_test_transients'] = [];
+}
+
+if (! function_exists('set_transient')) {
+    /**
+     * @param string $transient Transient name.
+     * @param mixed  $value     Value.
+     * @param int    $expiration Expiration seconds.
+     * @return bool
+     */
+    function set_transient($transient, $value, $expiration = 0)
+    {
+        unset($expiration);
+        $GLOBALS['meprmf_test_transients'][ (string) $transient ] = $value;
+        return true;
+    }
+}
+
+if (! function_exists('get_transient')) {
+    /**
+     * @param string $transient Transient name.
+     * @return mixed
+     */
+    function get_transient($transient)
+    {
+        $key = (string) $transient;
+        return array_key_exists($key, $GLOBALS['meprmf_test_transients'])
+            ? $GLOBALS['meprmf_test_transients'][ $key ]
+            : false;
+    }
+}
+
+if (! function_exists('delete_transient')) {
+    /**
+     * @param string $transient Transient name.
+     * @return bool
+     */
+    function delete_transient($transient)
+    {
+        unset($GLOBALS['meprmf_test_transients'][ (string) $transient ]);
+        return true;
+    }
+}
+
+if (! function_exists('wp_json_encode')) {
+    /**
+     * @param mixed $data Data.
+     * @return string|false
+     */
+    function wp_json_encode($data)
+    {
+        return json_encode($data);
+    }
+}
+
+if (! function_exists('hash_equals')) {
+    /**
+     * @param string $known_string Known string.
+     * @param string $user_string  User string.
+     * @return bool
+     */
+    function hash_equals($known_string, $user_string)
+    {
+        return (string) $known_string === (string) $user_string;
+    }
+}
+
 if (! function_exists('get_current_user_id')) {
     /**
      * @return int
@@ -381,6 +454,10 @@ if (! function_exists('update_user_meta')) {
     function update_user_meta($user_id, $key, $value)
     {
         $user_id = (int) $user_id;
+        // Lets a test simulate the hard write failure that stops a bulk run.
+        if (in_array($user_id, (array) ( $GLOBALS['meprmf_test_user_meta_fail'] ?? [] ), true)) {
+            return false;
+        }
         if (! isset($GLOBALS['meprmf_test_user_meta'][ $user_id ])) {
             $GLOBALS['meprmf_test_user_meta'][ $user_id ] = [];
         }
@@ -698,6 +775,68 @@ if (! function_exists('wp_doing_cron')) {
     function wp_doing_cron()
     {
         return false;
+    }
+}
+
+if (! isset($GLOBALS['meprmf_test_json_responses'])) {
+    $GLOBALS['meprmf_test_json_responses'] = [];
+}
+
+if (! function_exists('wp_send_json_success')) {
+    /**
+     * @param mixed $data Response data.
+     * @return void
+     */
+    function wp_send_json_success($data = null)
+    {
+        $GLOBALS['meprmf_test_json_responses'][] = [
+            'success' => true,
+            'data'    => $data,
+        ];
+        throw new \RuntimeException('meprmf_test_json_success');
+    }
+}
+
+if (! function_exists('wp_send_json_error')) {
+    /**
+     * @param mixed $data   Response data.
+     * @param int   $status HTTP status.
+     * @return void
+     */
+    function wp_send_json_error($data = null, $status = null)
+    {
+        $GLOBALS['meprmf_test_json_responses'][] = [
+            'success' => false,
+            'data'    => $data,
+            'status'  => $status,
+        ];
+        throw new \RuntimeException('meprmf_test_json_error');
+    }
+}
+
+if (! function_exists('check_ajax_referer')) {
+    /**
+     * @param string $action    Nonce action.
+     * @param string $query_arg Query arg name.
+     * @param bool   $die       Die on failure.
+     * @return int|false
+     */
+    function check_ajax_referer($action, $query_arg = false, $die = true)
+    {
+        unset($action, $query_arg, $die);
+        return 1;
+    }
+}
+
+if (! function_exists('wp_create_nonce')) {
+    /**
+     * @param string|int $action Action name.
+     * @return string
+     */
+    function wp_create_nonce($action)
+    {
+        unset($action);
+        return 'test-nonce';
     }
 }
 

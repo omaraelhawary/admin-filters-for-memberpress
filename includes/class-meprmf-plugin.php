@@ -394,6 +394,70 @@ class Meprmf_Plugin
                     ],
                 ]
             );
+
+            self::enqueue_bulk_actions_script($suffix);
         }
+    }
+
+    /**
+     * Bulk-action modal script, for admins allowed to write to the filtered set.
+     *
+     * Gated on the same capability as the AJAX handler and the toolbar button, so an admin who
+     * may filter but not write in bulk never loads it.
+     *
+     * @since 2.3.0
+     * @param string $suffix Asset suffix from {@see admin_asset_suffix()}.
+     * @return void
+     */
+    private static function enqueue_bulk_actions_script($suffix)
+    {
+        if (! Meprmf_Capabilities::current_user_can_bulk_actions()) {
+            return;
+        }
+
+        wp_enqueue_script(
+            'meprmf-bulk-actions',
+            meprmf_plugin_url("assets/meprmf-bulk-actions{$suffix}.js"),
+            [ 'meprmf-members-floating-panel' ],
+            MEPRMF_VERSION,
+            true
+        );
+
+        wp_localize_script(
+            'meprmf-bulk-actions',
+            'meprmfBulkActions',
+            [
+                'ajaxUrl'   => admin_url('admin-ajax.php'),
+                'nonce'     => wp_create_nonce(Meprmf_Bulk::NONCE_ACTION),
+                'batchSize' => Meprmf_Bulk_Runner::batch_size(),
+                'i18n'      => [
+                    'title'        => __('Bulk actions on the filtered set', 'admin-filters-for-memberpress'),
+                    'action'       => __('Set user meta on every member in the filtered list.', 'admin-filters-for-memberpress'),
+                    'metaKey'      => __('Meta key', 'admin-filters-for-memberpress'),
+                    'metaValue'    => __('Meta value', 'admin-filters-for-memberpress'),
+                    'preview'      => __('Preview', 'admin-filters-for-memberpress'),
+                    'run'          => __('Run', 'admin-filters-for-memberpress'),
+                    'cancel'       => __('Cancel', 'admin-filters-for-memberpress'),
+                    'close'        => __('Close', 'admin-filters-for-memberpress'),
+                    'previewFirst' => __('Preview the set before running.', 'admin-filters-for-memberpress'),
+                    'working'      => __('Working…', 'admin-filters-for-memberpress'),
+                    /* translators: 1: matching list rows, 2: unique members. */
+                    'matchCount'   => __('%1$d matching rows / %2$d unique members', 'admin-filters-for-memberpress'),
+                    /* translators: 1: meta key, 2: meta value. */
+                    'summary'      => __('Will set %1$s to %2$s on every one of those members.', 'admin-filters-for-memberpress'),
+                    /* translators: %d: number of member ids listed. */
+                    'previewIds'   => __('Dry run, nothing written. First %d member ids:', 'admin-filters-for-memberpress'),
+                    /* translators: %d: number of members. */
+                    'running'      => __('Running on %d members…', 'admin-filters-for-memberpress'),
+                    /* translators: 1: current batch, 2: total batches, 3: members written so far, 4: total members. */
+                    'batchProgress' => __('Batch %1$d of %2$d: %3$d of %4$d members written.', 'admin-filters-for-memberpress'),
+                    /* translators: 1: members written, 2: members processed. */
+                    'done'         => __('Done: %1$d of %2$d members written.', 'admin-filters-for-memberpress'),
+                    /* translators: 1: members written, 2: member id the run stopped on. */
+                    'stopped'      => __('Stopped: %1$d members written, then the write for member %2$d failed.', 'admin-filters-for-memberpress'),
+                    'error'        => __('Could not run the bulk action. Please try again.', 'admin-filters-for-memberpress'),
+                ],
+            ]
+        );
     }
 }

@@ -591,3 +591,33 @@
 		min-width: 0;
 	}
 }
+
+/* Bulk actions modal: a native <dialog>, so only layout is set here. */
+.meprmf-bulk {
+	max-width: 32rem;
+	padding: 1rem 1.25rem;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+}
+
+.meprmf-bulk__label {
+	display: block;
+	margin-bottom: 0.75rem;
+}
+
+.meprmf-bulk__label > span {
+	display: block;
+	margin-bottom: 0.25rem;
+	font-weight: 600;
+}
+
+.meprmf-bulk__ids {
+	word-break: break-all;
+}
+
+.meprmf-bulk__actions {
+	display: flex;
+	gap: 0.5rem;
+	align-items: center;
+	margin-bottom: 0;
+}

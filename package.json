@@ -2,7 +2,7 @@
   "name": "admin-filters-for-memberpress",
   "private": true,
   "scripts": {
-    "build": "esbuild assets/meprmf-members-floating-panel.js --minify --outfile=assets/meprmf-members-floating-panel.min.js && esbuild assets/meprmf-members-toolbar.css --minify --outfile=assets/meprmf-members-toolbar.min.css"
+    "build": "esbuild assets/meprmf-members-floating-panel.js --minify --outfile=assets/meprmf-members-floating-panel.min.js && esbuild assets/meprmf-bulk-actions.js --minify --outfile=assets/meprmf-bulk-actions.min.js && esbuild assets/meprmf-members-toolbar.css --minify --outfile=assets/meprmf-members-toolbar.min.css"
   },
   "devDependencies": {
     "esbuild": "^0.28.1"

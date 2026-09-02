@@ -491,6 +491,12 @@ class Meprmf_Toolbar_Renderer
             '<span class="meprmf-qb__status" data-meprmf-status role="status" hidden>%s</span>',
             esc_html__('Unapplied changes', 'admin-filters-for-memberpress')
         );
+        if (Meprmf_Capabilities::current_user_can_bulk_actions()) {
+            printf(
+                '<button type="button" class="button-link meprmf-qb__bulk" data-meprmf-bulk>%s</button>',
+                esc_html__('Bulk actions', 'admin-filters-for-memberpress')
+            );
+        }
         echo '</div>';
     }
 
