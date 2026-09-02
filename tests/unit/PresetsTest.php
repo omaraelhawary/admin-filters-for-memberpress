@@ -31,6 +31,8 @@ class PresetsTest extends TestCase
         $GLOBALS['meprmf_test_user_meta']     = [];
         $GLOBALS['meprmf_test_user_caps']     = [];
         $GLOBALS['meprmf_test_current_user_id'] = 0;
+        $GLOBALS['meprmf_test_submenus']      = [];
+        $GLOBALS['submenu']                     = [];
 
         require_once dirname(__DIR__, 2) . '/includes/class-meprmf-util.php';
         require_once dirname(__DIR__, 2) . '/includes/screen/class-meprmf-screen-context.php';
@@ -53,6 +55,8 @@ class PresetsTest extends TestCase
         $GLOBALS['meprmf_test_user_meta']    = [];
         $GLOBALS['meprmf_test_user_caps']    = [];
         $GLOBALS['meprmf_test_current_user_id'] = 0;
+        $GLOBALS['meprmf_test_submenus']     = [];
+        $GLOBALS['submenu']                  = [];
         parent::tearDown();
     }
 
@@ -807,5 +811,73 @@ class PresetsTest extends TestCase
 
         $this->assertSame('', Meprmf_Presets::get_pinned_view_url(self::SCREEN, 'gone123'));
         $this->assertSame('', Meprmf_Presets::get_pinned_view_url('not_a_screen', $view['preset']['id']));
+    }
+
+    /**
+     * MemberPress submenu parent lookup and filter capability for add_pinned_view_menu_items().
+     *
+     * @return void
+     */
+    private function setup_pinned_view_menu_fixtures()
+    {
+        if (! class_exists('MeprUtils', false)) {
+            eval(
+                'class MeprUtils {
+                    public static function get_mepr_admin_capability() { return "mepr_test_admin"; }
+                }'
+            );
+        }
+
+        require_once dirname(__DIR__, 2) . '/includes/class-meprmf-capabilities.php';
+        require_once dirname(__DIR__, 2) . '/includes/class-meprmf-plugin.php';
+
+        $GLOBALS['meprmf_test_user_caps']['mepr_test_admin'] = true;
+        $GLOBALS['submenu']                                   = [
+            'memberpress' => [
+                [
+                    'Members',
+                    'mepr_test_admin',
+                    'memberpress-members',
+                ],
+            ],
+        ];
+    }
+
+    public function test_a_pinned_view_registers_a_submenu_entry_when_the_screen_is_enabled()
+    {
+        $this->setup_pinned_view_menu_fixtures();
+        $this->as_user(7);
+        $view = $this->save('Active only');
+        Meprmf_Presets::pin_view(self::SCREEN, $view['preset']['id']);
+
+        Meprmf_Presets::add_pinned_view_menu_items();
+
+        $this->assertCount(1, $GLOBALS['meprmf_test_submenus']);
+        $entry = $GLOBALS['meprmf_test_submenus'][0];
+        $this->assertSame('memberpress', $entry['parent']);
+        $this->assertSame('mepr_test_admin', $entry['cap']);
+        $this->assertSame(
+            htmlspecialchars('admin.php?page=memberpress-members&mpm_access=active', ENT_QUOTES),
+            $entry['slug']
+        );
+    }
+
+    public function test_a_pinned_view_does_not_register_a_submenu_entry_when_the_screen_is_disabled()
+    {
+        $this->setup_pinned_view_menu_fixtures();
+        $GLOBALS['meprmf_test_options']['meprmf_settings'] = [
+            'shared_preset_capability' => 'meprmf_test_share',
+            'enabled_screens'          => [ 'memberpress-subscriptions', 'memberpress-lifetimes', 'memberpress-trans' ],
+        ];
+
+        $this->as_user(7);
+        $view = $this->save('Active only');
+        Meprmf_Presets::pin_view(self::SCREEN, $view['preset']['id']);
+
+        $this->assertSame([ $view['preset']['id'] ], Meprmf_Presets::get_pinned_view_ids(self::SCREEN));
+
+        Meprmf_Presets::add_pinned_view_menu_items();
+
+        $this->assertSame([], $GLOBALS['meprmf_test_submenus']);
     }
 }
