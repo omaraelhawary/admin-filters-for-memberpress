@@ -57,6 +57,7 @@ rsync -a \
   --exclude='admin-filters-for-memberpress-svn/' \
   --exclude='wordpress-org-assets/' \
   --exclude='scripts/' \
+  --exclude='bin/' \
   --exclude='tests/' \
   --exclude='vendor/' \
   --exclude='docs/' \

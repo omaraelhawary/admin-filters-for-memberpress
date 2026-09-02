@@ -19,11 +19,34 @@ class Meprmf_Predicate_Builder
     private static $last_fragments = null;
 
     /**
+     * Nanoseconds each fragment in $last_fragments took to build. Same indices.
+     *
+     * @var array<int, int>|null
+     */
+    private static $last_fragment_ns = null;
+
+    /** @var int|null hrtime(true) reading at the last push (or at the start of the pass). */
+    private static $fragment_checkpoint_ns = null;
+
+    /**
      * @return array<int, string>|null
      */
     public static function get_last_fragments()
     {
         return self::$last_fragments;
+    }
+
+    /**
+     * Per-fragment build time in nanoseconds, indexed like {@see get_last_fragments()}.
+     *
+     * A field that bails out without producing a fragment (empty value, unparseable date)
+     * folds its time into the next fragment that does get pushed.
+     *
+     * @return array<int, int>|null
+     */
+    public static function get_last_fragment_ns()
+    {
+        return self::$last_fragment_ns;
     }
 
     /**
@@ -33,7 +56,9 @@ class Meprmf_Predicate_Builder
      */
     public static function reset_last_fragments()
     {
-        self::$last_fragments = null;
+        self::$last_fragments         = null;
+        self::$last_fragment_ns       = null;
+        self::$fragment_checkpoint_ns = null;
     }
 
     /**
@@ -50,7 +75,9 @@ class Meprmf_Predicate_Builder
      */
     public static function append_usermeta_exists(array $args, Meprmf_Screen_Context $ctx, array $valid)
     {
-        self::$last_fragments = [];
+        self::$last_fragments         = [];
+        self::$last_fragment_ns       = [];
+        self::$fragment_checkpoint_ns = hrtime(true);
         global $wpdb;
 
         $uid = $ctx->get_user_id_column_sql();
@@ -161,8 +188,7 @@ class Meprmf_Predicate_Builder
                     "EXISTS ( SELECT 1 FROM {$wpdb->usermeta} AS {$alias} WHERE {$alias}.user_id = {$uid} AND {$alias}.meta_key = %s AND {$alias}.meta_value IN ('on', '1', 'true') )",
                     $meta
                 );
-                $args[]   = $sql;
-                self::$last_fragments[] = $sql;
+                $args = self::push_fragment($args, $sql);
                 continue;
             }
 
@@ -172,8 +198,7 @@ class Meprmf_Predicate_Builder
                     $meta,
                     $raw
                 );
-                $args[] = $sql;
-                self::$last_fragments[] = $sql;
+                $args = self::push_fragment($args, $sql);
                 continue;
             }
 
@@ -185,8 +210,7 @@ class Meprmf_Predicate_Builder
                     $raw,
                     '%' . $serialized_needle . '%'
                 );
-                $args[]            = $sql;
-                self::$last_fragments[] = $sql;
+                $args = self::push_fragment($args, $sql);
                 continue;
             }
 
@@ -196,8 +220,7 @@ class Meprmf_Predicate_Builder
                 $meta,
                 $like
             );
-            $args[] = $sql;
-            self::$last_fragments[] = $sql;
+            $args = self::push_fragment($args, $sql);
         }
         // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
@@ -219,6 +242,10 @@ class Meprmf_Predicate_Builder
 
         $args[]                 = $sql;
         self::$last_fragments[] = $sql;
+
+        $now                      = hrtime(true);
+        self::$last_fragment_ns[] = (int) ( $now - (int) self::$fragment_checkpoint_ns );
+        self::$fragment_checkpoint_ns = $now;
 
         return $args;
     }
@@ -333,13 +360,8 @@ class Meprmf_Predicate_Builder
             ...$prepare_args
         );
         // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-        if (! is_string($sql) || '' === $sql) {
-            return $args;
-        }
-        $args[]                 = $sql;
-        self::$last_fragments[] = $sql;
 
-        return $args;
+        return self::push_fragment($args, $sql);
     }
 
     /**
@@ -379,9 +401,7 @@ class Meprmf_Predicate_Builder
         // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Alias and uid are fixed SQL fragments; meta values are quoted.
         $sql = "{$keyword} ( SELECT 1 FROM {$wpdb->usermeta} AS {$alias} WHERE {$alias}.user_id = {$uid} AND " . implode(' AND ', $clauses) . ' )';
         // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-        $args[]                 = $sql;
-        self::$last_fragments[] = $sql;
 
-        return $args;
+        return self::push_fragment($args, $sql);
     }
 }
