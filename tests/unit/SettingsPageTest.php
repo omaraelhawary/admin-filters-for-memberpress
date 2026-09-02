@@ -115,8 +115,28 @@ class SettingsPageTest extends TestCase
         );
     }
 
-    public function test_the_capability_choices_drop_the_memberpress_one_when_mepr_utils_is_absent()
+    public function test_the_capability_choices_carry_the_memberpress_one_when_it_is_reported()
     {
-        $this->assertSame([ 'manage_options' ], array_keys(Meprmf_Settings_Page::capability_choices()));
+        $this->assertSame(
+            [ 'manage_options', 'mepr_test_admin' ],
+            array_keys(Meprmf_Settings_Page::capability_choices())
+        );
+    }
+
+    /**
+     * The class_exists half of the guard cannot be exercised once any test has
+     * defined MeprUtils, and one always has by the time this file runs. An
+     * empty capability is the reachable case and the production code already
+     * drops the choice for it.
+     */
+    public function test_the_capability_choices_drop_the_memberpress_one_when_none_is_reported()
+    {
+        $GLOBALS['meprmf_test_mepr_admin_cap'] = '';
+
+        try {
+            $this->assertSame([ 'manage_options' ], array_keys(Meprmf_Settings_Page::capability_choices()));
+        } finally {
+            unset($GLOBALS['meprmf_test_mepr_admin_cap']);
+        }
     }
 }

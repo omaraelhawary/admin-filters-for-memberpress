@@ -499,6 +499,45 @@ if (! function_exists('delete_option')) {
     }
 }
 
+if (! class_exists('MeprUtils', false)) {
+    /**
+     * Minimal MemberPress utility stub for unit tests.
+     *
+     * Two test files used to define this themselves behind a class_exists
+     * guard, with different method sets. Whichever ran first won and the other
+     * guard silently skipped, so PresetsTest saw a MeprUtils with no
+     * get_mepr_admin_capability() and errored on it in CI (PR #37).
+     */
+    class MeprUtils
+    {
+        /**
+         * @return string
+         */
+        public static function db_now()
+        {
+            return '2026-05-19 12:00:00';
+        }
+
+        /**
+         * @return string
+         */
+        public static function db_lifetime()
+        {
+            return '0000-00-00 00:00:00';
+        }
+
+        /**
+         * @return string
+         */
+        public static function get_mepr_admin_capability()
+        {
+            return array_key_exists('meprmf_test_mepr_admin_cap', $GLOBALS)
+                ? (string) $GLOBALS['meprmf_test_mepr_admin_cap']
+                : 'mepr_test_admin';
+        }
+    }
+}
+
 if (! class_exists('MeprTransaction', false)) {
     /**
      * Minimal MemberPress transaction stub for unit tests.

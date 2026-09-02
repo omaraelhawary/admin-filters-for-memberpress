@@ -913,6 +913,12 @@ class Meprmf_Presets
         }
 
         foreach (Meprmf_Screen::supported_page_contexts() as $ctx) {
+            // A screen turned off in Settings gets no predicates, so its pins would link to an
+            // unfiltered list.
+            if (! $ctx->supports_meta_filters_list()) {
+                continue;
+            }
+
             $storage_id = $ctx->get_storage_id();
             $pinned     = self::get_pinned_view_ids($storage_id);
             if (empty($pinned)) {
