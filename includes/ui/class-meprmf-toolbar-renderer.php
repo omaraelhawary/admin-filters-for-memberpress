@@ -408,6 +408,13 @@ class Meprmf_Toolbar_Renderer
             esc_html__('Set as default', 'admin-filters-for-memberpress')
         );
 
+        // Pins are per admin too, so like the default button this one is worded by JS once it
+        // knows whether the selected view is already on this admin's MemberPress menu.
+        printf(
+            '<button type="button" class="button-link meprmf-qb__pin-view" data-meprmf-pin-view hidden>%s</button>',
+            esc_html__('Pin to menu', 'admin-filters-for-memberpress')
+        );
+
         echo '<span class="meprmf-qb__spacer"></span>';
         echo '<span class="meprmf-qb__chips" data-meprmf-chips hidden></span>';
         echo '</div>';
