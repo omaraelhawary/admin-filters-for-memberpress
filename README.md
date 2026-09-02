@@ -208,6 +208,39 @@ Pair this with the matching `meprmf_*_core_filters_fields` hook for that screen 
 - **Custom field filters:** each active meta filter adds a correlated `EXISTS` on `wp_usermeta`. Many simultaneous custom-field filters increase query cost; date-range groups for one field are merged into a single `EXISTS`.
 - **Debug SQL:** with `WP_DEBUG` on, predicate fragments print in the admin footer for administrators — keep `WP_DEBUG` off in production.
 
+#### Indexing filtered meta keys
+
+WordPress ships `wp_usermeta` with a primary key on `umeta_id`, an index on `user_id`, and a 191-character prefix index on `meta_key`. There is no index on `meta_value`. Each active meta filter becomes a correlated `EXISTS` that matches one `meta_key` and then compares `meta_value`, so MySQL narrows by key using that index and reads every matching row to test the value.
+
+A composite index on the pair helps when a filtered meta key holds many rows and the filter is an equality test:
+
+```sql
+ALTER TABLE wp_usermeta ADD INDEX meprmf_key_value (meta_key(64), meta_value(20));
+```
+
+MySQL indexes the whole table, so this one index covers every filtered key at once. Where it does not help:
+
+- Low-cardinality values. A country filter over four distinct countries still reads a quarter of the rows for that meta key, and MySQL may ignore the index.
+- Text and `contains` filters, which compile to `LIKE '%…%'`. A leading wildcard cannot use an index, composite or not.
+- Meta keys with few rows, which the `meta_key` prefix index already narrows to a handful.
+- Plans that probe the subquery by `user_id` once per outer row, which is common on a paginated list. The composite index is not used at all there.
+
+`meta_value` is `longtext`, so a full index is impossible and the prefix length is a judgment call; 20 characters is a place to start. Add the index, then run `EXPLAIN` for each filter you care about. Every index also slows writes on a table WordPress touches on every login.
+
+#### Benchmark
+
+```bash
+wp eval-file bin/benchmark-usermeta-filters.php
+```
+
+Seeds 6,000 `wp_usermeta` rows, 2,000 each across `meprmf_bench_country`, `meprmf_bench_plan` and `meprmf_bench_city`, applies three filters against them, prints per-fragment and total timings, then deletes every row whose `meta_key` starts with `meprmf_bench_`. Cleanup runs from a shutdown handler, so it happens even when the pass fails. The script exits non-zero if it builds a different number of fragments than the filters it set, because a timing taken with no fragments measures nothing.
+
+#### What "filter overhead (plugin)" measures
+
+With `WP_DEBUG` on, the debug panel prints `filter overhead (plugin): X ms`, the number of predicate passes in the request, and per-fragment ms on the usermeta lines. `mepr_list_table_args` can fire more than once per request, which is why the pass count sits next to the total: the fragment list below it is the last pass, the total covers every pass. The total is this plugin's own work: reading the request, normalizing the field registry, building both sets of predicates, and joining them for `match=any`. It stops when the filter hands the WHERE fragments back to MemberPress.
+
+It does not include the time MySQL spends running those fragments. On a table with millions of `wp_usermeta` rows, most of the cost is in that query, so a small overhead figure says the plugin's PHP is cheap and says nothing about how the `EXISTS` performs.
+
 ## How it works
 
 - `mepr_table_controls_search` — renders filter controls (`Meprmf_Toolbar_Renderer`).

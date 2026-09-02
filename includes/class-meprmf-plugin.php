@@ -24,6 +24,46 @@ class Meprmf_Plugin
     private static $deferred_floating_panels = [];
 
     /**
+     * Nanoseconds spent in apply_list_table_predicates() across this request.
+     *
+     * Accumulated, not overwritten: `mepr_list_table_args` can fire more than once per admin
+     * request, so the pass count is reported alongside the total.
+     *
+     * @var int
+     */
+    private static $filter_overhead_ns = 0;
+
+    /**
+     * How many times apply_list_table_predicates() ran this request.
+     *
+     * @var int
+     */
+    private static $filter_passes = 0;
+
+    /**
+     * Total nanoseconds spent building this plugin's predicates on this request.
+     *
+     * Covers registry normalization, both predicate builders and apply_match_mode(). It does
+     * not cover MemberPress's own list-table query, which runs after the filter returns.
+     *
+     * @return int
+     */
+    public static function get_last_filter_overhead_ns()
+    {
+        return self::$filter_overhead_ns;
+    }
+
+    /**
+     * How many predicate passes ran this request (see {@see $filter_overhead_ns}).
+     *
+     * @return int
+     */
+    public static function get_filter_pass_count()
+    {
+        return self::$filter_passes;
+    }
+
+    /**
      * Admin page slugs that load floating / inline filter assets.
      *
      * @return array<int, string>
@@ -162,36 +202,46 @@ class Meprmf_Plugin
      */
     private static function apply_list_table_predicates(array $args, Meprmf_Screen_Context $predicate_ctx, Meprmf_Screen_Context $request_ctx = null)
     {
-        if (null === $request_ctx) {
-            $request_ctx = $predicate_ctx;
-        }
-
-        $overrides = [];
-        if ($predicate_ctx->get_page() !== $request_ctx->get_page()) {
-            $overrides = Meprmf_Subscription_Tabs::translate_request_params($request_ctx, $predicate_ctx);
-        }
-
-        if (! empty($overrides)) {
-            Meprmf_Util::push_request_overrides($overrides);
-        }
+        // Outer clock: the whole pass, so registry normalization and apply_match_mode() are inside
+        // it. The inner try/finally keeps its own scope, because apply_match_mode() must read the
+        // request with the cross-tab overrides already popped.
+        $started = hrtime(true);
 
         try {
-            $meta_valid = Meprmf_Filter_Registry::get_normalized_meta_fields_for_context($predicate_ctx);
-            if (! empty($meta_valid)) {
-                $args = Meprmf_Predicate_Builder::append_usermeta_exists($args, $predicate_ctx, $meta_valid);
+            if (null === $request_ctx) {
+                $request_ctx = $predicate_ctx;
             }
 
-            $core_valid = Meprmf_Filter_Registry::get_normalized_mepr_predicate_fields_for_context($predicate_ctx);
-            if (! empty($core_valid)) {
-                $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists($args, $predicate_ctx, $core_valid);
+            $overrides = [];
+            if ($predicate_ctx->get_page() !== $request_ctx->get_page()) {
+                $overrides = Meprmf_Subscription_Tabs::translate_request_params($request_ctx, $predicate_ctx);
             }
-        } finally {
+
             if (! empty($overrides)) {
-                Meprmf_Util::pop_request_overrides();
+                Meprmf_Util::push_request_overrides($overrides);
             }
-        }
 
-        return self::apply_match_mode($args, $predicate_ctx);
+            try {
+                $meta_valid = Meprmf_Filter_Registry::get_normalized_meta_fields_for_context($predicate_ctx);
+                if (! empty($meta_valid)) {
+                    $args = Meprmf_Predicate_Builder::append_usermeta_exists($args, $predicate_ctx, $meta_valid);
+                }
+
+                $core_valid = Meprmf_Filter_Registry::get_normalized_mepr_predicate_fields_for_context($predicate_ctx);
+                if (! empty($core_valid)) {
+                    $args = Meprmf_Mepr_Predicate_Builder::append_mepr_exists($args, $predicate_ctx, $core_valid);
+                }
+            } finally {
+                if (! empty($overrides)) {
+                    Meprmf_Util::pop_request_overrides();
+                }
+            }
+
+            return self::apply_match_mode($args, $predicate_ctx);
+        } finally {
+            self::$filter_overhead_ns += (int) ( hrtime(true) - $started );
+            ++self::$filter_passes;
+        }
     }
 
     /**
