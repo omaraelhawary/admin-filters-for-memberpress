@@ -96,6 +96,12 @@ Open **MemberPress -> Admin Filters**. From there you choose which of the four l
 * Turning a list off there stops this plugin on that list, down to the columns and the query conditions. Saved views for that list stay in the database and come back when you turn it on again.
 * Creating a shared saved view now needs the capability chosen on that screen. The default is administrators who can manage options. Private views stay open to any administrator who can use the filters, and views already saved are untouched.
 * Code still wins over the screen: a hook or a constant runs after the saved value and takes precedence.
+* **Bulk actions on the filtered set.** A **Bulk actions** button in the Filters card footer writes one user meta key and value to every member the current filters match, on Members, Subscriptions, Lifetimes and Transactions.
+* The button and the request behind it need `manage_options`, which is a higher bar than reading a filtered list. Change it with the `meprmf_bulk_actions_capability` filter.
+* Nothing is written until you preview. A preview reports how many list rows match, how many unique members that is, and the first 20 member ids.
+* A run is refused when no Admin Filters predicate is active, so a bulk write cannot reach every member by accident. A search term or a native MemberPress toolbar filter on its own does not count.
+* Meta keys belonging to WordPress, MemberPress or this plugin are refused whatever their capitalization: `wp_capabilities`, `wp_user_level`, `session_tokens`, their site-prefixed forms, and anything starting with `mepr_`, `mepr-` or `meprmf_`. Extend either list with `meprmf_bulk_set_meta_blocked_keys` and `meprmf_bulk_set_meta_blocked_prefixes`.
+* Writes go out in batches of 50 (`meprmf_bulk_batch_size`). A member who already has the value is left alone and counts as written; a real write failure stops the run and reports how many members were written and which member it stopped on.
 
 = 2.2.1 =
 
@@ -238,6 +244,7 @@ Open **MemberPress -> Admin Filters**. From there you choose which of the four l
 = 2.3.0 =
 
 Adds a Settings screen at MemberPress -> Admin Filters. All four options keep the behavior you have now, with one exception: creating a shared saved view now needs the capability set on that screen, which defaults to administrators who can manage options. Saved views and filter URLs are untouched, and no database migration runs.
+Adds a bulk action that sets one user meta key and value on every member in the filtered set. It needs `manage_options`, refuses to run unless an Admin Filters predicate is active, and shows the match count before anything is written. No database migration.
 
 = 2.2.1 =
 

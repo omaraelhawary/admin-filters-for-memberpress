@@ -1090,7 +1090,7 @@ class Meprmf_Presets
      * @param Meprmf_Screen_Context $ctx Screen context.
      * @return array<int, string>
      */
-    private static function request_filter_params(Meprmf_Screen_Context $ctx)
+    public static function request_filter_params(Meprmf_Screen_Context $ctx)
     {
         $params = self::get_known_params_for_storage_id($ctx->get_storage_id());
 

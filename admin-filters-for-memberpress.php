@@ -49,6 +49,7 @@ add_action(
             Meprmf_Settings_Page::init();
         }
         Meprmf_Presets::init();
+        Meprmf_Bulk::init();
         Meprmf_Plugin::init();
     },
     20
