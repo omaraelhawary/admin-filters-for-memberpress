@@ -111,6 +111,10 @@
 		return cfg().defaultView ? String(cfg().defaultView) : '';
 	}
 
+	function pinnedViewIds() {
+		return Array.isArray(cfg().pinnedViews) ? cfg().pinnedViews.map(String) : [];
+	}
+
 	function storageNs() {
 		return cfg().storageId ? String(cfg().storageId) : 'memberpress_members';
 	}
@@ -471,6 +475,7 @@
 		var clearBtn = card.querySelector('[data-meprmf-clear]');
 		var saveBtn = card.querySelector('[data-meprmf-save-view]');
 		var defaultViewBtn = card.querySelector('[data-meprmf-default-view]');
+		var pinViewBtn = card.querySelector('[data-meprmf-pin-view]');
 
 		if (!disclosure || !addBtn || !popover || !popoverList || !body || !rowsWrap || !emptyWrap) {
 			return;
@@ -1086,6 +1091,7 @@
 				deleteViewBtn.hidden = !viewsSelect || viewsSelect.value === '';
 			}
 			syncDefaultView();
+			syncPinView();
 		}
 
 		/**
@@ -1106,6 +1112,26 @@
 				? i18n('clearDefaultView', 'Clear default')
 				: i18n('setDefaultView', 'Set as default');
 			defaultViewBtn.setAttribute('aria-pressed', isDefault ? 'true' : 'false');
+		}
+
+		/**
+		 * Same shape as the default-view button: the wording says what the click will do, and
+		 * that is also how "this view is on my menu" is shown.
+		 */
+		function syncPinView() {
+			if (!pinViewBtn) {
+				return;
+			}
+			var selected = viewsSelect ? String(viewsSelect.value) : '';
+			pinViewBtn.hidden = selected === '';
+			if (selected === '') {
+				return;
+			}
+			var isPinned = pinnedViewIds().indexOf(selected) !== -1;
+			pinViewBtn.textContent = isPinned
+				? i18n('unpinView', 'Unpin from menu')
+				: i18n('pinView', 'Pin to menu');
+			pinViewBtn.setAttribute('aria-pressed', isPinned ? 'true' : 'false');
 		}
 
 		/**
@@ -1197,6 +1223,61 @@
 					})
 					.finally(function () {
 						defaultViewBtn.disabled = false;
+					});
+			});
+		}
+
+		if (pinViewBtn && viewsSelect) {
+			pinViewBtn.addEventListener('click', function () {
+				var conf = cfg();
+				var selected = String(viewsSelect.value || '');
+				if (selected === '') {
+					return;
+				}
+				if (!conf.ajaxUrl || !conf.presetsNonce) {
+					window.alert(i18n('pinViewError', 'Could not change the pinned views. Please try again.'));
+					return;
+				}
+
+				var unpinning = pinnedViewIds().indexOf(selected) !== -1;
+				var payload = new URLSearchParams();
+				payload.set('action', unpinning ? 'meprmf_unpin_filter_view' : 'meprmf_pin_filter_view');
+				payload.set('nonce', conf.presetsNonce);
+				payload.set('screen', conf.storageId || storageNs());
+				payload.set('id', selected);
+
+				pinViewBtn.disabled = true;
+
+				fetch(conf.ajaxUrl, {
+					method: 'POST',
+					credentials: 'same-origin',
+					headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+					body: payload.toString()
+				})
+					.then(function (res) {
+						return res.json().then(function (data) {
+							return { ok: res.ok, data: data };
+						});
+					})
+					.then(function (result) {
+						var data = result.data;
+						if (!result.ok || !data || !data.success) {
+							var message = (data && data.data && data.data.message)
+								? data.data.message
+								: i18n('pinViewError', 'Could not change the pinned views. Please try again.');
+							throw new Error(message);
+						}
+						cfg().pinnedViews = (data.data && Array.isArray(data.data.pinned)) ? data.data.pinned : [];
+						syncPinView();
+						// The admin menu is only built on page load, so the entry appears (or goes)
+						// on the next one.
+						window.location.reload();
+					})
+					.catch(function (err) {
+						window.alert(err && err.message ? err.message : i18n('pinViewError', 'Could not change the pinned views. Please try again.'));
+					})
+					.finally(function () {
+						pinViewBtn.disabled = false;
 					});
 			});
 		}

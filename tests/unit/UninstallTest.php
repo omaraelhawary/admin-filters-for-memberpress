@@ -33,6 +33,10 @@ class UninstallTest extends TestCase
         $GLOBALS['meprmf_test_user_meta'][2]['meprmf_default_view_memberpress_trans']   = 'p_def';
         $GLOBALS['meprmf_test_user_meta'][2]['meprmf_default_view_memberpress_subscriptions'] = 'p_ghi';
         $GLOBALS['meprmf_test_user_meta'][1]['meprmf_default_view_memberpress_lifetimes']    = 'p_jkl';
+        $GLOBALS['meprmf_test_user_meta'][1]['meprmf_pinned_view_memberpress_members'] = [ 'p_abc', 'p_mno' ];
+        $GLOBALS['meprmf_test_user_meta'][2]['meprmf_pinned_view_memberpress_trans']   = [ 'p_def' ];
+        $GLOBALS['meprmf_test_user_meta'][2]['meprmf_pinned_view_memberpress_subscriptions'] = [ 'p_ghi' ];
+        $GLOBALS['meprmf_test_user_meta'][1]['meprmf_pinned_view_memberpress_lifetimes']     = [ 'p_jkl' ];
         $GLOBALS['meprmf_test_user_meta'][1]['unrelated_plugin_meta'] = 'keep me';
 
         if (! defined('WP_UNINSTALL_PLUGIN')) {
@@ -47,10 +51,13 @@ class UninstallTest extends TestCase
         $this->assertArrayNotHasKey('meprmf_date_custom_fields_use_range', $GLOBALS['meprmf_test_user_meta'][1]);
         $this->assertArrayNotHasKey('meprmf_date_custom_fields_use_range', $GLOBALS['meprmf_test_user_meta'][2]);
 
-        // Every screen's default view goes too, on every user, or an uninstall leaves rows behind.
+        // Every screen's default view and pinned menu entries go too, on every user, or an
+        // uninstall leaves rows behind.
         foreach ([ 'members', 'trans', 'subscriptions', 'lifetimes' ] as $screen) {
             $this->assertArrayNotHasKey('meprmf_default_view_memberpress_' . $screen, $GLOBALS['meprmf_test_user_meta'][1]);
             $this->assertArrayNotHasKey('meprmf_default_view_memberpress_' . $screen, $GLOBALS['meprmf_test_user_meta'][2]);
+            $this->assertArrayNotHasKey('meprmf_pinned_view_memberpress_' . $screen, $GLOBALS['meprmf_test_user_meta'][1]);
+            $this->assertArrayNotHasKey('meprmf_pinned_view_memberpress_' . $screen, $GLOBALS['meprmf_test_user_meta'][2]);
         }
 
         $this->assertSame('keep me', $GLOBALS['meprmf_test_user_meta'][1]['unrelated_plugin_meta']);

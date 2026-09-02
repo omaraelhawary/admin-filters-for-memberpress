@@ -33,6 +33,12 @@ class Meprmf_Presets
     /** @var string User meta key prefix holding one default view id per screen. */
     const DEFAULT_VIEW_META_PREFIX = 'meprmf_default_view_';
 
+    /** @var string User meta key prefix holding one row per pinned view, per screen. */
+    const PINNED_VIEW_META_PREFIX = 'meprmf_pinned_view_';
+
+    /** @var int Default maximum pinned views per screen, per admin. */
+    const DEFAULT_MAX_PINNED_PER_SCREEN = 5;
+
     /**
      * GET param that suppresses the default view.
      *
@@ -54,7 +60,11 @@ class Meprmf_Presets
         add_action('wp_ajax_meprmf_save_filter_preset', [ __CLASS__, 'ajax_save_filter_preset' ]);
         add_action('wp_ajax_meprmf_delete_filter_preset', [ __CLASS__, 'ajax_delete_filter_preset' ]);
         add_action('wp_ajax_meprmf_set_default_view', [ __CLASS__, 'ajax_set_default_view' ]);
+        add_action('wp_ajax_meprmf_pin_filter_view', [ __CLASS__, 'ajax_pin_filter_view' ]);
+        add_action('wp_ajax_meprmf_unpin_filter_view', [ __CLASS__, 'ajax_unpin_filter_view' ]);
         add_action('admin_init', [ __CLASS__, 'maybe_apply_default_view' ]);
+        // Late, so MemberPress's own menu is already registered and can be found rather than guessed.
+        add_action('admin_menu', [ __CLASS__, 'add_pinned_view_menu_items' ], 999);
     }
 
     /**
@@ -296,8 +306,10 @@ class Meprmf_Presets
         }
 
         // A view being deleted must stop being anybody's default, or every admin who chose it
-        // gets a screen that silently filters on a view that no longer exists.
+        // gets a screen that silently filters on a view that no longer exists. A pinned menu
+        // entry for it would point at nothing, so that goes too.
         self::forget_default_view_everywhere($storage_id, $preset_id);
+        self::forget_pinned_view_everywhere($storage_id, $preset_id);
 
         $all[ $storage_id ] = array_values($next);
         self::update_all_presets($all);
@@ -665,6 +677,303 @@ class Meprmf_Presets
     }
 
     /**
+     * User meta key holding one screen's pinned view ids, one meta row per pin.
+     *
+     * @param string $storage_id Screen storage id.
+     * @return string Empty when the screen is unknown.
+     */
+    private static function pinned_view_meta_key($storage_id)
+    {
+        $storage_id = self::sanitize_storage_id($storage_id);
+
+        return '' === $storage_id ? '' : self::PINNED_VIEW_META_PREFIX . $storage_id;
+    }
+
+    /**
+     * One admin's pinned view ids for a screen, in the order they were pinned.
+     *
+     * @param string $storage_id Screen storage id.
+     * @param int    $user_id    User id, or 0 for the current user.
+     * @return array<int, string>
+     */
+    public static function get_pinned_view_ids($storage_id, $user_id = 0)
+    {
+        $key = self::pinned_view_meta_key($storage_id);
+        if ('' === $key) {
+            return [];
+        }
+
+        $user_id = (int) $user_id > 0 ? (int) $user_id : self::current_user_id();
+        if ($user_id < 1) {
+            return [];
+        }
+
+        $stored = (array) get_user_meta($user_id, $key, false);
+        if (empty($stored)) {
+            return [];
+        }
+
+        $visible = [];
+        foreach (self::get_presets_for_screen($storage_id) as $preset) {
+            $visible[] = (string) $preset['id'];
+        }
+
+        $out = [];
+        foreach ($stored as $row) {
+            $id = self::sanitize_preset_id((string) $row);
+            // A pin does not outlive its view: one that was deleted, or that its owner turned
+            // private, stops being a menu entry rather than becoming a broken one.
+            if ('' === $id || in_array($id, $out, true) || ! in_array($id, $visible, true)) {
+                continue;
+            }
+            $out[] = $id;
+        }
+
+        // Drop ghost rows (invisible, duplicate, or invalid) so they cannot block the pin cap.
+        if (count($stored) !== count($out)) {
+            self::rewrite_pinned_view_storage($storage_id, $user_id, $out);
+        }
+
+        return $out;
+    }
+
+    /**
+     * Replace all stored pin rows with one row per visible id, in menu order.
+     *
+     * @param string           $storage_id Screen storage id.
+     * @param int              $user_id    User id.
+     * @param array<int, string> $ids      Visible pinned ids.
+     * @return void
+     */
+    private static function rewrite_pinned_view_storage($storage_id, $user_id, array $ids)
+    {
+        $key = self::pinned_view_meta_key($storage_id);
+        if ('' === $key || $user_id < 1) {
+            return;
+        }
+
+        delete_user_meta($user_id, $key);
+        foreach ($ids as $id) {
+            $id = self::sanitize_preset_id((string) $id);
+            if ('' !== $id) {
+                add_user_meta($user_id, $key, $id);
+            }
+        }
+    }
+
+    /**
+     * Pin one view to the current admin's MemberPress menu.
+     *
+     * @param string $storage_id Screen storage id.
+     * @param string $preset_id  Preset id.
+     * @return array{success: bool, code?: string, pinned?: array<int, string>}
+     */
+    public static function pin_view($storage_id, $preset_id)
+    {
+        $key = self::pinned_view_meta_key($storage_id);
+        if ('' === $key) {
+            return [ 'success' => false, 'code' => 'invalid_screen' ];
+        }
+
+        $user_id = self::current_user_id();
+        if ($user_id < 1) {
+            return [ 'success' => false, 'code' => 'forbidden' ];
+        }
+
+        $preset_id = self::sanitize_preset_id((string) $preset_id);
+        if ('' === $preset_id) {
+            return [ 'success' => false, 'code' => 'invalid_input' ];
+        }
+
+        $exists = false;
+        foreach (self::get_presets_for_screen($storage_id) as $preset) {
+            if ((string) $preset['id'] === $preset_id) {
+                $exists = true;
+                break;
+            }
+        }
+        // Another admin's private view is invisible here, so it reads as missing: pinning is
+        // never the way to find out that it exists.
+        if (! $exists) {
+            return [ 'success' => false, 'code' => 'not_found' ];
+        }
+
+        $pinned = self::get_pinned_view_ids($storage_id);
+
+        // A second click on Pin must not add a second menu entry. Checked before the cap, or
+        // re-pinning what is already pinned would fail once the menu is full.
+        if (in_array($preset_id, $pinned, true)) {
+            return [ 'success' => true, 'pinned' => $pinned ];
+        }
+
+        if (count($pinned) >= self::max_pinned_views_per_screen()) {
+            return [ 'success' => false, 'code' => 'pin_limit_reached' ];
+        }
+
+        add_user_meta($user_id, $key, $preset_id);
+
+        return [ 'success' => true, 'pinned' => self::get_pinned_view_ids($storage_id) ];
+    }
+
+    /**
+     * Remove one view from the current admin's pinned menu entries.
+     *
+     * @param string $storage_id Screen storage id.
+     * @param string $preset_id  Preset id.
+     * @return array{success: bool, code?: string, pinned?: array<int, string>}
+     */
+    public static function unpin_view($storage_id, $preset_id)
+    {
+        $key = self::pinned_view_meta_key($storage_id);
+        if ('' === $key) {
+            return [ 'success' => false, 'code' => 'invalid_screen' ];
+        }
+
+        $user_id = self::current_user_id();
+        if ($user_id < 1) {
+            return [ 'success' => false, 'code' => 'forbidden' ];
+        }
+
+        $preset_id = self::sanitize_preset_id((string) $preset_id);
+        if ('' === $preset_id) {
+            return [ 'success' => false, 'code' => 'invalid_input' ];
+        }
+
+        // Unpinning a view that is not pinned is already the state being asked for, so it is
+        // not an error; and it stays possible for a view this admin can no longer see.
+        delete_user_meta($user_id, $key, $preset_id);
+
+        return [ 'success' => true, 'pinned' => self::get_pinned_view_ids($storage_id) ];
+    }
+
+    /**
+     * Admin URL a pinned menu entry points at: the list screen plus the view's own filters.
+     *
+     * Relative on purpose. WordPress renders a submenu slug of this shape as a plain link;
+     * an absolute admin_url() would be treated as a page slug instead. Carries no view id
+     * either, so the link is the same URL that picking the view from the dropdown produces.
+     *
+     * @param string $storage_id Screen storage id.
+     * @param string $preset_id  Preset id.
+     * @return string Empty when the screen or the view is unknown. Unescaped; see the caller.
+     */
+    public static function get_pinned_view_url($storage_id, $preset_id)
+    {
+        $ctx = Meprmf_Screen::context_for_storage_id(self::sanitize_storage_id($storage_id));
+        if (null === $ctx) {
+            return '';
+        }
+
+        $preset_id = self::sanitize_preset_id((string) $preset_id);
+        $params    = [];
+        foreach (self::get_presets_for_screen($storage_id) as $preset) {
+            if ((string) $preset['id'] === $preset_id) {
+                $params = $preset['params'];
+                break;
+            }
+        }
+        if (empty($params)) {
+            return '';
+        }
+
+        return add_query_arg(array_merge([ 'page' => $ctx->get_page() ], $params), 'admin.php');
+    }
+
+    /**
+     * Drop a deleted view from every admin's pinned entries, not only the deleter's.
+     *
+     * @param string $storage_id Screen storage id.
+     * @param string $preset_id  Preset id.
+     * @return void
+     */
+    private static function forget_pinned_view_everywhere($storage_id, $preset_id)
+    {
+        $key = self::pinned_view_meta_key($storage_id);
+        if ('' === $key || '' === $preset_id || ! function_exists('delete_metadata')) {
+            return;
+        }
+
+        delete_metadata('user', 0, $key, $preset_id, true);
+    }
+
+    /**
+     * Add one submenu entry per pinned view, under MemberPress's own menu.
+     *
+     * @return void
+     */
+    public static function add_pinned_view_menu_items()
+    {
+        if (! Meprmf_Capabilities::current_user_can_filter()) {
+            return;
+        }
+
+        $parent = self::memberpress_menu_parent();
+        if (null === $parent) {
+            return;
+        }
+
+        foreach (Meprmf_Screen::supported_page_contexts() as $ctx) {
+            $storage_id = $ctx->get_storage_id();
+            $pinned     = self::get_pinned_view_ids($storage_id);
+            if (empty($pinned)) {
+                continue;
+            }
+
+            $names = [];
+            foreach (self::get_presets_for_screen($storage_id) as $preset) {
+                $names[ (string) $preset['id'] ] = (string) $preset['name'];
+            }
+
+            foreach ($pinned as $preset_id) {
+                $url = self::get_pinned_view_url($storage_id, $preset_id);
+                if ('' === $url || ! isset($names[ $preset_id ])) {
+                    continue;
+                }
+
+                add_submenu_page(
+                    $parent[0],
+                    esc_html($names[ $preset_id ]),
+                    esc_html($names[ $preset_id ]),
+                    $parent[1],
+                    // A link-shaped slug is echoed straight into the href, unescaped, and is
+                    // only rendered as a plain link while the callback stays empty.
+                    esc_url($url),
+                    ''
+                );
+            }
+        }
+    }
+
+    /**
+     * MemberPress's top-level menu slug, and the capability it guards its own lists with.
+     *
+     * Found rather than hardcoded: MemberPress registers `memberpress`, or `memberpress-drm`
+     * while it is in a DRM state.
+     *
+     * @return array{0: string, 1: string}|null Null when no MemberPress list submenu is registered.
+     */
+    private static function memberpress_menu_parent()
+    {
+        if (empty($GLOBALS['submenu']) || ! is_array($GLOBALS['submenu'])) {
+            return null;
+        }
+
+        $pages = Meprmf_Plugin::get_meta_filters_admin_page_slugs();
+        foreach ($GLOBALS['submenu'] as $parent_slug => $items) {
+            foreach ((array) $items as $item) {
+                if (! is_array($item) || ! isset($item[1], $item[2])) {
+                    continue;
+                }
+                if (in_array((string) $item[2], $pages, true)) {
+                    return [ (string) $parent_slug, (string) $item[1] ];
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Apply an admin's default view when they open a list screen with nothing applied.
      *
      * Redirects rather than injecting values into the request, so the URL keeps telling the
@@ -835,6 +1144,66 @@ class Meprmf_Presets
     }
 
     /**
+     * Pin the selected view to the current admin's menu from AJAX.
+     *
+     * @return void
+     */
+    public static function ajax_pin_filter_view()
+    {
+        self::respond_to_pin_request('pin');
+    }
+
+    /**
+     * Unpin the selected view from the current admin's menu from AJAX.
+     *
+     * @return void
+     */
+    public static function ajax_unpin_filter_view()
+    {
+        self::respond_to_pin_request('unpin');
+    }
+
+    /**
+     * Shared body of the pin and unpin actions; they differ only in which one they delegate to.
+     *
+     * @param string $action `pin` or `unpin`.
+     * @return void
+     */
+    private static function respond_to_pin_request($action)
+    {
+        if (! Meprmf_Capabilities::current_user_can_filter()) {
+            wp_send_json_error([ 'message' => 'forbidden', 'code' => 'forbidden' ], 403);
+        }
+
+        check_ajax_referer('meprmf_filter_presets', 'nonce');
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified above.
+        $storage_id = isset($_POST['screen']) ? sanitize_text_field(wp_unslash((string) $_POST['screen'])) : '';
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing
+        $preset_id = isset($_POST['id']) ? sanitize_text_field(wp_unslash((string) $_POST['id'])) : '';
+
+        $result = 'pin' === $action
+            ? self::pin_view($storage_id, $preset_id)
+            : self::unpin_view($storage_id, $preset_id);
+
+        if (empty($result['success'])) {
+            wp_send_json_error(
+                [
+                    'message' => self::error_message_for_code(isset($result['code']) ? (string) $result['code'] : 'unknown'),
+                    'code'    => isset($result['code']) ? (string) $result['code'] : 'unknown',
+                ],
+                400
+            );
+        }
+
+        wp_send_json_success(
+            [
+                'pinned' => isset($result['pinned']) ? array_values($result['pinned']) : [],
+            ]
+        );
+    }
+
+    /**
      * @return array<string, array<int, array<string, mixed>>>
      */
     private static function get_all_presets()
@@ -986,6 +1355,20 @@ class Meprmf_Presets
     }
 
     /**
+     * @return int
+     */
+    private static function max_pinned_views_per_screen()
+    {
+        /**
+         * Maximum pinned menu entries per list screen, per admin.
+         *
+         * @since 2.3.0
+         * @param int $max Default 5.
+         */
+        return max(1, (int) apply_filters('meprmf_max_pinned_views_per_screen', self::DEFAULT_MAX_PINNED_PER_SCREEN));
+    }
+
+    /**
      * @param string $code Error code.
      * @return string
      */
@@ -998,6 +1381,8 @@ class Meprmf_Presets
                 return __('Apply at least one filter before saving a preset.', 'admin-filters-for-memberpress');
             case 'limit_reached':
                 return __('This screen already has the maximum number of saved presets.', 'admin-filters-for-memberpress');
+            case 'pin_limit_reached':
+                return __('This screen already has the maximum number of views pinned to the menu. Unpin one first.', 'admin-filters-for-memberpress');
             case 'not_found':
                 return __('That preset could not be found.', 'admin-filters-for-memberpress');
             case 'not_owner':

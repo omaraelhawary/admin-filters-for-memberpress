@@ -348,6 +348,8 @@ if (! function_exists('get_current_user_id')) {
 
 if (! function_exists('get_user_meta')) {
     /**
+     * A key holding an array stands for several meta rows (what add_user_meta() writes).
+     *
      * @param int    $user_id User id.
      * @param string $key     Meta key.
      * @param bool   $single  Single value.
@@ -361,7 +363,11 @@ if (! function_exists('get_user_meta')) {
             return $single ? '' : [];
         }
         $val = $bucket[ $key ];
-        return $single ? $val : [ $val ];
+        if ($single) {
+            return is_array($val) ? ( $val[0] ?? '' ) : $val;
+        }
+
+        return is_array($val) ? array_values($val) : [ $val ];
     }
 }
 
@@ -383,6 +389,37 @@ if (! function_exists('update_user_meta')) {
     }
 }
 
+if (! function_exists('add_user_meta')) {
+    /**
+     * Appends a row rather than replacing the key, in insertion order.
+     *
+     * @param int    $user_id User id.
+     * @param string $key     Meta key.
+     * @param mixed  $value   Value.
+     * @param bool   $unique  Refuse when the key already has a row.
+     * @return bool
+     */
+    function add_user_meta($user_id, $key, $value, $unique = false)
+    {
+        $user_id = (int) $user_id;
+        $bucket  =& $GLOBALS['meprmf_test_user_meta'][ $user_id ];
+        if (! is_array($bucket)) {
+            $bucket = [];
+        }
+        if (! isset($bucket[ $key ])) {
+            $bucket[ $key ] = [ $value ];
+            return true;
+        }
+        if ($unique) {
+            return false;
+        }
+        $bucket[ $key ] = is_array($bucket[ $key ]) ? $bucket[ $key ] : [ $bucket[ $key ] ];
+        $bucket[ $key ][] = $value;
+
+        return true;
+    }
+}
+
 if (! function_exists('get_current_screen')) {
     /**
      * @return object|null
@@ -393,23 +430,58 @@ if (! function_exists('get_current_screen')) {
     }
 }
 
+if (! function_exists('meprmf_test_meta_without_value')) {
+    /**
+     * One meta key's remaining rows once every row equal to $value is dropped.
+     *
+     * @param mixed $stored Stored value (scalar for one row, array for several).
+     * @param mixed $value  Row value to drop.
+     * @return array<int, mixed>
+     */
+    function meprmf_test_meta_without_value($stored, $value)
+    {
+        $rows = is_array($stored) ? array_values($stored) : [ $stored ];
+
+        return array_values(
+            array_filter(
+                $rows,
+                static function ($row) use ($value) {
+                    return (string) $row !== (string) $value;
+                }
+            )
+        );
+    }
+}
+
 if (! function_exists('delete_metadata')) {
     /**
      * @param string $meta_type   Meta type.
      * @param int    $object_id   Object id.
      * @param string $meta_key    Meta key.
-     * @param mixed  $meta_value  Meta value.
+     * @param mixed  $meta_value  Row value to match, or '' for every row.
      * @param bool   $delete_all  Delete all matching rows.
      * @return bool
      */
     function delete_metadata($meta_type, $object_id, $meta_key, $meta_value = '', $delete_all = false)
     {
-        unset($meta_value);
         if ('user' !== $meta_type || ! $delete_all || '' === $meta_key) {
             return false;
         }
         foreach (array_keys($GLOBALS['meprmf_test_user_meta']) as $user_id) {
-            unset($GLOBALS['meprmf_test_user_meta'][ $user_id ][ $meta_key ]);
+            if ('' === $meta_value || ! isset($GLOBALS['meprmf_test_user_meta'][ $user_id ][ $meta_key ])) {
+                unset($GLOBALS['meprmf_test_user_meta'][ $user_id ][ $meta_key ]);
+                continue;
+            }
+            // Value-matched like the real function: a row holding a different id survives.
+            $remaining = meprmf_test_meta_without_value(
+                $GLOBALS['meprmf_test_user_meta'][ $user_id ][ $meta_key ],
+                $meta_value
+            );
+            if ([] === $remaining) {
+                unset($GLOBALS['meprmf_test_user_meta'][ $user_id ][ $meta_key ]);
+                continue;
+            }
+            $GLOBALS['meprmf_test_user_meta'][ $user_id ][ $meta_key ] = $remaining;
         }
         return true;
     }
@@ -536,11 +608,25 @@ if (! function_exists('delete_user_meta')) {
     /**
      * @param int    $user_id User id.
      * @param string $key     Meta key.
+     * @param mixed  $value   Row value to match, or '' for every row.
      * @return true
      */
-    function delete_user_meta($user_id, $key)
+    function delete_user_meta($user_id, $key, $value = '')
     {
-        unset($GLOBALS['meprmf_test_user_meta'][ (int) $user_id ][ $key ]);
+        $user_id = (int) $user_id;
+        if ('' === $value || ! isset($GLOBALS['meprmf_test_user_meta'][ $user_id ][ $key ])) {
+            unset($GLOBALS['meprmf_test_user_meta'][ $user_id ][ $key ]);
+            return true;
+        }
+
+        $GLOBALS['meprmf_test_user_meta'][ $user_id ][ $key ] = meprmf_test_meta_without_value(
+            $GLOBALS['meprmf_test_user_meta'][ $user_id ][ $key ],
+            $value
+        );
+        if ([] === $GLOBALS['meprmf_test_user_meta'][ $user_id ][ $key ]) {
+            unset($GLOBALS['meprmf_test_user_meta'][ $user_id ][ $key ]);
+        }
+
         return true;
     }
 }

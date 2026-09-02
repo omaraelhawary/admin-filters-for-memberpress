@@ -661,4 +661,151 @@ class PresetsTest extends TestCase
         $this->assertTrue($again['success']);
         $this->assertSame([ 'mpm_product' => '5' ], $again['preset']['params']);
     }
+
+    /* ----------------------------------------------------- #13 pinned views */
+
+    public function test_pinned_views_round_trip_is_per_user_and_per_screen()
+    {
+        $this->as_user(7);
+        $view = $this->save('Churn risk');
+        $id   = $view['preset']['id'];
+
+        $this->assertSame([], Meprmf_Presets::get_pinned_view_ids(self::SCREEN));
+        $this->assertTrue(Meprmf_Presets::pin_view(self::SCREEN, $id)['success']);
+        $this->assertSame([ $id ], Meprmf_Presets::get_pinned_view_ids(self::SCREEN));
+
+        // Pinning again is the state already asked for, and must not add a second entry.
+        $this->assertTrue(Meprmf_Presets::pin_view(self::SCREEN, $id)['success']);
+        $this->assertSame([ $id ], Meprmf_Presets::get_pinned_view_ids(self::SCREEN));
+
+        // Another admin's menu, and this admin's other screens, are unaffected.
+        $this->as_user(8);
+        $this->assertSame([], Meprmf_Presets::get_pinned_view_ids(self::SCREEN));
+        $this->as_user(7);
+        $this->assertSame([], Meprmf_Presets::get_pinned_view_ids('memberpress_trans'));
+
+        $this->assertTrue(Meprmf_Presets::unpin_view(self::SCREEN, $id)['success']);
+        $this->assertSame([], Meprmf_Presets::get_pinned_view_ids(self::SCREEN));
+    }
+
+    public function test_pinning_past_the_cap_is_rejected_until_the_filter_raises_it()
+    {
+        $this->as_user(7);
+
+        $ids = [];
+        foreach ([ 'One', 'Two', 'Three', 'Four', 'Five', 'Six' ] as $name) {
+            $ids[] = $this->save($name)['preset']['id'];
+        }
+
+        foreach (array_slice($ids, 0, 5) as $id) {
+            $this->assertTrue(Meprmf_Presets::pin_view(self::SCREEN, $id)['success']);
+        }
+
+        $over = Meprmf_Presets::pin_view(self::SCREEN, $ids[5]);
+        $this->assertFalse($over['success']);
+        $this->assertSame('pin_limit_reached', $over['code']);
+        $this->assertCount(5, Meprmf_Presets::get_pinned_view_ids(self::SCREEN));
+
+        add_filter(
+            'meprmf_max_pinned_views_per_screen',
+            static function () {
+                return 6;
+            }
+        );
+
+        $this->assertTrue(Meprmf_Presets::pin_view(self::SCREEN, $ids[5])['success']);
+        $this->assertSame($ids, Meprmf_Presets::get_pinned_view_ids(self::SCREEN));
+    }
+
+    public function test_a_view_the_user_cannot_see_cannot_be_pinned()
+    {
+        $this->as_user(7);
+        $private = $this->save('Mine', Meprmf_Presets::VISIBILITY_PRIVATE);
+
+        $this->as_user(8);
+        $result = Meprmf_Presets::pin_view(self::SCREEN, $private['preset']['id']);
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('not_found', $result['code']);
+        $this->assertSame([], Meprmf_Presets::get_pinned_view_ids(self::SCREEN));
+    }
+
+    public function test_deleting_a_view_unpins_it_for_every_admin()
+    {
+        $this->as_user(7);
+        $view = $this->save('Ours');
+        $kept = $this->save('Keep me');
+        Meprmf_Presets::pin_view(self::SCREEN, $view['preset']['id']);
+
+        $this->as_user(8);
+        Meprmf_Presets::pin_view(self::SCREEN, $view['preset']['id']);
+        Meprmf_Presets::pin_view(self::SCREEN, $kept['preset']['id']);
+
+        $this->as_user(7);
+        $this->assertTrue(Meprmf_Presets::delete_preset(self::SCREEN, $view['preset']['id'])['success']);
+        $this->assertSame([], Meprmf_Presets::get_pinned_view_ids(self::SCREEN));
+
+        // And only that view: the other admin's remaining pin survives.
+        $this->as_user(8);
+        $this->assertSame([ $kept['preset']['id'] ], Meprmf_Presets::get_pinned_view_ids(self::SCREEN));
+    }
+
+    public function test_a_dangling_pinned_view_id_resolves_to_nothing()
+    {
+        $this->as_user(7);
+        $kept = $this->save('Still here');
+        Meprmf_Presets::pin_view(self::SCREEN, $kept['preset']['id']);
+        $GLOBALS['meprmf_test_user_meta'][7]['meprmf_pinned_view_memberpress_members'][] = 'gone123';
+
+        $this->assertSame([ $kept['preset']['id'] ], Meprmf_Presets::get_pinned_view_ids(self::SCREEN));
+    }
+
+    public function test_invisible_ghost_pins_do_not_block_new_pins()
+    {
+        $this->as_user(7);
+        $shared = $this->save('Team view');
+        $shared_id = $shared['preset']['id'];
+
+        $this->as_user(8);
+        $ids = [ $shared_id ];
+        foreach ([ 'Two', 'Three', 'Four', 'Five' ] as $name) {
+            $ids[] = $this->save($name)['preset']['id'];
+        }
+        foreach ($ids as $id) {
+            $this->assertTrue(Meprmf_Presets::pin_view(self::SCREEN, $id)['success']);
+        }
+        $this->assertCount(5, Meprmf_Presets::get_pinned_view_ids(self::SCREEN));
+
+        $this->as_user(7);
+        $this->save('Team view', Meprmf_Presets::VISIBILITY_PRIVATE);
+
+        $this->as_user(8);
+        $this->assertCount(4, Meprmf_Presets::get_pinned_view_ids(self::SCREEN));
+
+        $sixth = $this->save('Sixth')['preset']['id'];
+        $result = Meprmf_Presets::pin_view(self::SCREEN, $sixth);
+        $this->assertTrue($result['success']);
+        $this->assertCount(5, Meprmf_Presets::get_pinned_view_ids(self::SCREEN));
+    }
+
+    public function test_a_pinned_view_url_is_the_screen_page_plus_the_views_filters()
+    {
+        $this->as_user(7);
+        $view = $this->save('Active only');
+
+        $url = Meprmf_Presets::get_pinned_view_url(self::SCREEN, $view['preset']['id']);
+
+        $this->assertSame('admin.php?page=memberpress-members&mpm_access=active', $url);
+        // Decision #1: filter params only, so nothing has to interpret a view id server-side.
+        $this->assertStringNotContainsString(Meprmf_Presets::SUPPRESS_PARAM, $url);
+    }
+
+    public function test_a_pinned_view_url_is_empty_for_an_unknown_view_or_screen()
+    {
+        $this->as_user(7);
+        $view = $this->save('Active only');
+
+        $this->assertSame('', Meprmf_Presets::get_pinned_view_url(self::SCREEN, 'gone123'));
+        $this->assertSame('', Meprmf_Presets::get_pinned_view_url('not_a_screen', $view['preset']['id']));
+    }
 }
