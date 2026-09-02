@@ -820,14 +820,6 @@ class PresetsTest extends TestCase
      */
     private function setup_pinned_view_menu_fixtures()
     {
-        if (! class_exists('MeprUtils', false)) {
-            eval(
-                'class MeprUtils {
-                    public static function get_mepr_admin_capability() { return "mepr_test_admin"; }
-                }'
-            );
-        }
-
         require_once dirname(__DIR__, 2) . '/includes/class-meprmf-capabilities.php';
         require_once dirname(__DIR__, 2) . '/includes/class-meprmf-plugin.php';
 

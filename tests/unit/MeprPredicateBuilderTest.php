@@ -41,15 +41,6 @@ class MeprPredicateBuilderTest extends TestCase
         require_once dirname(__DIR__, 2) . '/includes/sql/class-meprmf-corporate-predicates.php';
         require_once dirname(__DIR__, 2) . '/includes/sql/class-meprmf-mepr-predicate-builder.php';
 
-        if (! class_exists('MeprUtils', false)) {
-            eval(
-                'class MeprUtils {
-                    public static function db_now() { return "2026-05-19 12:00:00"; }
-                    public static function db_lifetime() { return "0000-00-00 00:00:00"; }
-                }'
-            );
-        }
-
         if (! class_exists('MeprDb', false)) {
             eval(
                 'class MeprDb {
