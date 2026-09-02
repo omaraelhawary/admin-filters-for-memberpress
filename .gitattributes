@@ -1,0 +1,7 @@
+# Both readmes carry a changelog, and every release appends a block under the
+# same heading, so two branches in flight conflict there by default even though
+# neither touched the other's lines. Union keeps both sides. The cost is that a
+# genuine edit to the same prose line lands twice instead of raising a conflict,
+# which shows up in the PR diff rather than silently.
+README.md merge=union
+readme.txt merge=union
