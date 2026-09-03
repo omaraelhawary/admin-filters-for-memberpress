@@ -27,12 +27,39 @@ class Meprmf_Screen
     public const PAGE_TRANSACTIONS   = 'memberpress-trans';
 
     /**
+     * Screen chosen by a caller that has no admin request behind it (WP-CLI).
+     *
+     * @var Meprmf_Screen_Context|null
+     */
+    private static $cli_context = null;
+
+    /**
+     * Name the screen for a run with no admin request, or clear it with null.
+     *
+     * `detect()` is the one place that answers "which list is the admin looking at", and
+     * under WP-CLI both of its inputs are gone: `is_admin()` is false and there is no
+     * `?page=`. Without this the whole predicate path stays silent instead of failing, so
+     * a CLI query would return every row and look like a filter that matched everything.
+     *
+     * @since 2.3.0
+     * @param Meprmf_Screen_Context|null $ctx Screen context, or null to go back to request detection.
+     * @return void
+     */
+    public static function set_cli_context($ctx = null)
+    {
+        self::$cli_context = $ctx instanceof Meprmf_Screen_Context ? $ctx : null;
+    }
+
+    /**
      * Resolve context for the current admin request, or null if unsupported / unknown.
      *
      * @return Meprmf_Screen_Context|null
      */
     public static function detect()
     {
+        if (null !== self::$cli_context) {
+            return self::$cli_context;
+        }
         if (! is_admin()) {
             return null;
         }

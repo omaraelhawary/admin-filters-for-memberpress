@@ -32,6 +32,12 @@ if (! defined('MEPRMF_VERSION')) {
 require_once __DIR__ . '/includes/meprmf-load.php';
 require_once __DIR__ . '/compat/legacy-functions.php';
 
+// Registered outside the MemberPress gate below, so `wp meprmf list` on a site without
+// MemberPress says so instead of WP-CLI reporting an unknown command.
+if (defined('WP_CLI') && WP_CLI) {
+    WP_CLI::add_command('meprmf list', 'Meprmf_Cli_List_Command');
+}
+
 /**
  * Bootstrap after plugins load.
  */

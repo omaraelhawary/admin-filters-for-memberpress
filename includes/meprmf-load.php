@@ -35,4 +35,5 @@ require_once __DIR__ . '/bulk/class-meprmf-bulk-runner.php';
 require_once __DIR__ . '/bulk/class-meprmf-bulk-match-set.php';
 require_once __DIR__ . '/bulk/class-meprmf-bulk-snapshot.php';
 require_once __DIR__ . '/bulk/class-meprmf-bulk.php';
+require_once __DIR__ . '/cli/class-meprmf-cli-list-command.php';
 require_once __DIR__ . '/class-meprmf-plugin.php';

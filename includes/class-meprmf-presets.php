@@ -121,6 +121,46 @@ class Meprmf_Presets
     }
 
     /**
+     * One saved view on a screen, named by its id or by its name.
+     *
+     * Ids win over names, because an id is exact and a name is not: two screens may hold
+     * views of the same name, and a name typed at a prompt will not match its stored
+     * capitalization. Names are compared case-insensitively for the same reason.
+     *
+     * @since 2.3.0
+     * @param string $storage_id Screen storage id.
+     * @param string $reference  Preset id or display name.
+     * @return array<string, mixed>|null Null when nothing on this screen matches.
+     */
+    public static function find_preset_for_screen($storage_id, $reference)
+    {
+        $reference = trim((string) $reference);
+        if ('' === $reference) {
+            return null;
+        }
+
+        $presets = self::get_presets_for_screen($storage_id);
+
+        // Stored ids are already lowercase, so lowercasing is enough here. Running the
+        // reference through sanitize_preset_id() instead would turn "Churn risk" into
+        // "churnrisk" and let a name match on the id pass.
+        $lower = strtolower($reference);
+        foreach ($presets as $preset) {
+            if ((string) $preset['id'] === $lower) {
+                return $preset;
+            }
+        }
+
+        foreach ($presets as $preset) {
+            if (0 === strcasecmp((string) $preset['name'], $reference)) {
+                return $preset;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Save or update a preset by unique name on one screen.
      *
      * @param string               $storage_id   Screen storage id.

@@ -739,36 +739,20 @@ class Meprmf_Util
             return [];
         }
 
+        // One code path for both sources on purpose: an override handed a comma-separated
+        // string has to split the same way `?p=a,b` does, or an `is_one_of` filter reads as
+        // the single value "a,b" whenever it arrives from anywhere but the address bar.
         $override = self::get_request_override($param);
         if (null !== $override) {
-            if (is_array($override)) {
-                $out = [];
-                foreach ($override as $one) {
-                    if (! is_scalar($one)) {
-                        continue;
-                    }
-                    $clean = sanitize_text_field(trim((string) $one));
-                    if ('' !== $clean && ! in_array($clean, $out, true)) {
-                        $out[] = $clean;
-                    }
-                }
-
-                return $out;
-            }
-            if (is_scalar($override)) {
-                $clean = sanitize_text_field(trim((string) $override));
-                return '' !== $clean ? [ $clean ] : [];
+            $raw = $override;
+        } else {
+            // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only filter query args on admin list screens.
+            if (! isset($_GET[ $param ])) {
+                return [];
             }
 
-            return [];
+            $raw = wp_unslash($_GET[ $param ]); // phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Key restricted via sanitize_param(); values sanitized below.
         }
-
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only filter query args on admin list screens.
-        if (! isset($_GET[ $param ])) {
-            return [];
-        }
-
-        $raw = wp_unslash($_GET[ $param ]); // phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Key restricted via sanitize_param(); values sanitized below.
 
         $parts = [];
         if (is_array($raw)) {

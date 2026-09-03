@@ -26,27 +26,34 @@ class Meprmf_Bulk_Match_Set
      * @param Meprmf_Screen_Context $ctx    Screen context.
      * @param array<string, mixed>  $params Request params for MemberPress's own filters (typically $_GET).
      * @param string                $search Native search term, or empty.
-     * @return array{rows: int, user_ids: array<int, int>}|null Null when the screen has no known model method.
+     * @param int                   $limit  Stop after this many rows; 0 for every matching row.
+     * @return array{rows: int, user_ids: array<int, int>, results: array<int, object>}|null Null when the screen has no known model method.
      */
-    public static function fetch(Meprmf_Screen_Context $ctx, array $params, $search = '')
+    public static function fetch(Meprmf_Screen_Context $ctx, array $params, $search = '', $limit = 0)
     {
         $search = (string) $search;
+        $limit  = max(0, (int) $limit);
+
+        // MeprDb::list_table() builds a LIMIT only when both are non-empty, and it coerces an
+        // empty $paged to 1, so page one of a $limit-sized page is the first $limit rows.
+        $paged   = $limit > 0 ? 1 : '';
+        $perpage = $limit > 0 ? $limit : '';
 
         switch ($ctx->get_page()) {
             case Meprmf_Screen::PAGE_MEMBERS:
-                $all      = MeprUser::list_table('user_login', 'ASC', '', $search, 'any', '', $params, false);
+                $all      = MeprUser::list_table('user_login', 'ASC', $paged, $search, 'any', $perpage, $params, false);
                 $id_field = 'ID';
                 break;
             case Meprmf_Screen::PAGE_TRANSACTIONS:
-                $all      = MeprTransaction::list_table('created_at', 'ASC', '', $search, 'any', '', $params);
+                $all      = MeprTransaction::list_table('created_at', 'ASC', $paged, $search, 'any', $perpage, $params);
                 $id_field = 'user_id';
                 break;
             case Meprmf_Screen::PAGE_SUBSCRIPTIONS:
-                $all      = MeprSubscription::subscr_table('created_at', 'ASC', '', $search, 'any', '', false, $params);
+                $all      = MeprSubscription::subscr_table('created_at', 'ASC', $paged, $search, 'any', $perpage, false, $params);
                 $id_field = 'user_id';
                 break;
             case Meprmf_Screen::PAGE_LIFETIMES:
-                $all      = MeprSubscription::lifetime_subscr_table('created_at', 'ASC', '', $search, 'any', '', false, $params);
+                $all      = MeprSubscription::lifetime_subscr_table('created_at', 'ASC', $paged, $search, 'any', $perpage, false, $params);
                 $id_field = 'user_id';
                 break;
             default:
@@ -71,6 +78,8 @@ class Meprmf_Bulk_Match_Set
             // subscription rows for one member count as two rows and one unique member.
             'rows'     => count($results),
             'user_ids' => array_values($user_ids),
+            // The list rows themselves, for callers that print them rather than write to them.
+            'results'  => $results,
         ];
     }
 
