@@ -80,6 +80,22 @@ Use the [Support forum](https://wordpress.org/support/plugin/admin-filters-for-m
 
 Open **MemberPress -> Admin Filters**. From there you choose which of the four lists show filters, turn the **Filters** card on or off, set whether custom date fields start as a from / to range, and pick who may create shared saved views. Turning the **Filters** card off removes the filter UI. It does not bring back the inline toolbar used before 2.1.0.
 
+= Can I run the filters from the command line? =
+
+Yes, with WP-CLI. `wp meprmf list` runs the same query the list screen runs and prints the rows:
+
+    wp meprmf list --screen=members --mpf_country=DE --user=1
+    wp meprmf list --screen=members --preset="Churn risk" --format=table --user=1
+    wp meprmf list --screen=transactions --mpmt_txn_status=complete --limit=20 --user=1
+
+`--screen` takes members, transactions, subscriptions or lifetimes. `--preset` names a saved view by its id or by its name, whatever the capitalization. `--format` is csv, table or json, and csv is the default. Leave `--limit` off and the command prints every matching row rather than one page of them.
+
+Pass `--user=<id>` for an administrator. WP-CLI runs as nobody by default, and reading a MemberPress list needs the same capability the admin screen needs.
+
+Any filter parameter the **Filters** card writes into the URL works as a flag, so `--mpf_country=DE` and `--mpm_product=42` do what the matching row in the card does. A flag the list does not recognize stops the command with a message naming it.
+
+Your default saved view is not applied here. wp-admin opens the list with it, the command does not. Pass `--preset` when you want it.
+
 = How do developers extend the filters? =
 
 * Filter hook for extra meta-based filter definitions: `meprmf_members_meta_filters_fields`.
@@ -102,6 +118,7 @@ Open **MemberPress -> Admin Filters**. From there you choose which of the four l
 * A run is refused when no Admin Filters predicate is active, so a bulk write cannot reach every member by accident. A search term or a native MemberPress toolbar filter on its own does not count.
 * Meta keys belonging to WordPress, MemberPress or this plugin are refused whatever their capitalization: `wp_capabilities`, `wp_user_level`, `session_tokens`, their site-prefixed forms, and anything starting with `mepr_`, `mepr-` or `meprmf_`. Extend either list with `meprmf_bulk_set_meta_blocked_keys` and `meprmf_bulk_set_meta_blocked_prefixes`.
 * Writes go out in batches of 50 (`meprmf_bulk_batch_size`). A member who already has the value is left alone and counts as written; a real write failure stops the run and reports how many members were written and which member it stopped on.
+* **Run the filters from the command line.** `wp meprmf list --screen=members --mpf_country=DE --user=1` runs the same filtered query the list screen runs and prints the rows as CSV, JSON or a table. It reads saved views by name or id and every filter parameter the Filters card uses. `--limit=N` caps the output; leave it off and you get every matching row.
 
 = 2.2.1 =
 
@@ -245,6 +262,7 @@ Open **MemberPress -> Admin Filters**. From there you choose which of the four l
 
 Adds a Settings screen at MemberPress -> Admin Filters. All four options keep the behavior you have now, with one exception: creating a shared saved view now needs the capability set on that screen, which defaults to administrators who can manage options. Saved views and filter URLs are untouched, and no database migration runs.
 Adds a bulk action that sets one user meta key and value on every member in the filtered set. It needs `manage_options`, refuses to run unless an Admin Filters predicate is active, and shows the match count before anything is written. No database migration.
+Adds `wp meprmf list`, a WP-CLI command that prints a filtered MemberPress list outside the browser. Nothing in wp-admin changes.
 
 = 2.2.1 =
 

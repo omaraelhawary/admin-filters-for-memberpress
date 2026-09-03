@@ -145,6 +145,32 @@ Creating a new **shared** view is checked against `shared_preset_capability` fro
 
 To remove the Filters card on Members (MemberPress’s own search and **Filter by … Go** rows stay, as do this plugin’s active-filter chips): `add_filter( 'meprmf_use_floating_members_panel', '__return_false' );`
 
+### WP-CLI
+
+`wp meprmf list` runs a list screen's query outside the browser and prints the rows.
+
+```bash
+wp meprmf list --screen=members --mpf_country=DE --user=1
+wp meprmf list --screen=members --preset="Churn risk" --format=table --user=1
+wp meprmf list --screen=transactions --mpmt_txn_status=complete --limit=20 --user=1
+```
+
+| Flag | Values |
+| --- | --- |
+| `--screen` | `members`, `transactions`, `subscriptions`, `lifetimes` (required) |
+| `--preset` | a saved view id, or its name compared without case |
+| `--format` | `csv` (default), `table`, `json` |
+| `--limit` | positive row cap; omit it for every matching row |
+| `--<field>` | any param `Meprmf_Presets::request_filter_params()` returns for that screen, so this plugin's `mpf_*` / `mpm_*` / `mpmt_*` / `mpms_*` / `mpml_*` params and the native toolbar ones |
+
+The query goes through `Meprmf_Bulk_Match_Set::fetch()`, which is the same `MeprDb::list_table()` call the screen makes, so `mepr_list_table_args` applies the same predicates. `--limit=N` passes `$paged = 1` with `$perpage = N`; with no limit both stay empty and MemberPress builds no LIMIT. Column names in the output are the list-table column aliases, read off the first row rather than hardcoded per screen.
+
+Two halves of an admin request are missing under WP-CLI, so the command supplies both. `Meprmf_Screen::set_cli_context()` names the screen that `Meprmf_Screen::detect()` would otherwise read from `is_admin()` and `?page=`, and the field params go on the `Meprmf_Util::push_request_overrides()` stack the predicate builders read. A `finally` unwinds both.
+
+`WP_CLI::error` rather than output when: MemberPress is inactive, the user lacks `MeprUtils::get_mepr_admin_capability()` (pass `--user=<id>`; WP-CLI is user 0 by default), the screen is unchecked in Settings, `--preset` matches no saved view, a flag is not a filter param for that screen or arrives with no value, or one of this plugin's own filter params was passed and produced no WHERE fragment. That last one is the CLI equivalent of the bulk guard: a dropped predicate would otherwise print the whole list and look like a filter that matched everything. A call with no filter flags at all does return the whole list.
+
+The default saved view is not applied. `Meprmf_Presets::maybe_apply_default_view()` hangs off `admin_init`, which does not run here, so pass `--preset` for it.
+
 ## Extending with code
 
 ```php
@@ -279,6 +305,8 @@ Uses `tests/bootstrap-unit.php` (no full WordPress test database). CI runs on PH
 - `Meprmf_Bulk_Set_Meta::validate()` refuses `wp_capabilities`, `wp_user_level`, `session_tokens`, their `get_blog_prefix()` forms, and the `mepr_`, `mepr-` and `meprmf_` prefixes. Matching ignores case, because `wp_usermeta.meta_key` carries a `_ci` collation and `WP_CAPABILITIES` would otherwise overwrite the `wp_capabilities` row. `meprmf_bulk_set_meta_blocked_keys` and `meprmf_bulk_set_meta_blocked_prefixes` extend both lists. Values run through `sanitize_text_field()`; arrays and objects are refused.
 - `Meprmf_Bulk_Runner::run()` chunks the deduped id list (default 50, `meprmf_bulk_batch_size`) and returns `processed`, `succeeded`, `batches` and `failed_at`. It reads the stored value first, because `update_user_meta()` returns false for an unchanged value as well as for a failure, and stops at the first real failure.
 - `Meprmf_Presets::request_filter_params()` is now public; the bulk guard reads the same param union the default-view check uses.
+- **`wp meprmf list`** (`Meprmf_Cli_List_Command`, registered outside the MemberPress gate so a site without MemberPress errors instead of reporting an unknown command). See the WP-CLI section above for flags and guards. Three supporting changes: `Meprmf_Screen::set_cli_context()` gives `detect()` an answer where `is_admin()` and `?page=` have none; `Meprmf_Bulk_Match_Set::fetch()` also returns `results` and takes a `$limit` that maps to `$paged = 1` / `$perpage = $limit`; `Meprmf_Presets::find_preset_for_screen()` resolves a view by id, then by name ignoring case.
+- Fixed: `Meprmf_Util::get_request_values()` split a comma-separated value only on the `$_GET` path, so an `is_one_of` filter arriving as `DE,FR` through `push_request_overrides()` read as the single value `DE,FR`. Both sources now run through one parse. No change to the Subscriptions and Lifetimes cross-tab translation, which already builds its multi-value overrides as arrays.
 
 ### 2.2.1
 
