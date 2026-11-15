@@ -255,4 +255,17 @@ class PluginTimingTest extends TestCase
         $this->assertMatchesRegularExpression('/\([0-9]+ passes?\)/', $html);
         $this->assertStringNotContainsString('<pre', $html);
     }
+
+    public function test_debug_panel_displays_export_failure_log_with_escaping()
+    {
+        $this->run_members_pass();
+        $GLOBALS['meprmf_test_options']['meprmf_export_log'] = [ 'Scheduled export <fixture> failed; occurrence skipped.' ];
+        ob_start();
+        Meprmf_Debug_Panel::maybe_render();
+        $html = ob_get_clean();
+        unset($GLOBALS['meprmf_test_options']['meprmf_export_log']);
+        $this->assertStringContainsString('Scheduled export failures', $html);
+        $this->assertStringContainsString('&lt;fixture&gt;', $html);
+        $this->assertStringNotContainsString('<fixture>', $html);
+    }
 }

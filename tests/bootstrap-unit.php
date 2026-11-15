@@ -313,7 +313,7 @@ if (! function_exists('wp_timezone')) {
      */
     function wp_timezone()
     {
-        return new DateTimeZone('UTC');
+        return new DateTimeZone($GLOBALS['meprmf_test_timezone'] ?? 'UTC');
     }
 }
 
@@ -885,3 +885,4 @@ require_once dirname(__DIR__) . '/includes/screen/class-meprmf-screen-context.ph
 require_once dirname(__DIR__) . '/includes/screen/class-meprmf-screen.php';
 // Screen contexts read the site-wide option, so the settings class must be loadable everywhere.
 require_once dirname(__DIR__) . '/includes/class-meprmf-settings.php';
+require_once __DIR__ . '/scheduled-export-wp-stubs.php';

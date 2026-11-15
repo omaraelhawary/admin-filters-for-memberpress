@@ -108,6 +108,16 @@ Creating a new **shared** view is checked against `shared_preset_capability` fro
 
 **Default view.** Each admin may mark one view per screen as the default, stored in user meta (`meprmf_default_view_<screen>`). Opening the screen with no filter param in the URL — ours or a native MemberPress one — redirects to that view's params plus `meprmf_view=<id>`, so the URL still says what the list is filtered by. An explicit filter in the URL always wins, and applying an empty filter set writes `meprmf_view=none` so a cleared list is not immediately re-filtered by the default it was cleared of. Deleting a view clears it as every admin's default, not only the deleter's.
 
+### Scheduled exports
+
+Click **Schedule export** in the Filters card, or open **MemberPress > Scheduled exports**. Each saved view you can read has a form for daily, weekly, or monthly delivery. Choose a weekday for weekly exports and a recipient email; the default is your email address. Saving updates your schedule for that view and resumes it if paused. **Pause** stops delivery; **Delete schedule** removes it.
+
+Exports become due at 9 AM in the site timezone. Monthly exports use the first day of the month. WP-Cron runs them when the site next receives traffic, so delivery can be late. Each user can schedule a readable view independently; there is a site-wide limit of 100 schedules. The job checks the creator's permissions and the view's current visibility before querying. Deleted or inaccessible views, disabled list filters, query errors, and mail failures skip that occurrence. The next regular occurrence remains scheduled. The schedule shows the last delivery status; with `WP_DEBUG` enabled, the list's debug panel shows the last 20 failures.
+
+Email includes the site, view name, row count, and generation time. CSV columns come from the MemberPress list-table rows; spreadsheet formulas are escaped. CSV files up to 2 MB are attached. Larger files use a download link valid for 7 days. Anyone with the link can download without logging in, so treat it like the attached member data. Retained files are encrypted in uploads and are removed by the hourly cleanup job after expiry. OpenSSL is required for retained exports; rotating WordPress authentication salts invalidates their links. The `meprmf_export_attachment_threshold` filter changes the attachment limit in bytes.
+
+The plugin uses one hourly event. Deactivation stops it; reactivation registers it again. Uninstall removes schedules, retained exports, and the failure log. Exports load the matching row set into PHP memory, so the site's memory and execution limits still apply to large lists. Temporary attachments require a system temp directory outside the web root.
+
 ### Filters by screen
 
 | Filter | Members `mpm_*` | Transactions `mpmt_*` | Subscriptions `mpms_*` | Lifetimes `mpml_*` |

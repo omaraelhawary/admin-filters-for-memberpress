@@ -1,0 +1,4 @@
+ID,email,note
+12,member@example.test,"'=HYPERLINK(""bad"")"
+13,,"line one
+line two"

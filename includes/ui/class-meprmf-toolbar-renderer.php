@@ -415,6 +415,9 @@ class Meprmf_Toolbar_Renderer
             esc_html__('Pin to menu', 'admin-filters-for-memberpress')
         );
 
+        echo '<a href="' . esc_url(add_query_arg([ 'page' => 'meprmf-exports' ], admin_url('admin.php'))) . '">'
+            . esc_html__('Schedule export', 'admin-filters-for-memberpress') . '</a>';
+
         echo '<span class="meprmf-qb__spacer"></span>';
         echo '<span class="meprmf-qb__chips" data-meprmf-chips hidden></span>';
         echo '</div>';

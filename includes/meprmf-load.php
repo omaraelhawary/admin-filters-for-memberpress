@@ -30,6 +30,7 @@ require_once __DIR__ . '/ui/class-meprmf-debug-panel.php';
 require_once __DIR__ . '/class-meprmf-settings.php';
 require_once __DIR__ . '/admin/class-meprmf-settings-page.php';
 require_once __DIR__ . '/class-meprmf-presets.php';
+require_once __DIR__ . '/class-meprmf-scheduled-exports.php';
 require_once __DIR__ . '/bulk/class-meprmf-bulk-set-meta.php';
 require_once __DIR__ . '/bulk/class-meprmf-bulk-runner.php';
 require_once __DIR__ . '/bulk/class-meprmf-bulk-match-set.php';

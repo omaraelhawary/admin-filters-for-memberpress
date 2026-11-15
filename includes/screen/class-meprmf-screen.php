@@ -50,6 +50,12 @@ class Meprmf_Screen
         self::$cli_context = $ctx instanceof Meprmf_Screen_Context ? $ctx : null;
     }
 
+    /** Current background-query override, for callers that must restore it afterward. */
+    public static function get_cli_context()
+    {
+        return self::$cli_context;
+    }
+
     /**
      * Resolve context for the current admin request, or null if unsupported / unknown.
      *

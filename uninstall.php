@@ -9,6 +9,14 @@ if (! defined('WP_UNINSTALL_PLUGIN')) {
     exit;
 }
 
+require_once __DIR__ . '/includes/class-meprmf-scheduled-exports.php';
+Meprmf_Scheduled_Exports::deactivate();
+Meprmf_Scheduled_Exports::cleanup(true);
+foreach ([ 'meprmf_export_schedules', 'meprmf_export_runs', 'meprmf_export_log', 'meprmf_export_lock' ] as $meprmf_option) {
+    delete_option($meprmf_option);
+}
+unset($meprmf_option);
+
 // Legacy option from older releases; harmless if already absent.
 delete_option('meprmf_additional_filters');
 delete_option('meprmf_filter_presets');
