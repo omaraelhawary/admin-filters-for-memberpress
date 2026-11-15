@@ -32,6 +32,10 @@ if (! defined('MEPRMF_VERSION')) {
 require_once __DIR__ . '/includes/meprmf-load.php';
 require_once __DIR__ . '/compat/legacy-functions.php';
 
+register_activation_hook(__FILE__, [ 'Meprmf_Scheduled_Exports', 'activate' ]);
+register_deactivation_hook(__FILE__, [ 'Meprmf_Scheduled_Exports', 'deactivate' ]);
+Meprmf_Scheduled_Exports::init();
+
 // Registered outside the MemberPress gate below, so `wp meprmf list` on a site without
 // MemberPress says so instead of WP-CLI reporting an unknown command.
 if (defined('WP_CLI') && WP_CLI) {

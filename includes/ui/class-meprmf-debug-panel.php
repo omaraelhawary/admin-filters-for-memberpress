@@ -44,6 +44,13 @@ class Meprmf_Debug_Panel
             return;
         }
 
+        $export_log = (array) get_option('meprmf_export_log', []);
+        if ($export_log) {
+            echo '<div class="notice notice-warning"><p>' . esc_html__('Scheduled export failures', 'admin-filters-for-memberpress') . '</p><pre>';
+            echo esc_html(implode("\n", $export_log));
+            echo '</pre></div>';
+        }
+
         $meta_fragments = Meprmf_Predicate_Builder::get_last_fragments();
         $mepr_fragments = Meprmf_Mepr_Predicate_Builder::get_last_fragments();
         $passes         = Meprmf_Plugin::get_filter_pass_count();
