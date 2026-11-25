@@ -293,7 +293,7 @@ class Meprmf_Scheduled_Exports
             throw $error;
         } finally {
             if ($temporary) {
-                unlink($temporary);
+                wp_delete_file($temporary);
             }
         }
     }
@@ -305,6 +305,7 @@ class Meprmf_Scheduled_Exports
         foreach ($rows as $row) {
             $columns = array_values(array_unique(array_merge($columns, array_keys((array) $row))));
         }
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- CSV uses an in-memory stream, not a filesystem path.
         $stream = fopen('php://memory', 'w+');
         if (false === $stream) {
             throw new RuntimeException('CSV stream unavailable.');
@@ -331,6 +332,7 @@ class Meprmf_Scheduled_Exports
             }
             return $csv;
         } finally {
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Close the in-memory CSV stream.
             fclose($stream);
         }
     }
@@ -383,18 +385,20 @@ class Meprmf_Scheduled_Exports
         if (! $path) {
             throw new RuntimeException('Temporary file unavailable.');
         }
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename -- Preserve the private local tempfile without remote filesystem credentials.
         if (! rename($path, $path . '.csv')) {
-            unlink($path);
+            wp_delete_file($path);
             throw new RuntimeException('Temporary file unavailable.');
         }
         $path .= '.csv';
         try {
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_chmod -- Require private local permissions before writing member data.
             if (! chmod($path, 0600) || file_put_contents($path, $csv) !== strlen($csv)) {
                 throw new RuntimeException('Export write failed.');
             }
             return $path;
         } catch (Throwable $error) {
-            unlink($path);
+            wp_delete_file($path);
             throw $error;
         }
     }
@@ -473,8 +477,12 @@ class Meprmf_Scheduled_Exports
         $runs = (array) get_option(self::RUNS, []);
         if (isset($runs[$token])) {
             $path = self::path($runs[$token]['file']);
-            if (is_file($path) && ! unlink($path)) {
-                return;
+            if (is_file($path)) {
+                wp_delete_file($path);
+                clearstatcache(true, $path);
+                if (is_file($path)) {
+                    return;
+                }
             }
             unset($runs[$token]);
             update_option(self::RUNS, $runs, false);
@@ -584,7 +592,7 @@ class Meprmf_Scheduled_Exports
         }
         echo '</select></label> <label>' . esc_html__('Weekday (weekly only)', 'admin-filters-for-memberpress') . ' <select name="weekday">';
         for ($day = 0; $day < 7; ++$day) {
-            echo '<option value="' . $day . '"' . selected($row['weekday'], $day, false) . '>' . esc_html(wp_date('l', strtotime('Sunday +' . $day . ' days'), new DateTimeZone('UTC'))) . '</option>';
+            echo '<option value="' . esc_attr($day) . '"' . selected($row['weekday'], $day, false) . '>' . esc_html(wp_date('l', strtotime('Sunday +' . $day . ' days'), new DateTimeZone('UTC'))) . '</option>';
         }
         echo '</select></label> <label>' . esc_html__('Recipient email', 'admin-filters-for-memberpress')
             . ' <input type="email" name="recipient" required value="' . esc_attr($row['recipient']) . '"></label></p>';
