@@ -108,6 +108,7 @@ Your default saved view is not applied here. wp-admin opens the list with it, th
 
 = 2.3.0 =
 
+* Verified compatibility with WordPress 7.2 and PHP 8.6; resolved Plugin Check findings.
 * Settings screen at **MemberPress -> Admin Filters**: choose which of the four lists show filters, turn the **Filters** card on or off, set whether custom date fields start as a from / to range, and pick who may create shared saved views.
 * Turning a list off there stops this plugin on that list, down to the columns and the query conditions. Saved views for that list stay in the database and come back when you turn it on again.
 * Creating a shared saved view now needs the capability chosen on that screen. The default is administrators who can manage options. Private views stay open to any administrator who can use the filters, and views already saved are untouched.
