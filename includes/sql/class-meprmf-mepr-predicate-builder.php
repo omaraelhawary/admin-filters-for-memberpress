@@ -693,14 +693,13 @@ class Meprmf_Mepr_Predicate_Builder
             return '';
         }
 
-        $column   = 'sub.subscr_id';
         $operator = Meprmf_Util::get_field_operator(Meprmf_Util::range_base_param($field), $field);
 
         if ('is_empty' === $operator) {
-            return "( {$column} IS NULL OR {$column} = '' )";
+            return "( sub.subscr_id IS NULL OR sub.subscr_id = '' )";
         }
         if ('is_not_empty' === $operator) {
-            return "( {$column} IS NOT NULL AND {$column} <> '' )";
+            return "( sub.subscr_id IS NOT NULL AND sub.subscr_id <> '' )";
         }
 
         $raw = self::string_param($values, $param);
@@ -709,20 +708,20 @@ class Meprmf_Mepr_Predicate_Builder
         }
 
         if ('is' === $operator) {
-            return $wpdb->prepare("{$column} = %s", $raw);
+            return $wpdb->prepare('sub.subscr_id = %s', $raw);
         }
         if ('is_not' === $operator) {
-            return $wpdb->prepare("( {$column} IS NULL OR {$column} <> %s )", $raw);
+            return $wpdb->prepare('( sub.subscr_id IS NULL OR sub.subscr_id <> %s )', $raw);
         }
 
         $like = '%' . $wpdb->esc_like($raw) . '%';
 
         if ('not_contains' === $operator) {
-            return $wpdb->prepare("( {$column} IS NULL OR {$column} NOT LIKE %s )", $like);
+            return $wpdb->prepare('( sub.subscr_id IS NULL OR sub.subscr_id NOT LIKE %s )', $like);
         }
 
         // No operator, or `contains`: a text field's own match mode is a substring match.
-        return $wpdb->prepare("{$column} LIKE %s", $like);
+        return $wpdb->prepare('sub.subscr_id LIKE %s', $like);
     }
 
     /**

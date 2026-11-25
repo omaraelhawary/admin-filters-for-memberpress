@@ -350,7 +350,8 @@ class ScheduledExportsTest extends TestCase
 
     public static function downloadModes(): array
     {
-        return [ [ 'valid', 200, "ID\n12\n" ], [ 'unknown', 404, '' ], [ 'expired', 404, '' ], [ 'malformed', 404, '' ] ];
+        return [ [ 'valid', 200, "ID\n12\n" ], [ 'unknown', 404, '' ], [ 'expired', 404, '' ],
+            [ 'malformed', 404, '' ], [ 'decorated', 404, '' ], [ 'newline', 404, '' ], [ 'missing', 404, '' ] ];
     }
 
     public function test_deleted_id_cannot_resolve_to_a_different_preset_with_the_same_name()

@@ -48,6 +48,7 @@ class Meprmf_Scheduled_Exports
     private static function unlock($value)
     {
         global $wpdb;
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Compare-and-delete prevents a stale worker from releasing another worker's lease.
         $wpdb->query($wpdb->prepare(
             "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s",
             self::LOCK,
@@ -247,6 +248,7 @@ class Meprmf_Scheduled_Exports
         }
         $predicate_params = array_diff($known, [ Meprmf_Util::MATCH_MODE_PARAM ]);
         $previous_context = Meprmf_Screen::get_cli_context();
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Cron preserves the request before applying validated saved filters.
         $previous_get = $_GET;
         $_GET = $params;
         Meprmf_Screen::set_cli_context($ctx);
@@ -375,7 +377,9 @@ class Meprmf_Scheduled_Exports
             throw new RuntimeException('Private temporary directory unavailable.');
         }
         $uploads = wp_upload_dir();
-        foreach ([ ABSPATH, $_SERVER['DOCUMENT_ROOT'] ?? ABSPATH, $uploads['basedir'] ] as $public) {
+        $document_root = isset($_SERVER['DOCUMENT_ROOT']) && is_string($_SERVER['DOCUMENT_ROOT'])
+            ? sanitize_text_field(wp_unslash($_SERVER['DOCUMENT_ROOT'])) : ABSPATH;
+        foreach ([ ABSPATH, $document_root, $uploads['basedir'] ] as $public) {
             $public = realpath($public);
             if ($public && ($dir === $public || strpos($dir . '/', rtrim($public, '/') . '/') === 0)) {
                 throw new RuntimeException('Private temporary directory unavailable.');
@@ -458,7 +462,9 @@ class Meprmf_Scheduled_Exports
 
     public static function download()
     {
-        $csv = self::read_download($_GET['token'] ?? null);
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Email download links use an expiring bearer token, not a logged-in user's nonce.
+        $token = filter_var(wp_unslash($_GET['token'] ?? null), FILTER_VALIDATE_REGEXP, [ 'options' => [ 'regexp' => '/^[a-f0-9]{64}$/D' ] ]);
+        $csv = self::read_download($token);
         nocache_headers();
         header('Referrer-Policy: no-referrer');
         if (null === $csv) {
@@ -524,6 +530,7 @@ class Meprmf_Scheduled_Exports
         check_admin_referer('meprmf_export_schedule');
         $input = [];
         foreach ([ 'id', 'screen', 'preset', 'frequency', 'weekday', 'recipient', 'operation' ] as $key) {
+            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- change() validates IDs, enums, integer bounds and email; preserve malformed input for rejection.
             $input[$key] = isset($_POST[$key]) && is_string($_POST[$key]) ? wp_unslash($_POST[$key]) : '';
         }
         $result = self::change($input['operation'], $input);
@@ -538,8 +545,10 @@ class Meprmf_Scheduled_Exports
         }
         echo '<div class="wrap"><h1>' . esc_html__('Scheduled exports', 'admin-filters-for-memberpress') . '</h1>';
         echo '<p>' . esc_html__('Exports run at 9 AM in the site timezone, when WP-Cron next runs. Monthly exports run on the first day. Saving resumes a paused schedule. Download links expire after 7 days.', 'admin-filters-for-memberpress') . '</p>';
-        if (isset($_GET['result']) && is_string($_GET['result'])) {
-            echo '<p role="status">' . esc_html('saved' === $_GET['result'] ? __('Schedule updated.', 'admin-filters-for-memberpress') : __('Schedule could not be updated. Check the fields or try again.', 'admin-filters-for-memberpress')) . '</p>';
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only status text; schedule changes require a nonce in manage().
+        $result = isset($_GET['result']) && is_string($_GET['result']) ? sanitize_key(wp_unslash($_GET['result'])) : '';
+        if ('' !== $result) {
+            echo '<p role="status">' . esc_html('saved' === $result ? __('Schedule updated.', 'admin-filters-for-memberpress') : __('Schedule could not be updated. Check the fields or try again.', 'admin-filters-for-memberpress')) . '</p>';
         }
         foreach (Meprmf_Screen::supported_page_contexts() as $ctx) {
             if (! $ctx->supports_meta_filters_list()) {

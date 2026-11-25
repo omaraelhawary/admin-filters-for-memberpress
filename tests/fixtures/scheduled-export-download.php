@@ -14,6 +14,12 @@ if ('expired' === $mode) {
     $_GET['token'] = str_repeat('0', 64);
 } elseif ('malformed' === $mode) {
     $_GET['token'] = [ 'bad' ];
+} elseif ('decorated' === $mode) {
+    $_GET['token'] = '<b>' . $run['token'] . '</b>';
+} elseif ('newline' === $mode) {
+    $_GET['token'] = $run['token'] . "\n";
+} elseif ('missing' === $mode) {
+    unset($_GET['token']);
 }
 ob_start();
 register_shutdown_function(static function () {

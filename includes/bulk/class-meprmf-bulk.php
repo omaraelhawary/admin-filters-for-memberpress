@@ -124,8 +124,8 @@ class Meprmf_Bulk
                     'user_ids'          => $match['user_ids'],
                     'rows'              => (int) $match['rows'],
                     'members'           => count($match['user_ids']),
-                    'meta_key'          => (string) $validated['key'],
-                    'meta_value'        => (string) $validated['value'],
+                    'meta_key'          => (string) $validated['key'], // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Validated snapshot data, not a metadata query.
+                    'meta_value'        => (string) $validated['value'], // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Validated snapshot data, not a metadata query.
                     'query_fingerprint' => Meprmf_Bulk_Snapshot::query_fingerprint($request),
                 ]
             );
