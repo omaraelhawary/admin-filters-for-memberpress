@@ -1033,7 +1033,9 @@ class Meprmf_Presets
         if (! function_exists('wp_doing_ajax') || wp_doing_ajax() || wp_doing_cron()) {
             return;
         }
-        if (empty($_SERVER['REQUEST_METHOD']) || 'GET' !== strtoupper((string) $_SERVER['REQUEST_METHOD'])) {
+        $request_method = isset($_SERVER['REQUEST_METHOD']) && is_string($_SERVER['REQUEST_METHOD'])
+            ? strtoupper(sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD']))) : '';
+        if ('GET' !== $request_method) {
             return;
         }
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only list screen params.

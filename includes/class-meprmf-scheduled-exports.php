@@ -48,6 +48,7 @@ class Meprmf_Scheduled_Exports
     private static function unlock($value)
     {
         global $wpdb;
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Compare-and-delete prevents a stale worker from releasing another worker's lease.
         $wpdb->query($wpdb->prepare(
             "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s",
             self::LOCK,
@@ -247,6 +248,7 @@ class Meprmf_Scheduled_Exports
         }
         $predicate_params = array_diff($known, [ Meprmf_Util::MATCH_MODE_PARAM ]);
         $previous_context = Meprmf_Screen::get_cli_context();
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Cron preserves the request before applying validated saved filters.
         $previous_get = $_GET;
         $_GET = $params;
         Meprmf_Screen::set_cli_context($ctx);
@@ -293,7 +295,7 @@ class Meprmf_Scheduled_Exports
             throw $error;
         } finally {
             if ($temporary) {
-                unlink($temporary);
+                wp_delete_file($temporary);
             }
         }
     }
@@ -305,6 +307,7 @@ class Meprmf_Scheduled_Exports
         foreach ($rows as $row) {
             $columns = array_values(array_unique(array_merge($columns, array_keys((array) $row))));
         }
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- CSV uses an in-memory stream, not a filesystem path.
         $stream = fopen('php://memory', 'w+');
         if (false === $stream) {
             throw new RuntimeException('CSV stream unavailable.');
@@ -331,6 +334,7 @@ class Meprmf_Scheduled_Exports
             }
             return $csv;
         } finally {
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Close the in-memory CSV stream.
             fclose($stream);
         }
     }
@@ -373,7 +377,9 @@ class Meprmf_Scheduled_Exports
             throw new RuntimeException('Private temporary directory unavailable.');
         }
         $uploads = wp_upload_dir();
-        foreach ([ ABSPATH, $_SERVER['DOCUMENT_ROOT'] ?? ABSPATH, $uploads['basedir'] ] as $public) {
+        $document_root = isset($_SERVER['DOCUMENT_ROOT']) && is_string($_SERVER['DOCUMENT_ROOT'])
+            ? sanitize_text_field(wp_unslash($_SERVER['DOCUMENT_ROOT'])) : ABSPATH;
+        foreach ([ ABSPATH, $document_root, $uploads['basedir'] ] as $public) {
             $public = realpath($public);
             if ($public && ($dir === $public || strpos($dir . '/', rtrim($public, '/') . '/') === 0)) {
                 throw new RuntimeException('Private temporary directory unavailable.');
@@ -383,18 +389,20 @@ class Meprmf_Scheduled_Exports
         if (! $path) {
             throw new RuntimeException('Temporary file unavailable.');
         }
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename -- Preserve the private local tempfile without remote filesystem credentials.
         if (! rename($path, $path . '.csv')) {
-            unlink($path);
+            wp_delete_file($path);
             throw new RuntimeException('Temporary file unavailable.');
         }
         $path .= '.csv';
         try {
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_chmod -- Require private local permissions before writing member data.
             if (! chmod($path, 0600) || file_put_contents($path, $csv) !== strlen($csv)) {
                 throw new RuntimeException('Export write failed.');
             }
             return $path;
         } catch (Throwable $error) {
-            unlink($path);
+            wp_delete_file($path);
             throw $error;
         }
     }
@@ -454,7 +462,9 @@ class Meprmf_Scheduled_Exports
 
     public static function download()
     {
-        $csv = self::read_download($_GET['token'] ?? null);
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Email download links use an expiring bearer token, not a logged-in user's nonce.
+        $token = filter_var(wp_unslash($_GET['token'] ?? null), FILTER_VALIDATE_REGEXP, [ 'options' => [ 'regexp' => '/^[a-f0-9]{64}$/D' ] ]);
+        $csv = self::read_download($token);
         nocache_headers();
         header('Referrer-Policy: no-referrer');
         if (null === $csv) {
@@ -473,8 +483,12 @@ class Meprmf_Scheduled_Exports
         $runs = (array) get_option(self::RUNS, []);
         if (isset($runs[$token])) {
             $path = self::path($runs[$token]['file']);
-            if (is_file($path) && ! unlink($path)) {
-                return;
+            if (is_file($path)) {
+                wp_delete_file($path);
+                clearstatcache(true, $path);
+                if (is_file($path)) {
+                    return;
+                }
             }
             unset($runs[$token]);
             update_option(self::RUNS, $runs, false);
@@ -516,6 +530,7 @@ class Meprmf_Scheduled_Exports
         check_admin_referer('meprmf_export_schedule');
         $input = [];
         foreach ([ 'id', 'screen', 'preset', 'frequency', 'weekday', 'recipient', 'operation' ] as $key) {
+            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- change() validates IDs, enums, integer bounds and email; preserve malformed input for rejection.
             $input[$key] = isset($_POST[$key]) && is_string($_POST[$key]) ? wp_unslash($_POST[$key]) : '';
         }
         $result = self::change($input['operation'], $input);
@@ -530,8 +545,10 @@ class Meprmf_Scheduled_Exports
         }
         echo '<div class="wrap"><h1>' . esc_html__('Scheduled exports', 'admin-filters-for-memberpress') . '</h1>';
         echo '<p>' . esc_html__('Exports run at 9 AM in the site timezone, when WP-Cron next runs. Monthly exports run on the first day. Saving resumes a paused schedule. Download links expire after 7 days.', 'admin-filters-for-memberpress') . '</p>';
-        if (isset($_GET['result']) && is_string($_GET['result'])) {
-            echo '<p role="status">' . esc_html('saved' === $_GET['result'] ? __('Schedule updated.', 'admin-filters-for-memberpress') : __('Schedule could not be updated. Check the fields or try again.', 'admin-filters-for-memberpress')) . '</p>';
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only status text; schedule changes require a nonce in manage().
+        $result = isset($_GET['result']) && is_string($_GET['result']) ? sanitize_key(wp_unslash($_GET['result'])) : '';
+        if ('' !== $result) {
+            echo '<p role="status">' . esc_html('saved' === $result ? __('Schedule updated.', 'admin-filters-for-memberpress') : __('Schedule could not be updated. Check the fields or try again.', 'admin-filters-for-memberpress')) . '</p>';
         }
         foreach (Meprmf_Screen::supported_page_contexts() as $ctx) {
             if (! $ctx->supports_meta_filters_list()) {
@@ -584,7 +601,7 @@ class Meprmf_Scheduled_Exports
         }
         echo '</select></label> <label>' . esc_html__('Weekday (weekly only)', 'admin-filters-for-memberpress') . ' <select name="weekday">';
         for ($day = 0; $day < 7; ++$day) {
-            echo '<option value="' . $day . '"' . selected($row['weekday'], $day, false) . '>' . esc_html(wp_date('l', strtotime('Sunday +' . $day . ' days'), new DateTimeZone('UTC'))) . '</option>';
+            echo '<option value="' . esc_attr($day) . '"' . selected($row['weekday'], $day, false) . '>' . esc_html(wp_date('l', strtotime('Sunday +' . $day . ' days'), new DateTimeZone('UTC'))) . '</option>';
         }
         echo '</select></label> <label>' . esc_html__('Recipient email', 'admin-filters-for-memberpress')
             . ' <input type="email" name="recipient" required value="' . esc_attr($row['recipient']) . '"></label></p>';

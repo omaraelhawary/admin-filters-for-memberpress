@@ -50,7 +50,8 @@ fi
 
 rsync -a \
   --delete \
-  --exclude='.git/' \
+  --exclude='.git' \
+  --exclude='.gitattributes' \
   --exclude='.github/' \
   --exclude='.cursor/' \
   --exclude='dist/' \

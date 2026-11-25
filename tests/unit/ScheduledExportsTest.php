@@ -288,6 +288,21 @@ class ScheduledExportsTest extends TestCase
         $this->assertNull(Exports::read_download($run['token']));
     }
 
+    public function test_cleanup_retains_manifest_when_wordpress_blocks_file_deletion()
+    {
+        $run = Exports::store('csv');
+        $path = $this->uploads . '/meprmf-exports/' . $run['file'];
+        add_filter('wp_delete_file', static function ($file) { return ''; });
+        Exports::cleanup(true);
+        $this->assertFileExists($path);
+        $this->assertArrayHasKey($run['token'], get_option(Exports::RUNS));
+
+        $GLOBALS['meprmf_test_filters']['wp_delete_file'] = [];
+        Exports::cleanup(true);
+        $this->assertFileDoesNotExist($path);
+        $this->assertSame([], get_option(Exports::RUNS));
+    }
+
     public function test_cleanup_is_bounded_and_delete_keeps_download_cleanup_scheduled()
     {
         $id = $this->create();
@@ -335,7 +350,8 @@ class ScheduledExportsTest extends TestCase
 
     public static function downloadModes(): array
     {
-        return [ [ 'valid', 200, "ID\n12\n" ], [ 'unknown', 404, '' ], [ 'expired', 404, '' ], [ 'malformed', 404, '' ] ];
+        return [ [ 'valid', 200, "ID\n12\n" ], [ 'unknown', 404, '' ], [ 'expired', 404, '' ],
+            [ 'malformed', 404, '' ], [ 'decorated', 404, '' ], [ 'newline', 404, '' ], [ 'missing', 404, '' ] ];
     }
 
     public function test_deleted_id_cannot_resolve_to_a_different_preset_with_the_same_name()

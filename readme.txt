@@ -2,7 +2,7 @@
 Contributors: omarelhawary
 Tags: memberpress, members, admin, filters, membership
 Requires at least: 5.6
-Tested up to: 7.1
+Tested up to: 7.2
 Requires PHP: 8.1
 Stable tag: 2.3.0
 License: GPLv2 or later
@@ -108,6 +108,7 @@ Your default saved view is not applied here. wp-admin opens the list with it, th
 
 = 2.3.0 =
 
+* Verified compatibility with WordPress 7.2 and PHP 8.6; resolved Plugin Check findings.
 * Settings screen at **MemberPress -> Admin Filters**: choose which of the four lists show filters, turn the **Filters** card on or off, set whether custom date fields start as a from / to range, and pick who may create shared saved views.
 * Turning a list off there stops this plugin on that list, down to the columns and the query conditions. Saved views for that list stay in the database and come back when you turn it on again.
 * Creating a shared saved view now needs the capability chosen on that screen. The default is administrators who can manage options. Private views stay open to any administrator who can use the filters, and views already saved are untouched.
@@ -260,9 +261,7 @@ Your default saved view is not applied here. wp-admin opens the list with it, th
 
 = 2.3.0 =
 
-Adds a Settings screen at MemberPress -> Admin Filters. All four options keep the behavior you have now, with one exception: creating a shared saved view now needs the capability set on that screen, which defaults to administrators who can manage options. Saved views and filter URLs are untouched, and no database migration runs.
-Adds a bulk action that sets one user meta key and value on every member in the filtered set. It needs `manage_options`, refuses to run unless an Admin Filters predicate is active, and shows the match count before anything is written. No database migration.
-Adds `wp meprmf list`, a WP-CLI command that prints a filtered MemberPress list outside the browser. Nothing in wp-admin changes.
+Adds Admin Filters settings, bulk user meta updates, and wp meprmf list. Shared views require the configured capability (manage_options by default). Bulk edits require manage_options and an active filter. Views and URLs keep working. No database migration.
 
 = 2.2.1 =
 
@@ -270,7 +269,7 @@ Performance only: the default-view check no longer collects every filterable fie
 
 = 2.2.0 =
 
-Adds Amount and Subscription filters on Transactions, a Transaction count filter on Subscriptions, and saved views that belong to an administrator (shared or private) with an optional default view per screen. Existing filter URLs and saved views keep working -- older views read as shared and unowned. No database migration.
+Adds transaction amount and subscription filters, subscription transaction counts, and shared or private saved views with per-screen defaults. Existing views and URLs keep working; older views stay shared and unowned. No database migration.
 
 = 2.1.1 =
 

@@ -21,6 +21,10 @@ function wp_get_current_user() { return (object) [ 'user_email' => 'owner@exampl
 function is_email($email) { return filter_var($email, FILTER_VALIDATE_EMAIL); }
 function wp_upload_dir() { return [ 'basedir' => $GLOBALS['export_uploads'], 'error' => false ]; }
 function wp_mkdir_p($dir) { return is_dir($dir) || mkdir($dir, 0700, true); }
+function wp_delete_file($file) {
+    $file = apply_filters('wp_delete_file', $file);
+    if ($file) { @unlink($file); }
+}
 function wp_salt($scheme) { return 'fixture-secret-not-a-real-wordpress-salt'; }
 function get_bloginfo($key) { return 'Fixture site'; }
 function wp_mail($to, $subject, $body, $headers, $attachments) {

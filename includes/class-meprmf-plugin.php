@@ -200,7 +200,7 @@ class Meprmf_Plugin
      * @param Meprmf_Screen_Context|null     $request_ctx   Admin page context supplying $_GET (defaults to predicate_ctx).
      * @return array<int, string>
      */
-    private static function apply_list_table_predicates(array $args, Meprmf_Screen_Context $predicate_ctx, Meprmf_Screen_Context $request_ctx = null)
+    private static function apply_list_table_predicates(array $args, Meprmf_Screen_Context $predicate_ctx, ?Meprmf_Screen_Context $request_ctx = null)
     {
         // Outer clock: the whole pass, so registry normalization and apply_match_mode() are inside
         // it. The inner try/finally keeps its own scope, because apply_match_mode() must read the
